@@ -10,38 +10,30 @@ import 'package:provider/provider.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:intl/intl.dart';
 
-import 'l10n/app_localizations.dart';
-import 'theme/app_theme.dart';
+// Новая архитектура Ayla
+import 'ayla_app.dart';
+import 'core/l10n/app_localizations.dart';
+import 'core/services/auth_service.dart';
+import 'core/services/notification_service.dart';
+import 'core/services/secure_storage_service.dart';
+import 'core/services/subscription_service.dart';
+import 'core/theme/app_theme.dart';
+import 'data/models/cycle_model.dart';
+import 'data/models/personal_model.dart';
+import 'data/providers/coc_provider.dart';
+import 'data/providers/cycle_provider.dart';
+import 'data/providers/prediction_provider.dart';
+import 'data/providers/settings_provider.dart';
+import 'data/providers/wellness_provider.dart';
 
-// Models
-import 'models/cycle_model.dart';
-import 'models/personal_model.dart';
-
-// Providers
-import 'providers/cycle_provider.dart';
-import 'providers/wellness_provider.dart';
-import 'providers/settings_provider.dart';
-import 'providers/prediction_provider.dart';
-import 'providers/coc_provider.dart';
-
-// Services
-import 'services/secure_storage_service.dart';
-import 'services/notification_service.dart';
-import 'services/auth_service.dart';
-import 'services/subscription_service.dart';
-
-// Screens
-import 'screens/splash_screen.dart';
-import 'screens/main_screen.dart';
-import 'screens/profile/profile_screen.dart';
-import 'screens/onboarding_screen.dart'; // 🔥 Добавлен импорт
+// Экраны
+import 'features/onboarding/onboarding_screen.dart';
+import 'features/onboarding/splash_screen.dart';
+import 'features/profile/profile_screen.dart';
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 void main() async {
-  // 🔥 УБРАНО ОТСЮДА: WidgetsFlutterBinding.ensureInitialized();
-  // (Оно должно быть внутри зоны, см. ниже)
-
   // ✅ Global error handling (production sanity)
   FlutterError.onError = (FlutterErrorDetails details) {
     FlutterError.presentError(details);
@@ -112,7 +104,7 @@ void main() async {
       },
     );
 
-    runApp(EviMoonAppRoot(
+    runApp(AylaAppRoot(
       settingsBox: settingsBox,
       cycleBox: cycleBox,
       wellnessBox: wellnessBox,
@@ -147,7 +139,7 @@ Future<Box> _openBoxSafely(String name) async {
   }
 }
 
-class EviMoonAppRoot extends StatelessWidget {
+class AylaAppRoot extends StatelessWidget {
   final Box settingsBox;
   final Box cycleBox;
   final Box wellnessBox;
@@ -155,7 +147,7 @@ class EviMoonAppRoot extends StatelessWidget {
   final SecureStorageService storageService;
   final NotificationService notificationService;
 
-  const EviMoonAppRoot({
+  const AylaAppRoot({
     super.key,
     required this.settingsBox,
     required this.cycleBox,
@@ -188,13 +180,13 @@ class EviMoonAppRoot extends StatelessWidget {
           create: (_) => PredictionProvider()..init(),
         ),
       ],
-      child: const EviMoonApp(),
+      child: const AylaApp(),
     );
   }
 }
 
-class EviMoonApp extends StatelessWidget {
-  const EviMoonApp({super.key});
+class AylaApp extends StatelessWidget {
+  const AylaApp({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -207,7 +199,7 @@ class EviMoonApp extends StatelessWidget {
     }
 
     return MaterialApp(
-      title: 'EviMoon',
+      title: 'Ayla',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
 
@@ -219,8 +211,8 @@ class EviMoonApp extends StatelessWidget {
         Locale('es'), // Español
         Locale('de'), // Deutsch
         Locale('pt'), // Português
-        Locale('tr'), // 🔥 ДОБАВЛЕНО: Türkçe
-        Locale('pl'), // 🔥 ДОБАВЛЕНО: Polski
+        Locale('tr'), // Türkçe
+        Locale('pl'), // Polski
       ],
 
       localeResolutionCallback: (deviceLocale, supportedLocales) {
@@ -245,10 +237,13 @@ class EviMoonApp extends StatelessWidget {
         '/profile': (context) => const Scaffold(
           body: SafeArea(child: ProfileScreen()),
         ),
+        // '/calendar' перенаправляет на корневую оболочку,
+        // так как календарь теперь является частью плавающего меню в MainScreen
         '/calendar': (context) => const MainScreen(),
-        // 🔥 Добавлен маршрут для Онбординга (используется в Splash)
         '/onboarding': (context) => const OnboardingScreen(),
       },
+      // Точка входа в приложение закрыта проверкой биометрии (AuthGuard),
+      // которая затем вызывает SplashScreen
       home: const AuthGuard(child: SplashScreen()),
     );
   }
@@ -292,9 +287,8 @@ class _AuthGuardState extends State<AuthGuard> {
     final bool canCheck = await auth.canCheckBiometrics;
 
     if (canCheck) {
-      // Используем безопасный доступ к локализации или хардкод для системного диалога
-      // (так как context может быть еще не полностью готов для локализации в initState)
-      final reason = "Scan to unlock EviMoon";
+      // Заменили название на Ayla
+      final reason = "Scan to unlock Ayla";
 
       final bool success = await auth.authenticate(reason);
 
@@ -336,7 +330,7 @@ class _AuthGuardState extends State<AuthGuard> {
             Icon(Icons.lock_outline, size: 64, color: AppColors.primary),
             const SizedBox(height: 24),
             Text(
-              l10n?.authLockedTitle ?? "EviMoon Locked",
+              l10n?.authLockedTitle ?? "Ayla Locked", // Заменили название на Ayla
               style: GoogleFonts.manrope(
                 fontSize: 22,
                 fontWeight: FontWeight.w800,
