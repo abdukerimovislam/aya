@@ -10,7 +10,9 @@ import '../../core/l10n/app_localizations.dart';
 import '../../core/theme/app_theme.dart';
 import '../../data/models/cycle_model.dart';
 import '../../data/providers/wellness_provider.dart';
-import '../../shared/widgets/vision_card.dart';
+
+// 🔥 Обновленный импорт
+import '../../shared/widgets/premium_glass_card.dart';
 
 class SymptomLogScreen extends StatefulWidget {
   final DateTime date;
@@ -28,7 +30,6 @@ class _SymptomLogScreenState extends State<SymptomLogScreen> {
   @override
   void initState() {
     super.initState();
-    // Инициализируем данные текущего дня
     final provider = Provider.of<WellnessProvider>(context, listen: false);
     _currentLog = provider.getLogForDate(widget.date);
   }
@@ -45,9 +46,9 @@ class _SymptomLogScreenState extends State<SymptomLogScreen> {
     }
   }
 
-  // Обновление конкретного списка симптомов
   void _toggleSymptom(String symptom, bool isPain) {
     HapticFeedback.selectionClick();
+    SystemSound.play(SystemSoundType.click); // 🔥 АУДИО-КЛИК
     setState(() {
       if (isPain) {
         final list = List<String>.from(_currentLog.painSymptoms);
@@ -107,14 +108,13 @@ class _SymptomLogScreenState extends State<SymptomLogScreen> {
           physics: const BouncingScrollPhysics(),
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
           children: [
-            // 1. Интенсивность выделений
             Text(
               l10n.logFlow.toUpperCase(),
               style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.textSecondary, letterSpacing: 1.0),
             ),
             const SizedBox(height: 12),
-            VisionCard(
-              isGlass: true,
+            // 🔥 Заменили VisionCard на PremiumGlassCard
+            PremiumGlassCard(
               padding: const EdgeInsets.all(16),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -128,14 +128,13 @@ class _SymptomLogScreenState extends State<SymptomLogScreen> {
 
             const SizedBox(height: 32),
 
-            // 2. Настроение
             Text(
               l10n.logMood.toUpperCase(),
               style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.textSecondary, letterSpacing: 1.0),
             ),
             const SizedBox(height: 12),
-            VisionCard(
-              isGlass: true,
+            // 🔥 Заменили VisionCard на PremiumGlassCard
+            PremiumGlassCard(
               padding: const EdgeInsets.symmetric(vertical: 16),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -151,7 +150,6 @@ class _SymptomLogScreenState extends State<SymptomLogScreen> {
 
             const SizedBox(height: 32),
 
-            // 3. Симптомы (Боль)
             Text(
               l10n.logPain.toUpperCase(),
               style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.textSecondary, letterSpacing: 1.0),
@@ -170,7 +168,6 @@ class _SymptomLogScreenState extends State<SymptomLogScreen> {
 
             const SizedBox(height: 32),
 
-            // 4. Симптомы (Тело)
             Text(
               l10n.logSymptoms.toUpperCase(),
               style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.textSecondary, letterSpacing: 1.0),
@@ -195,8 +192,6 @@ class _SymptomLogScreenState extends State<SymptomLogScreen> {
     );
   }
 
-  // --- Виджеты-компоненты ---
-
   Widget _buildFlowButton(FlowIntensity flow, String label, AppLocalizations l10n) {
     final isSelected = _currentLog.flow == flow;
     final color = AppColors.menstruation;
@@ -204,6 +199,7 @@ class _SymptomLogScreenState extends State<SymptomLogScreen> {
     return GestureDetector(
       onTap: () {
         HapticFeedback.selectionClick();
+        SystemSound.play(SystemSoundType.click); // 🔥 АУДИО-КЛИК
         setState(() {
           _currentLog = _currentLog.copyWith(
             flow: isSelected ? FlowIntensity.none : flow,
@@ -246,9 +242,10 @@ class _SymptomLogScreenState extends State<SymptomLogScreen> {
     return GestureDetector(
       onTap: () {
         HapticFeedback.selectionClick();
+        SystemSound.play(SystemSoundType.click); // 🔥 АУДИО-КЛИК
         setState(() {
           _currentLog = _currentLog.copyWith(
-            mood: isSelected ? 3 : level, // 3 - это нейтрально по умолчанию
+            mood: isSelected ? 3 : level,
           );
         });
       },

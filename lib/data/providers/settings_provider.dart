@@ -37,10 +37,10 @@ class SettingsProvider extends ChangeNotifier {
   bool _isTTCMode = false;
   bool _dailyLogEnabled = false;
 
-  TimerDesign _currentDesign = TimerDesign.classic;
+  // 🔥 ТЕПЕРЬ ПО УМОЛЧАНИЮ ЖИВОЕ ОБЛАКО (NEBULA)
+  TimerDesign _currentDesign = TimerDesign.nebula;
   bool _isPremium = false;
 
-  // ✅ ИСПРАВЛЕНО: Тема по умолчанию - Oceanic
   AppThemeType _currentTheme = AppThemeType.digital;
 
   String _userName = "User";
@@ -63,8 +63,7 @@ class SettingsProvider extends ChangeNotifier {
   int get cocActivePills => _box.get(_keyCOCActive, defaultValue: 21);
   int get cocBreakDays => _box.get(_keyCOCBreak, defaultValue: 7);
 
-  // 🔥 ВАЖНО: Проверка, выбрал ли пользователь язык явно
-  // Используется в SplashScreen для навигации
+  // ВАЖНО: Проверка, выбрал ли пользователь язык явно
   bool get isLanguageExplicitlySet => _box.containsKey(_keyLanguage);
 
   SettingsProvider(this._box, this._storageService, this._notificationService) {
@@ -94,9 +93,8 @@ class SettingsProvider extends ChangeNotifier {
       _notificationsEnabled = false;
       _biometricsEnabled = false;
       _dailyLogEnabled = false;
-      _currentDesign = TimerDesign.classic;
+      _currentDesign = TimerDesign.nebula; // 🔥 Дефолт для новых пользователей
       _isPremium = false;
-      // ✅ ИСПРАВЛЕНО: Сброс на Oceanic
       _currentTheme = AppThemeType.oceanic;
       _userName = "User";
       _userAvatar = "👩";
@@ -125,25 +123,21 @@ class SettingsProvider extends ChangeNotifier {
       }
     }
 
-    // 1. Пытаемся загрузить язык из Hive
+    // Загрузка языка
     final savedLang = _box.get(_keyLanguage) as String?;
 
     if (savedLang != null) {
       _locale = Locale(savedLang);
     } else {
-      // 2. Если в Hive нет, пробуем SecureStorage (миграция старых пользователей)
       final secureLang = await _storageService.getLanguage();
       if (secureLang != null) {
         _locale = Locale(secureLang);
-        await _box.put(_keyLanguage, secureLang); // Мигрируем в Hive
+        await _box.put(_keyLanguage, secureLang);
       } else {
-        // 3. Авто-определение языка системы (только для дефолта, пока юзер не выберет)
         try {
           final sysLocales = WidgetsBinding.instance.platformDispatcher.locales;
           if (sysLocales.isNotEmpty) {
             final sysCode = sysLocales.first.languageCode;
-
-            // ✅ ИСПРАВЛЕНО: 'br' -> 'pt' (код языка португальский)
             if (['ru', 'es', 'de', 'pt', 'tr', 'pl'].contains(sysCode)) {
               _locale = Locale(sysCode);
             } else {
@@ -201,9 +195,9 @@ class SettingsProvider extends ChangeNotifier {
         await _box.put(_keyPremium, _isPremium);
 
         if (!_isPremium && _currentDesign.isPremium) {
-          debugPrint("⚠️ SettingsProvider: Premium lost, resetting design to Classic");
-          _currentDesign = TimerDesign.classic;
-          await _box.put(_keyDesign, TimerDesign.classic.index);
+          debugPrint("⚠️ SettingsProvider: Premium lost, resetting design to Nebula");
+          _currentDesign = TimerDesign.nebula; // 🔥 Сброс на дефолт
+          await _box.put(_keyDesign, TimerDesign.nebula.index);
         }
         notifyListeners();
       }
@@ -222,9 +216,7 @@ class SettingsProvider extends ChangeNotifier {
     if (_locale == locale) return;
     _locale = locale;
 
-    // Сохраняем в Hive (это делает isLanguageExplicitlySet = true)
     await _box.put(_keyLanguage, locale.languageCode);
-    // И в SecureStorage для надежности
     await _storageService.saveLanguage(locale.languageCode);
 
     notifyListeners();
@@ -237,8 +229,6 @@ class SettingsProvider extends ChangeNotifier {
     if (!value) {
       await _notificationService.cancelAll();
     }
-    // Если включили - UI должен вызвать CycleProvider.rescheduleNotifications()
-
     notifyListeners();
   }
 
@@ -255,7 +245,6 @@ class SettingsProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  // 🔥 Новое: Настройка таблеток через глобальные настройки
   Future<void> setCOCSettings(int active, int brk) async {
     await _box.put(_keyCOCActive, active);
     await _box.put(_keyCOCBreak, brk);
@@ -286,8 +275,8 @@ class SettingsProvider extends ChangeNotifier {
     await _box.put(_keyPremium, status);
 
     if (!status && _currentDesign.isPremium) {
-      _currentDesign = TimerDesign.classic;
-      await _box.put(_keyDesign, TimerDesign.classic.index);
+      _currentDesign = TimerDesign.nebula; // 🔥 Сброс на дефолт
+      await _box.put(_keyDesign, TimerDesign.nebula.index);
     }
 
     notifyListeners();
@@ -307,22 +296,21 @@ class SettingsProvider extends ChangeNotifier {
     }
   }
 
-  // 🔥 Новое: Полный сброс данных (Danger Zone)
+  // --- СБРОС ---
   Future<void> wipeData() async {
     await _box.clear();
     await _storageService.clearAll();
 
-    // Сбрасываем переменные в памяти
     _isTTCMode = false;
     _notificationsEnabled = false;
     _biometricsEnabled = false;
     _dailyLogEnabled = false;
-    _currentDesign = TimerDesign.classic;
+    _currentDesign = TimerDesign.nebula; // 🔥 Сброс на дефолт
     _isPremium = false;
     _userName = "User";
     _userAvatar = "👩";
 
-    await _loadSettings(); // Перезагружаем дефолты
+    await _loadSettings();
     notifyListeners();
   }
 }

@@ -8,6 +8,7 @@ enum TimerDesign {
   liquid,  // 5. Жидкость
   orbit,   // 6. Орбита
   zen,     // 7. Градиент
+  nebula,  // 8. Живое облако (Новый дефолт)
 }
 
 extension TimerDesignExt on TimerDesign {
@@ -20,12 +21,14 @@ extension TimerDesignExt on TimerDesign {
       case TimerDesign.liquid:  return "Hydro Flow";
       case TimerDesign.orbit:   return "Star Orbit";
       case TimerDesign.zen:     return "Zen Aura";
+      case TimerDesign.nebula:  return "Living Nebula"; // 🔥 Добавили название для нашего облака
     }
   }
 
   bool get isPremium {
     switch (this) {
       case TimerDesign.classic: return false; // Бесплатно
+      case TimerDesign.nebula:  return false; // 🔥 Сделали бесплатным, т.к. это дизайн по умолчанию
       default: return true; // Все остальные - премиум
     }
   }
@@ -39,6 +42,7 @@ extension TimerDesignExt on TimerDesign {
       case TimerDesign.liquid:  return Icons.water_drop_rounded;
       case TimerDesign.orbit:   return Icons.public_rounded;
       case TimerDesign.zen:     return Icons.blur_on_rounded;
+      case TimerDesign.nebula:  return Icons.blur_circular_rounded; // 🔥 Добавили иконку для шторки палитры
     }
   }
 }

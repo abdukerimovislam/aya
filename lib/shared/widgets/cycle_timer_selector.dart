@@ -13,6 +13,7 @@ import 'timers/bloom_timer_widget.dart';
 import 'timers/liquid_timer_widget.dart';
 import 'timers/orbit_timer_widget.dart';
 import 'timers/zen_timer_widget.dart';
+import 'timers/nebula_timer_widget.dart'; // 🔥 ИМПОРТ НАШЕГО НОВОГО ТАЙМЕРА
 
 class CycleTimerSelector extends StatelessWidget {
   final CycleData data;
@@ -57,24 +58,22 @@ class CycleTimerSelector extends StatelessWidget {
         return MinimalTimerWidget(key: const ValueKey('minimal'), data: data, isCOC: isCOC);
 
       case TimerDesign.lunar:
-      // return LunarTimerWidget(key: const ValueKey('lunar'), data: data, isCOC: isCOC);
         return LunarTimerWidget(key: const ValueKey('lunar_stub'), data: data, isCOC: isCOC); // Заглушка
 
       case TimerDesign.bloom:
-      // return BloomTimerWidget(key: const ValueKey('bloom'), data: data, isCOC: isCOC);
         return BloomTimerWidget(key: const ValueKey('bloom_stub'), data: data, isCOC: isCOC); // Заглушка
 
       case TimerDesign.liquid:
-      // return LiquidTimerWidget(key: const ValueKey('liquid'), data: data, isCOC: isCOC);
         return LiquidTimerWidget(key: const ValueKey('liquid_stub'), data: data, isCOC: isCOC); // Заглушка
 
       case TimerDesign.orbit:
-      // return OrbitTimerWidget(key: const ValueKey('orbit'), data: data, isCOC: isCOC);
         return OrbitTimerWidget(key: const ValueKey('orbit_stub'), data: data, isCOC: isCOC); // Заглушка
 
       case TimerDesign.zen:
-      // return ZenTimerWidget(key: const ValueKey('zen'), data: data, isCOC: isCOC);
         return ZenTimerWidget(key: const ValueKey('zen_stub'), data: data, isCOC: isCOC); // Заглушка
+
+      case TimerDesign.nebula: // 🔥 ДОБАВЛЕН ДИЗАЙН NEBULA
+        return NebulaTimerWidget(key: const ValueKey('nebula'), data: data, isCOC: isCOC);
     }
   }
 }

@@ -1,13 +1,14 @@
-import 'package:evimoon/features/profile/premium_paywall_sheet.dart';
-import 'package:evimoon/features/profile/theme_selector_sheet.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:provider/provider.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'dart:ui'; // Для размытия в AppBar
+import 'dart:ui';
 
-
+import 'premium_paywall_sheet.dart';
+import 'theme_selector_sheet.dart';
+import 'profile_logic_mixin.dart';
+import 'profile_settings_list.dart';
 
 import '../../core/l10n/app_localizations.dart';
 import '../../core/services/backup_service.dart';
@@ -19,9 +20,9 @@ import '../../data/providers/cycle_provider.dart';
 import '../../data/providers/settings_provider.dart';
 import '../../data/providers/wellness_provider.dart';
 import '../../shared/widgets/mode_transition_overlay.dart';
-import '../../shared/widgets/vision_card.dart';
-import 'profile_logic_mixin.dart';
-import 'profile_settings_list.dart';
+
+// 🔥 Обновленный импорт
+import '../../shared/widgets/premium_glass_card.dart';
 
 class ProfileScreen extends StatelessWidget with ProfileLogicMixin {
   const ProfileScreen({super.key});
@@ -39,7 +40,6 @@ class ProfileScreen extends StatelessWidget with ProfileLogicMixin {
     );
   }
 
-  // 🔥 НОВОЕ: Диалог редактирования профиля
   void _showEditProfileDialog(BuildContext context) {
     showModalBottomSheet(
       context: context,
@@ -52,7 +52,6 @@ class ProfileScreen extends StatelessWidget with ProfileLogicMixin {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    final theme = Theme.of(context);
 
     final settings = context.watch<SettingsProvider>();
     final cycle = context.watch<CycleProvider>();
@@ -68,7 +67,6 @@ class ProfileScreen extends StatelessWidget with ProfileLogicMixin {
       body: CustomScrollView(
         physics: const BouncingScrollPhysics(),
         slivers: [
-          // 🔥 1. ОБНОВЛЕННЫЙ APPBAR С РЕДАКТИРУЕМЫМ ПРОФИЛЕМ
           SliverAppBar(
             backgroundColor: Colors.transparent,
             expandedHeight: 280.0,
@@ -86,7 +84,6 @@ class ProfileScreen extends StatelessWidget with ProfileLogicMixin {
                   centerTitle: true,
                   titlePadding: const EdgeInsets.only(bottom: 16),
 
-                  // При скролле имя поднимается наверх
                   title: Text(
                     settings.userName,
                     style: TextStyle(
@@ -102,7 +99,6 @@ class ProfileScreen extends StatelessWidget with ProfileLogicMixin {
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          // 🔥 АВАТАР (Кликабельный)
                           GestureDetector(
                             onTap: () => _showEditProfileDialog(context),
                             child: Stack(
@@ -124,7 +120,6 @@ class ProfileScreen extends StatelessWidget with ProfileLogicMixin {
 
                           const SizedBox(height: 16),
 
-                          // 🔥 ИМЯ (Кликабельное)
                           GestureDetector(
                             onTap: () => _showEditProfileDialog(context),
                             child: Row(
@@ -146,7 +141,6 @@ class ProfileScreen extends StatelessWidget with ProfileLogicMixin {
 
                           const SizedBox(height: 8),
 
-                          // СТАТУС PREMIUM
                           if (isPremium)
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
@@ -178,13 +172,11 @@ class ProfileScreen extends StatelessWidget with ProfileLogicMixin {
             ),
           ),
 
-          // 3. Settings List
           SliverPadding(
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
             sliver: SliverList(
               delegate: SliverChildListDelegate([
 
-                // --- CONTRACEPTION ---
                 if (!isTTC) ...[
                   _buildSectionHeader(l10n.settingsContraception),
                   _buildGlassGroup(
@@ -232,7 +224,6 @@ class ProfileScreen extends StatelessWidget with ProfileLogicMixin {
                   const SizedBox(height: 24),
                 ],
 
-                // --- CYCLE SETTINGS ---
                 _buildSectionHeader(isCOC ? l10n.settingsPackSettings : l10n.sectionCycle),
                 _buildGlassGroup(
                   children: [
@@ -258,11 +249,9 @@ class ProfileScreen extends StatelessWidget with ProfileLogicMixin {
                 ),
                 const SizedBox(height: 24),
 
-                // --- GENERAL ---
                 _buildSectionHeader(l10n.settingsGeneral),
                 _buildGlassGroup(
                   children: [
-                    // LANGUAGE SELECTOR
                     ProfileSettingsTile(
                       icon: Icons.language,
                       title: l10n.settingsLanguage,
@@ -281,7 +270,6 @@ class ProfileScreen extends StatelessWidget with ProfileLogicMixin {
                     ),
                     _buildDivider(),
 
-                    // THEME SELECTOR
                     ProfileSettingsTile(
                       icon: Icons.palette_rounded,
                       title: l10n.settingsTheme,
@@ -305,7 +293,6 @@ class ProfileScreen extends StatelessWidget with ProfileLogicMixin {
                     ),
                     _buildDivider(),
 
-                    // NOTIFICATIONS SWITCH
                     ProfileSwitchTile(
                         icon: Icons.notifications_active_rounded,
                         title: l10n.settingsNotifs,
@@ -344,12 +331,9 @@ class ProfileScreen extends StatelessWidget with ProfileLogicMixin {
                 ),
                 const SizedBox(height: 24),
 
-                // --- DATA & EXPORT ---
                 _buildSectionHeader(l10n.settingsData),
                 _buildGlassGroup(
                   children: [
-                    // 🔥 УДАЛЕНО: ProfileSwitchTile для биометрии
-
                     ProfileSettingsTile(
                       icon: Icons.picture_as_pdf_rounded,
                       title: l10n.settingsExport,
@@ -373,7 +357,6 @@ class ProfileScreen extends StatelessWidget with ProfileLogicMixin {
                 ),
                 const SizedBox(height: 24),
 
-                // --- BACKUP & RESET ---
                 _buildSectionHeader(l10n.sectionBackup),
                 _buildGlassGroup(
                   children: [
@@ -412,7 +395,6 @@ class ProfileScreen extends StatelessWidget with ProfileLogicMixin {
                 ),
                 const SizedBox(height: 40),
 
-                // --- RESET ---
                 Center(
                     child: TextButton(
                         onPressed: () => showDeleteDialog(context),
@@ -435,8 +417,6 @@ class ProfileScreen extends StatelessWidget with ProfileLogicMixin {
       ),
     );
   }
-
-  // --- HELPERS ---
 
   String _getLanguageName(String code) {
     switch (code) {
@@ -465,9 +445,9 @@ class ProfileScreen extends StatelessWidget with ProfileLogicMixin {
     );
   }
 
+  // 🔥 Заменили VisionCard
   Widget _buildGlassGroup({required List<Widget> children}) {
-    return VisionCard(
-      isGlass: true,
+    return PremiumGlassCard(
       padding: EdgeInsets.zero,
       child: Column(children: children),
     );
@@ -477,7 +457,6 @@ class ProfileScreen extends StatelessWidget with ProfileLogicMixin {
     return const Divider(height: 1, indent: 56, color: Colors.black12);
   }
 
-  // 🔥 НОВЫЙ АВАТАР (ИСПОЛЬЗУЕТСЯ ВНУТРИ AppBar)
   Widget _buildAvatar(String emoji, bool isPremium) {
     return Container(
       width: 100, height: 100,
@@ -500,7 +479,7 @@ class ProfileScreen extends StatelessWidget with ProfileLogicMixin {
       child: Center(
         child: Text(
           emoji,
-          style: const TextStyle(fontSize: 48), // Крупный эмоджи
+          style: const TextStyle(fontSize: 48),
         ),
       ),
     );
@@ -568,7 +547,6 @@ class ProfileScreen extends StatelessWidget with ProfileLogicMixin {
   }
 }
 
-// 🔥 НОВЫЙ ЭКРАН РЕДАКТИРОВАНИЯ ПРОФИЛЯ
 class _EditProfileSheet extends StatefulWidget {
   @override
   State<_EditProfileSheet> createState() => _EditProfileSheetState();
@@ -614,8 +592,6 @@ class _EditProfileSheetState extends State<_EditProfileSheet> {
         children: [
           Text("Edit Profile", style: GoogleFonts.manrope(fontSize: 20, fontWeight: FontWeight.bold)),
           const SizedBox(height: 24),
-
-          // Выбор аватарки
           SizedBox(
             height: 60,
             child: ListView.separated(
@@ -643,10 +619,7 @@ class _EditProfileSheetState extends State<_EditProfileSheet> {
               },
             ),
           ),
-
           const SizedBox(height: 24),
-
-          // Ввод имени
           TextField(
             controller: _nameController,
             decoration: InputDecoration(
@@ -662,9 +635,7 @@ class _EditProfileSheetState extends State<_EditProfileSheet> {
               context.read<SettingsProvider>().setUserName(val.isEmpty ? "User" : val);
             },
           ),
-
           const SizedBox(height: 24),
-
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(

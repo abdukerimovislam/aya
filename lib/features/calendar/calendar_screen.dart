@@ -12,11 +12,10 @@ import '../../core/theme/app_theme.dart';
 import '../../data/models/cycle_model.dart';
 import '../../data/providers/cycle_provider.dart';
 import '../../data/providers/wellness_provider.dart';
-import '../../shared/widgets/vision_card.dart';
 
-// Если CalendarLegend лежит в том же фолдере, оставляем импорт:
+// 🔥 Обновленный импорт
+import '../../shared/widgets/premium_glass_card.dart';
 import 'calendar_visuals.dart';
-// 🔥 Импорт нашего нового Логгера
 import '../logger/symptom_log_screen.dart';
 
 class CalendarScreen extends StatefulWidget {
@@ -38,7 +37,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
     final l10n = AppLocalizations.of(context)!;
 
     return Scaffold(
-      // ⚠️ ВАЖНО: Фон прозрачный, чтобы было видно MeshBackground из ayla_app.dart
       backgroundColor: Colors.transparent,
       appBar: AppBar(
         title: Text(
@@ -57,11 +55,10 @@ class _CalendarScreenState extends State<CalendarScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            // 1. ПРЕМИАЛЬНЫЙ КАЛЕНДАРЬ
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: VisionCard(
-                isGlass: true,
+              // 🔥 Заменили VisionCard
+              child: PremiumGlassCard(
                 padding: const EdgeInsets.only(bottom: 16),
                 child: TableCalendar(
                   locale: l10n.localeName,
@@ -71,8 +68,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
                   calendarFormat: _calendarFormat,
                   startingDayOfWeek: StartingDayOfWeek.monday,
                   selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
-
-                  // Смена формата (недели / месяцы)
                   onFormatChanged: (format) {
                     if (_calendarFormat != format) {
                       setState(() => _calendarFormat = format);
@@ -81,8 +76,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
                   onPageChanged: (focusedDay) {
                     _focusedDay = focusedDay;
                   },
-
-                  // Выбор дня (Обычный тап)
                   onDaySelected: (selectedDay, focusedDay) {
                     HapticFeedback.selectionClick();
                     setState(() {
@@ -90,10 +83,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
                       _focusedDay = focusedDay;
                     });
                   },
-
-                  // 🔥 УМНОЕ ДЕЙСТВИЕ: Долгое нажатие отмечает/снимает месячные
                   onDayLongPressed: (selectedDay, focusedDay) async {
-                    if (selectedDay.isAfter(DateTime.now())) return; // В будущем нельзя
+                    if (selectedDay.isAfter(DateTime.now())) return;
                     HapticFeedback.heavyImpact();
                     await cycleProvider.togglePeriodDay(selectedDay);
                     setState(() {
@@ -101,8 +92,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
                       _focusedDay = focusedDay;
                     });
                   },
-
-                  // Загрузка событий (для точек под датами)
                   eventLoader: (day) {
                     final log = wellnessProvider.getLogForDate(day);
                     List<dynamic> events = [];
@@ -110,8 +99,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
                     if (log.ovulationTest != OvulationTestResult.none) events.add('test');
                     return events;
                   },
-
-                  // Стилизация
                   headerStyle: HeaderStyle(
                     formatButtonVisible: false,
                     titleCentered: true,
@@ -137,8 +124,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
                     ),
                     selectedTextStyle: GoogleFonts.inter(color: Colors.white, fontWeight: FontWeight.bold),
                   ),
-
-                  // Кастомные билдеры для выделения фаз и месячных
                   calendarBuilders: CalendarBuilders(
                     markerBuilder: (context, date, events) {
                       final phase = cycleProvider.getPhaseForDate(date);
@@ -147,13 +132,11 @@ class _CalendarScreenState extends State<CalendarScreen> {
                       return Stack(
                         alignment: Alignment.center,
                         children: [
-                          // Капля, если день отмечен как месячные
                           if (isPeriod)
                             Positioned(
                               bottom: 4,
                               child: Icon(CupertinoIcons.drop_fill, color: AppColors.menstruation.withOpacity(0.6), size: 10),
                             ),
-                          // Маленькая точка, если есть симптомы
                           if (events.isNotEmpty && !isPeriod)
                             Positioned(
                               bottom: 6,
@@ -169,16 +152,11 @@ class _CalendarScreenState extends State<CalendarScreen> {
                 ),
               ),
             ),
-
-            // 2. ЛЕГЕНДА
             const Padding(
               padding: EdgeInsets.symmetric(horizontal: 24, vertical: 8),
               child: CalendarLegend(),
             ),
-
             const Spacer(),
-
-            // 3. СТЕКЛЯННАЯ КАРТОЧКА ДНЯ (Вместо отдельного экрана деталей)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
               child: _DaySummaryCard(
@@ -188,8 +166,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
                 l10n: l10n,
               ),
             ),
-
-            // Отступ под плавающий нижний бар навигации (Floating Tab Bar из ayla_app)
             const SizedBox(height: 100),
           ],
         ),
@@ -198,7 +174,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
   }
 }
 
-// Элегантная карточка, показывающая информацию о выбранном дне
 class _DaySummaryCard extends StatelessWidget {
   final DateTime date;
   final CycleProvider cycleProvider;
@@ -238,12 +213,11 @@ class _DaySummaryCard extends StatelessWidget {
       phaseText = "-";
     }
 
-    return VisionCard(
-      isGlass: true,
+    // 🔥 Заменили VisionCard
+    return PremiumGlassCard(
       padding: const EdgeInsets.all(20),
       child: Row(
         children: [
-          // Дата и фаза
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -278,20 +252,17 @@ class _DaySummaryCard extends StatelessWidget {
                 if (hasLogs) ...[
                   const SizedBox(height: 8),
                   Text(
-                    "Symptoms logged ✓", // TODO: l10n
+                    "Symptoms logged ✓",
                     style: GoogleFonts.inter(fontSize: 12, color: AppColors.primary, fontWeight: FontWeight.bold),
                   ),
                 ]
               ],
             ),
           ),
-
-          // Кнопка действий
           if (!isFuture)
             GestureDetector(
               onTap: () {
                 HapticFeedback.mediumImpact();
-                // 🔥 Вызываем нашу новую шторку Логгера
                 showModalBottomSheet(
                   context: context,
                   isScrollControlled: true,

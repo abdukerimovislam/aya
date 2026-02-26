@@ -9,9 +9,9 @@ import '../../core/services/pdf_service.dart';
 import '../../core/theme/app_theme.dart';
 import '../../data/providers/cycle_provider.dart';
 import '../../data/providers/settings_provider.dart';
-import '../../shared/widgets/vision_card.dart';
 
-
+// 🔥 Обновленный импорт
+import '../../shared/widgets/premium_glass_card.dart';
 
 class ProfileSettingsList extends StatelessWidget {
   const ProfileSettingsList({super.key});
@@ -25,11 +25,9 @@ class ProfileSettingsList extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // --- 1. ОСНОВНЫЕ ---
         ProfileSectionTitle(title: l10n.sectionGeneral),
         ProfileSettingsGroup(
           children: [
-            // Уведомления
             ProfileSwitchTile(
               icon: CupertinoIcons.bell,
               title: l10n.prefNotifications,
@@ -37,7 +35,6 @@ class ProfileSettingsList extends StatelessWidget {
               onChanged: (v) => settings.setNotificationsEnabled(v),
             ),
             const _Divider(),
-            // FaceID
             ProfileSwitchTile(
               icon: CupertinoIcons.lock_shield,
               title: l10n.prefBiometrics,
@@ -45,7 +42,6 @@ class ProfileSettingsList extends StatelessWidget {
               onChanged: (v) => settings.setBiometricsEnabled(v),
             ),
             const _Divider(),
-            // Режим КОК
             ProfileSwitchTile(
               icon: Icons.medication_outlined,
               title: l10n.prefCOC,
@@ -57,25 +53,23 @@ class ProfileSettingsList extends StatelessWidget {
 
         const SizedBox(height: 24),
 
-        // --- 2. НАСТРОЙКИ ЦИКЛА (Слайдеры) ---
         if (!cycle.isCOCEnabled) ...[
-          // Используем хардкод заголовок пока нет в l10n, или l10n.sectionGeneral
           const ProfileSectionTitle(title: "CYCLE CONFIGURATION"),
           ProfileSettingsGroup(
             children: [
               ProfileSliderTile(
                 icon: CupertinoIcons.arrow_2_circlepath,
-                title: "Cycle Length", // l10n.lblCycleLength
+                title: "Cycle Length",
                 value: cycle.cycleLength.toDouble(),
                 min: 21,
                 max: 45,
-                suffix: l10n.unitDays, // "дн."
+                suffix: l10n.unitDays,
                 onChanged: (val) => cycle.setCycleLength(val.toInt()),
               ),
               const _Divider(),
               ProfileSliderTile(
                 icon: CupertinoIcons.drop,
-                title: "Period Length", // l10n.lblPeriodLength
+                title: "Period Length",
                 value: cycle.avgPeriodDuration.toDouble(),
                 min: 2,
                 max: 9,
@@ -87,11 +81,9 @@ class ProfileSettingsList extends StatelessWidget {
           const SizedBox(height: 24),
         ],
 
-        // --- 3. УПРАВЛЕНИЕ ДАННЫМИ ---
         ProfileSectionTitle(title: l10n.sectionData),
         ProfileSettingsGroup(
           children: [
-            // PDF Report
             ProfileSettingsTile(
               icon: CupertinoIcons.doc_text,
               title: l10n.btnExportPdf,
@@ -99,18 +91,16 @@ class ProfileSettingsList extends StatelessWidget {
               onTap: () => PdfService.generateReport(context),
             ),
             const _Divider(),
-            // Backup (Export)
             ProfileSettingsTile(
               icon: CupertinoIcons.cloud_upload,
-              title: l10n.btnBackup, // "Резервная копия (Экспорт)"
+              title: l10n.btnBackup,
               trailing: const Icon(Icons.arrow_forward_ios, size: 14, color: Colors.grey),
               onTap: () => BackupService.createBackup(context),
             ),
             const _Divider(),
-            // Restore (Import)
             ProfileSettingsTile(
               icon: CupertinoIcons.cloud_download,
-              title: "Restore Data", // Добавьте в l10n: btnRestore
+              title: "Restore Data",
               trailing: const Icon(Icons.arrow_forward_ios, size: 14, color: Colors.grey),
               onTap: () => BackupService.restoreBackup(context),
             ),
@@ -119,7 +109,6 @@ class ProfileSettingsList extends StatelessWidget {
 
         const SizedBox(height: 24),
 
-        // --- 4. О ПРИЛОЖЕНИИ ---
         ProfileSectionTitle(title: l10n.sectionAbout),
         ProfileSettingsGroup(
           children: [
@@ -132,7 +121,7 @@ class ProfileSettingsList extends StatelessWidget {
             ProfileSettingsTile(
               icon: CupertinoIcons.star,
               title: l10n.btnRateApp,
-              onTap: () {}, // Реализовать открытие стора
+              onTap: () {},
             ),
           ],
         ),
@@ -142,8 +131,6 @@ class ProfileSettingsList extends StatelessWidget {
     );
   }
 }
-
-// --- ВАШИ ВИДЖЕТЫ UI ---
 
 class _Divider extends StatelessWidget {
   const _Divider();
@@ -171,12 +158,16 @@ class ProfileSectionTitle extends StatelessWidget {
 class ProfileSettingsGroup extends StatelessWidget {
   final List<Widget> children;
   const ProfileSettingsGroup({super.key, required this.children});
+
   @override
   Widget build(BuildContext context) {
-    return VisionCard(
-      padding: EdgeInsets.zero,
-      margin: const EdgeInsets.symmetric(horizontal: 16),
-      child: Column(children: children),
+    // 🔥 Заменили VisionCard на PremiumGlassCard + Padding (для margin)
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: PremiumGlassCard(
+        padding: EdgeInsets.zero,
+        child: Column(children: children),
+      ),
     );
   }
 }

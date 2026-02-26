@@ -12,10 +12,10 @@ import '../../data/models/cycle_model.dart';
 import '../../data/providers/coc_provider.dart';
 import '../../data/providers/cycle_provider.dart';
 import '../../data/providers/settings_provider.dart';
-import '../../shared/widgets/mesh_background.dart';
-import '../../shared/widgets/vision_card.dart';
 
-
+// 🔥 Новые импорты
+import '../../shared/widgets/live_phase_background.dart';
+import '../../shared/widgets/premium_glass_card.dart';
 
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({super.key});
@@ -28,12 +28,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   final PageController _pageController = PageController();
   int _currentPage = 0;
 
-  // --- ДАННЫЕ ПОЛЬЗОВАТЕЛЯ ---
-  bool _isCOC = false; // Режим КОК
+  bool _isCOC = false;
   DateTime _selectedDate = DateTime.now();
   int _selectedCycleLength = 28;
-
-  // Для КОК: 0 = 21+7, 1 = 28, 2 = 24+4
   int _selectedPackTypeIndex = 0;
 
   @override
@@ -42,13 +39,12 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     super.dispose();
   }
 
-  // Настроение фона для каждого этапа
   CyclePhase get _currentPhase {
     switch (_currentPage) {
-      case 0: return CyclePhase.follicular;   // Welcome
-      case 1: return CyclePhase.ovulation;    // Mode Selection
-      case 2: return CyclePhase.menstruation; // Date
-      case 3: return CyclePhase.luteal;       // Settings
+      case 0: return CyclePhase.follicular;
+      case 1: return CyclePhase.ovulation;
+      case 2: return CyclePhase.menstruation;
+      case 3: return CyclePhase.luteal;
       default: return CyclePhase.follicular;
     }
   }
@@ -61,13 +57,14 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     return Scaffold(
       body: Stack(
         children: [
+          // 🔥 Использование нового фона
           Positioned.fill(
             child: AnimatedSwitcher(
               duration: const Duration(milliseconds: 800),
-              child: MeshCycleBackground(
+              child: LivePhaseBackground(
                 key: ValueKey(_currentPage),
                 phase: _currentPhase,
-                child: const SizedBox.expand(),
+                isCOC: _isCOC,
               ),
             ),
           ),
@@ -84,7 +81,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                       _buildStep(
                         title: l10n.onboardTitle1,
                         body: l10n.onboardBody1,
-                        content: _buildWelcomeGraphic(), // 🔥 Теперь анимированный
+                        content: _buildWelcomeGraphic(),
                       ),
                       _buildStep(
                         title: l10n.onboardModeTitle,
@@ -115,10 +112,6 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     );
   }
 
-  // --- WIDGETS ---
-
-  // 🔥 Использование нового анимированного виджета
-  // Заменяем старый метод на этот
   Widget _buildWelcomeGraphic() {
     return const AnimatedWelcomeGraphic();
   }
@@ -147,8 +140,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   }
 
   Widget _buildDatePicker(BuildContext context) {
-    return VisionCard(
-      isGlass: true,
+    // 🔥 Заменили VisionCard
+    return PremiumGlassCard(
       padding: const EdgeInsets.all(16),
       child: Theme(
         data: Theme.of(context).copyWith(
@@ -177,8 +170,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        VisionCard(
-          isGlass: true,
+        // 🔥 Заменили VisionCard
+        PremiumGlassCard(
           padding: const EdgeInsets.symmetric(vertical: 30, horizontal: 20),
           child: Column(
             children: [
@@ -249,8 +242,6 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       ],
     );
   }
-
-  // --- LAYOUT HELPERS ---
 
   Widget _buildStep({required String title, required String body, required Widget content}) {
     return Padding(
@@ -515,7 +506,6 @@ class _PackTypeOption extends StatelessWidget {
   }
 }
 
-// 🔥 НОВЫЙ КЛАСС АНИМАЦИИ (Вставьте в конец файла onboarding_screen.dart)
 class AnimatedWelcomeGraphic extends StatefulWidget {
   const AnimatedWelcomeGraphic({super.key});
 
@@ -531,7 +521,7 @@ class _AnimatedWelcomeGraphicState extends State<AnimatedWelcomeGraphic> with Si
     super.initState();
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(seconds: 3), // Чуть быстрее для динамики
+      duration: const Duration(seconds: 3),
     )..repeat(reverse: true);
   }
 
@@ -548,49 +538,42 @@ class _AnimatedWelcomeGraphicState extends State<AnimatedWelcomeGraphic> with Si
         animation: _controller,
         builder: (context, child) {
           final t = _controller.value;
-          // Используем более резкую кривую для эффекта "вспышки"
           final curveValue = Curves.easeInOutCubic.transform(t);
 
           const double baseSize = 200.0;
 
           return SizedBox(
-            width: 400, // Увеличили общую область, чтобы свечение не обрезалось
+            width: 400,
             height: 400,
             child: Stack(
               alignment: Alignment.center,
               children: [
-                // Слой 1: Широкое внешнее свечение (Градиент)
                 Container(
-                  width: 300 + (80 * curveValue), // Сильнее расширяется
+                  width: 300 + (80 * curveValue),
                   height: 300 + (80 * curveValue),
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     gradient: RadialGradient(
                       colors: [
-                        AppColors.primary.withOpacity(0.3), // 🔥 Ярче (было 0.15)
+                        AppColors.primary.withOpacity(0.3),
                         Colors.transparent
                       ],
-                      stops: const [0.0, 0.8], // Градиент идет дальше
+                      stops: const [0.0, 0.8],
                     ),
                   ),
                 ),
-
-                // Слой 2: Основное тело (Яркий источник света)
                 Container(
                   width: baseSize,
                   height: baseSize,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    // Делаем саму "линзу" чуть светлее
                     color: Colors.white.withOpacity(0.15),
                     boxShadow: [
                       BoxShadow(
-                        // 🔥 ГЛАВНОЕ ИЗМЕНЕНИЕ ИНТЕНСИВНОСТИ
-                        color: AppColors.primary.withOpacity(0.5), // Намного ярче (было 0.2)
-                        blurRadius: 60, // Сильнее размытие света (было 30)
-                        spreadRadius: 10 + (20 * curveValue), // Намного сильнее пульсация (было 5)
+                        color: AppColors.primary.withOpacity(0.5),
+                        blurRadius: 60,
+                        spreadRadius: 10 + (20 * curveValue),
                       ),
-                      // Добавляем второй, белый слой для "горячего ядра"
                       BoxShadow(
                         color: Colors.white.withOpacity(0.3),
                         blurRadius: 30,
@@ -598,28 +581,24 @@ class _AnimatedWelcomeGraphicState extends State<AnimatedWelcomeGraphic> with Si
                       ),
                     ],
                     border: Border.all(
-                        color: Colors.white.withOpacity(0.3), // Ярче бордер
+                        color: Colors.white.withOpacity(0.3),
                         width: 2
                     ),
                   ),
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(1000),
                     child: BackdropFilter(
-                      // Усиливаем блюр внутри, чтобы смешать цвета фона
                       filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-                      child: const SizedBox(), // 🔥 Иконка убрана, теперь здесь пусто
+                      child: const SizedBox(),
                     ),
                   ),
                 ),
-
-                // Слой 3: Тонкое "дышащее" кольцо
                 Container(
-                  width: baseSize + (60 * curveValue), // Дальше улетает
+                  width: baseSize + (60 * curveValue),
                   height: baseSize + (60 * curveValue),
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     border: Border.all(
-                      // Начинает ярче, заканчивает прозрачным
                       color: Colors.white.withOpacity(0.4 - (0.4 * curveValue)),
                       width: 1.5,
                     ),
