@@ -30,6 +30,168 @@ class _CalendarScreenState extends State<CalendarScreen> {
   DateTime _focusedDay = DateTime.now();
   DateTime _selectedDay = DateTime.now();
 
+  // 🔥 МЕДИЦИНСКИЙ ИНТЕРЦЕПТОР ДЛЯ КАЛЕНДАРЯ
+  Future<void> _handleDayLongPress(BuildContext context, DateTime selectedDay, CycleProvider cycleProvider, AppLocalizations l10n) async {
+    if (selectedDay.isAfter(DateTime.now())) {
+      _showSnackbar(context, "Cannot log a date in the future", isError: true);
+      return;
+    }
+
+    HapticFeedback.heavyImpact();
+
+    // Пытаемся записать день через умный метод
+    final result = await cycleProvider.logActionStartPeriod(selectedDay);
+
+    if (!context.mounted) return;
+
+    if (result == CycleLogResult.suspiciouslyEarly) {
+      _showSuspiciouslyEarlyDialog(context, selectedDay, cycleProvider, l10n);
+    } else if (result == CycleLogResult.ovulationBleeding) {
+      _showOvulationBleedingDialog(context, selectedDay, cycleProvider, l10n);
+    } else {
+      _showSnackbar(context, l10n.msgSaved);
+      setState(() {
+        _selectedDay = selectedDay;
+      });
+    }
+  }
+
+  // ДИАЛОГ 1: Подозрительно рано
+  void _showSuspiciouslyEarlyDialog(BuildContext context, DateTime selectedDate, CycleProvider provider, AppLocalizations l10n) {
+    HapticFeedback.heavyImpact();
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(color: Colors.orange.withOpacity(0.1), shape: BoxShape.circle),
+              child: const Icon(CupertinoIcons.exclamationmark_triangle_fill, color: Colors.orange),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text("Are you sure?", style: GoogleFonts.inter(fontWeight: FontWeight.w800, fontSize: 20, color: AppColors.textPrimary)),
+            ),
+          ],
+        ),
+        content: Text(
+          "It's been less than 21 days since the previous cycle start. Is this a new period, or just spotting?",
+          style: GoogleFonts.inter(fontSize: 15, color: AppColors.textSecondary, height: 1.4),
+        ),
+        actionsPadding: const EdgeInsets.only(bottom: 16, right: 16, left: 16),
+        actions: [
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(ctx);
+              HapticFeedback.lightImpact();
+              await provider.togglePeriodDay(selectedDate); // Просто мазня
+              if (context.mounted) {
+                _showSnackbar(context, l10n.insightSpottingBody);
+                setState(() => _selectedDay = selectedDate);
+              }
+            },
+            child: Text("Just Spotting", style: GoogleFonts.inter(fontWeight: FontWeight.w600, color: AppColors.textSecondary)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.menstruation, elevation: 0,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+            ),
+            onPressed: () async {
+              Navigator.pop(ctx);
+              HapticFeedback.mediumImpact();
+              await provider.logActionStartPeriod(selectedDate, isConfirmed: true); // Форсируем новый цикл
+              if (context.mounted) {
+                _showSnackbar(context, l10n.msgSaved);
+                setState(() => _selectedDay = selectedDate);
+              }
+            },
+            child: Text("New Period", style: GoogleFonts.inter(fontWeight: FontWeight.w700, color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ДИАЛОГ 2: Овуляторное кровотечение
+  void _showOvulationBleedingDialog(BuildContext context, DateTime selectedDate, CycleProvider provider, AppLocalizations l10n) {
+    HapticFeedback.heavyImpact();
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(color: Colors.purple.withOpacity(0.1), shape: BoxShape.circle),
+              child: const Icon(CupertinoIcons.sparkles, color: Colors.purple),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text("Ovulation Bleeding?", style: GoogleFonts.inter(fontWeight: FontWeight.w800, fontSize: 20, color: AppColors.textPrimary)),
+            ),
+          ],
+        ),
+        content: Text(
+          "Light bleeding can occur during ovulation. Are you sure you want to start a completely new cycle here?",
+          style: GoogleFonts.inter(fontSize: 15, color: AppColors.textSecondary, height: 1.4),
+        ),
+        actionsPadding: const EdgeInsets.only(bottom: 16, right: 16, left: 16),
+        actions: [
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(ctx);
+              HapticFeedback.lightImpact();
+              await provider.togglePeriodDay(selectedDate);
+              if (context.mounted) {
+                _showSnackbar(context, "Logged as spotting");
+                setState(() => _selectedDay = selectedDate);
+              }
+            },
+            child: Text("Just Spotting", style: GoogleFonts.inter(fontWeight: FontWeight.w600, color: AppColors.textSecondary)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.menstruation, elevation: 0,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+            ),
+            onPressed: () async {
+              Navigator.pop(ctx);
+              HapticFeedback.mediumImpact();
+              await provider.logActionStartPeriod(selectedDate, isConfirmed: true);
+              if (context.mounted) {
+                _showSnackbar(context, l10n.msgSaved);
+                setState(() => _selectedDay = selectedDate);
+              }
+            },
+            child: Text("New Period", style: GoogleFonts.inter(fontWeight: FontWeight.w700, color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showSnackbar(BuildContext context, String message, {bool isError = false}) {
+    ScaffoldMessenger.of(context).clearSnackBars();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message, style: GoogleFonts.inter(fontWeight: FontWeight.w600, color: Colors.white)),
+        backgroundColor: isError ? Colors.redAccent.withOpacity(0.9) : AppColors.textPrimary.withOpacity(0.9),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        duration: const Duration(seconds: 3),
+        margin: const EdgeInsets.only(bottom: 100, left: 20, right: 20),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final cycleProvider = context.watch<CycleProvider>();
@@ -57,7 +219,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
           children: [
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              // 🔥 Заменили VisionCard
               child: PremiumGlassCard(
                 padding: const EdgeInsets.only(bottom: 16),
                 child: TableCalendar(
@@ -83,14 +244,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
                       _focusedDay = focusedDay;
                     });
                   },
-                  onDayLongPressed: (selectedDay, focusedDay) async {
-                    if (selectedDay.isAfter(DateTime.now())) return;
-                    HapticFeedback.heavyImpact();
-                    await cycleProvider.togglePeriodDay(selectedDay);
-                    setState(() {
-                      _selectedDay = selectedDay;
-                      _focusedDay = focusedDay;
-                    });
+                  // 🔥 ЗАМЕНЕНО: Используем умный обработчик вместо прямого togglePeriodDay
+                  onDayLongPressed: (selectedDay, focusedDay) {
+                    _handleDayLongPress(context, selectedDay, cycleProvider, l10n);
                   },
                   eventLoader: (day) {
                     final log = wellnessProvider.getLogForDate(day);
@@ -213,7 +369,6 @@ class _DaySummaryCard extends StatelessWidget {
       phaseText = "-";
     }
 
-    // 🔥 Заменили VisionCard
     return PremiumGlassCard(
       padding: const EdgeInsets.all(20),
       child: Row(
@@ -252,7 +407,7 @@ class _DaySummaryCard extends StatelessWidget {
                 if (hasLogs) ...[
                   const SizedBox(height: 8),
                   Text(
-                    "Symptoms logged ✓",
+                    "Symptoms logged ✓", // Можно вынести в l10n
                     style: GoogleFonts.inter(fontSize: 12, color: AppColors.primary, fontWeight: FontWeight.bold),
                   ),
                 ]

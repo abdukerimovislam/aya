@@ -27,6 +27,7 @@ class SettingsProvider extends ChangeNotifier {
   // 🔥 Ключи для синхронизации с COCProvider и CycleProvider
   static const String _keyCOCActive = 'coc_active_count';
   static const String _keyCOCBreak = 'coc_break_days';
+  static const String _keyCOCPackStart = 'coc_pack_start_date'; // НОВОЕ: Для умного старта КОК
 
   SecureStorageService get storageService => _storageService;
 
@@ -62,6 +63,15 @@ class SettingsProvider extends ChangeNotifier {
   // Геттеры для КОК (чтобы UI настроек мог их читать)
   int get cocActivePills => _box.get(_keyCOCActive, defaultValue: 21);
   int get cocBreakDays => _box.get(_keyCOCBreak, defaultValue: 7);
+
+  // 🔥 НОВОЕ: Геттер даты старта пачки
+  DateTime? get cocPackStartDate {
+    final ms = _box.get(_keyCOCPackStart);
+    if (ms != null && ms is int) {
+      return DateTime.fromMillisecondsSinceEpoch(ms);
+    }
+    return null;
+  }
 
   // ВАЖНО: Проверка, выбрал ли пользователь язык явно
   bool get isLanguageExplicitlySet => _box.containsKey(_keyLanguage);
@@ -245,9 +255,15 @@ class SettingsProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> setCOCSettings(int active, int brk) async {
+  // 🔥 ОБНОВЛЕНО: Поддержка сохранения даты старта пачки
+  Future<void> setCOCSettings(int active, int brk, {DateTime? packStartDate}) async {
     await _box.put(_keyCOCActive, active);
     await _box.put(_keyCOCBreak, brk);
+    if (packStartDate != null) {
+      // Обрезаем время для безопасности
+      final normalizedDate = DateTime(packStartDate.year, packStartDate.month, packStartDate.day);
+      await _box.put(_keyCOCPackStart, normalizedDate.millisecondsSinceEpoch);
+    }
     notifyListeners();
   }
 

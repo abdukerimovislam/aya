@@ -10,8 +10,8 @@ import '../../core/l10n/app_localizations.dart';
 import '../../core/theme/app_theme.dart';
 import '../../data/models/cycle_model.dart';
 import '../../data/providers/wellness_provider.dart';
+import '../../data/providers/cycle_provider.dart'; // 🔥 ИМПОРТ НОВОГО УМНОГО ПРОВАЙДЕРА
 
-// 🔥 Обновленный импорт
 import '../../shared/widgets/premium_glass_card.dart';
 
 class SymptomLogScreen extends StatefulWidget {
@@ -25,6 +25,7 @@ class SymptomLogScreen extends StatefulWidget {
 
 class _SymptomLogScreenState extends State<SymptomLogScreen> {
   late SymptomLog _currentLog;
+  late FlowIntensity _initialFlow; // 🔥 Запоминаем изначальный выбор выделений
   bool _isSaving = false;
 
   @override
@@ -32,23 +33,119 @@ class _SymptomLogScreenState extends State<SymptomLogScreen> {
     super.initState();
     final provider = Provider.of<WellnessProvider>(context, listen: false);
     _currentLog = provider.getLogForDate(widget.date);
+    _initialFlow = _currentLog.flow;
   }
 
+  // 🔥 МЕДИЦИНСКАЯ СИНХРОНИЗАЦИЯ СИМПТОМОВ И ЦИКЛА
   Future<void> _saveAndClose() async {
     setState(() => _isSaving = true);
     HapticFeedback.lightImpact();
 
-    final provider = Provider.of<WellnessProvider>(context, listen: false);
-    await provider.saveLog(_currentLog);
+    final wellnessProvider = Provider.of<WellnessProvider>(context, listen: false);
+    final cycleProvider = Provider.of<CycleProvider>(context, listen: false);
+
+    await wellnessProvider.saveLog(_currentLog);
+
+    // Если пользователь ИЗМЕНИЛ статус выделений (Flow)
+    if (_currentLog.flow != _initialFlow) {
+      // Сценарий 1: Пользователь добавил выделения
+      if (_currentLog.flow != FlowIntensity.none && _initialFlow == FlowIntensity.none) {
+        final result = await cycleProvider.logActionStartPeriod(widget.date);
+
+        // Если алгоритм выявил аномалию, показываем диалог ПРЯМО ТУТ
+        if (result == CycleLogResult.suspiciouslyEarly || result == CycleLogResult.ovulationBleeding) {
+          setState(() => _isSaving = false);
+          if (mounted) _showMedicalInterceptorDialog(context, widget.date, result, cycleProvider);
+          return; // 🛑 Останавливаем закрытие экрана, ждем ответа юзера!
+        }
+      }
+      // Сценарий 2: Пользователь убрал выделения (отменил клик)
+      else if (_currentLog.flow == FlowIntensity.none && _initialFlow != FlowIntensity.none) {
+        // Проверяем, считается ли этот день сейчас днем менструации
+        final phase = cycleProvider.getPhaseForDate(widget.date);
+        if (phase == CyclePhase.menstruation) {
+          // Если да - отключаем его в ядре
+          await cycleProvider.togglePeriodDay(widget.date);
+        }
+      }
+    }
 
     if (mounted) {
       Navigator.pop(context);
     }
   }
 
+  // 🔥 УМНЫЙ ДИАЛОГ ДЛЯ ЛОГГЕРА СИМПТОМОВ
+  void _showMedicalInterceptorDialog(BuildContext context, DateTime date, CycleLogResult result, CycleProvider provider) {
+    HapticFeedback.heavyImpact();
+    final isOvulation = result == CycleLogResult.ovulationBleeding;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false, // Заставляем юзера принять решение
+      builder: (ctx) => AlertDialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                  color: isOvulation ? Colors.purple.withOpacity(0.1) : Colors.orange.withOpacity(0.1),
+                  shape: BoxShape.circle
+              ),
+              child: Icon(
+                  isOvulation ? CupertinoIcons.sparkles : CupertinoIcons.exclamationmark_triangle_fill,
+                  color: isOvulation ? Colors.purple : Colors.orange
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                  isOvulation ? "Ovulation Bleeding?" : "Are you sure?",
+                  style: GoogleFonts.inter(fontWeight: FontWeight.w800, fontSize: 18, color: AppColors.textPrimary)
+              ),
+            ),
+          ],
+        ),
+        content: Text(
+          isOvulation
+              ? "Light bleeding can occur during ovulation. Are you sure you want to start a completely new cycle here?"
+              : "It's been less than 21 days since your last cycle started. Is this a new period, or just spotting?",
+          style: GoogleFonts.inter(fontSize: 14, color: AppColors.textSecondary, height: 1.4),
+        ),
+        actionsPadding: const EdgeInsets.only(bottom: 16, right: 16, left: 16),
+        actions: [
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(ctx);
+              HapticFeedback.lightImpact();
+              await provider.togglePeriodDay(date); // Просто мазня
+              if (mounted) Navigator.pop(context);  // Закрываем логгер
+            },
+            child: Text("Just Spotting", style: GoogleFonts.inter(fontWeight: FontWeight.w600, color: AppColors.textSecondary)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.menstruation, elevation: 0,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            onPressed: () async {
+              Navigator.pop(ctx);
+              HapticFeedback.mediumImpact();
+              await provider.logActionStartPeriod(date, isConfirmed: true); // Форсируем цикл
+              if (mounted) Navigator.pop(context); // Закрываем логгер
+            },
+            child: Text("New Period", style: GoogleFonts.inter(fontWeight: FontWeight.w700, color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _toggleSymptom(String symptom, bool isPain) {
     HapticFeedback.selectionClick();
-    SystemSound.play(SystemSoundType.click); // 🔥 АУДИО-КЛИК
+    SystemSound.play(SystemSoundType.click);
     setState(() {
       if (isPain) {
         final list = List<String>.from(_currentLog.painSymptoms);
@@ -113,7 +210,6 @@ class _SymptomLogScreenState extends State<SymptomLogScreen> {
               style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.textSecondary, letterSpacing: 1.0),
             ),
             const SizedBox(height: 12),
-            // 🔥 Заменили VisionCard на PremiumGlassCard
             PremiumGlassCard(
               padding: const EdgeInsets.all(16),
               child: Row(
@@ -133,7 +229,6 @@ class _SymptomLogScreenState extends State<SymptomLogScreen> {
               style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.textSecondary, letterSpacing: 1.0),
             ),
             const SizedBox(height: 12),
-            // 🔥 Заменили VisionCard на PremiumGlassCard
             PremiumGlassCard(
               padding: const EdgeInsets.symmetric(vertical: 16),
               child: Row(
@@ -199,7 +294,7 @@ class _SymptomLogScreenState extends State<SymptomLogScreen> {
     return GestureDetector(
       onTap: () {
         HapticFeedback.selectionClick();
-        SystemSound.play(SystemSoundType.click); // 🔥 АУДИО-КЛИК
+        SystemSound.play(SystemSoundType.click);
         setState(() {
           _currentLog = _currentLog.copyWith(
             flow: isSelected ? FlowIntensity.none : flow,
@@ -242,7 +337,7 @@ class _SymptomLogScreenState extends State<SymptomLogScreen> {
     return GestureDetector(
       onTap: () {
         HapticFeedback.selectionClick();
-        SystemSound.play(SystemSoundType.click); // 🔥 АУДИО-КЛИК
+        SystemSound.play(SystemSoundType.click);
         setState(() {
           _currentLog = _currentLog.copyWith(
             mood: isSelected ? 3 : level,
