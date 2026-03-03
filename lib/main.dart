@@ -10,6 +10,10 @@ import 'package:provider/provider.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:intl/intl.dart';
 
+// 🔥 Импорты для фоновой работы ИИ
+import 'package:workmanager/workmanager.dart';
+import 'core/services/ai_oracle_service.dart';
+
 // Новая архитектура Ayla
 import 'ayla_app.dart';
 import 'core/l10n/app_localizations.dart';
@@ -32,6 +36,29 @@ import 'features/onboarding/splash_screen.dart';
 import 'features/profile/profile_screen.dart';
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+
+// 🔥 Точка входа для фоновых задач (Должна быть Top-Level функцией!)
+@pragma('vm:entry-point')
+void callbackDispatcher() {
+  Workmanager().executeTask((task, inputData) async {
+    try {
+      // Инициализируем Flutter биндинги
+      WidgetsFlutterBinding.ensureInitialized();
+
+      // Инициализируем БД для фонового изолята
+      await Hive.initFlutter();
+
+      // Запускаем ИИ анализ (через наш безопасный Cloudflare Proxy)
+      await AiOracleService.fetchDailyInsight(isManual: false);
+
+      return Future.value(true);
+    } catch (err) {
+      debugPrint("🔥 Background task error: $err");
+      // Возвращаем false, чтобы система попробовала запустить задачу позже
+      return Future.value(false);
+    }
+  });
+}
 
 void main() async {
   // ✅ Global error handling (production sanity)
@@ -103,6 +130,26 @@ void main() async {
         });
       },
     );
+
+    // 7) Инициализация Workmanager для ежедневного ИИ-анализа
+    try {
+      Workmanager().initialize(
+        callbackDispatcher,
+        isInDebugMode: false, // ВАЖНО: На проде должно быть false!
+      );
+
+      Workmanager().registerPeriodicTask(
+        "daily_ai_insight_task", // Уникальный ID задачи
+        "fetchDailyInsight",     // Имя задачи
+        frequency: const Duration(hours: 24), // Выполнять раз в сутки
+        constraints: Constraints(
+          networkType: NetworkType.connected, // Только при наличии интернета
+          requiresBatteryNotLow: true,        // Только если батарея не садится
+        ),
+      );
+    } catch (e) {
+      debugPrint("⚠️ Workmanager init failed: $e");
+    }
 
     runApp(AylaAppRoot(
       settingsBox: settingsBox,
@@ -237,13 +284,9 @@ class AylaApp extends StatelessWidget {
         '/profile': (context) => const Scaffold(
           body: SafeArea(child: ProfileScreen()),
         ),
-        // '/calendar' перенаправляет на корневую оболочку,
-        // так как календарь теперь является частью плавающего меню в MainScreen
         '/calendar': (context) => const MainScreen(),
         '/onboarding': (context) => const OnboardingScreen(),
       },
-      // Точка входа в приложение закрыта проверкой биометрии (AuthGuard),
-      // которая затем вызывает SplashScreen
       home: const AuthGuard(child: SplashScreen()),
     );
   }
@@ -287,7 +330,6 @@ class _AuthGuardState extends State<AuthGuard> {
     final bool canCheck = await auth.canCheckBiometrics;
 
     if (canCheck) {
-      // Заменили название на Ayla
       final reason = "Scan to unlock Ayla";
 
       final bool success = await auth.authenticate(reason);
@@ -330,7 +372,7 @@ class _AuthGuardState extends State<AuthGuard> {
             Icon(Icons.lock_outline, size: 64, color: AppColors.primary),
             const SizedBox(height: 24),
             Text(
-              l10n?.authLockedTitle ?? "Ayla Locked", // Заменили название на Ayla
+              l10n?.authLockedTitle ?? "Ayla Locked",
               style: GoogleFonts.manrope(
                 fontSize: 22,
                 fontWeight: FontWeight.w800,

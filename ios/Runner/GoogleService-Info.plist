@@ -3,11 +3,11 @@
 <plist version="1.0">
 <dict>
 	<key>CLIENT_ID</key>
-	<string>30319094479-ruc6pvekmmtu6uvhq84eq17ri48pl664.apps.googleusercontent.com</string>
+	<string>30319094479-5g1robanf1krnhldm5pma5hfq0ehdc5d.apps.googleusercontent.com</string>
 	<key>REVERSED_CLIENT_ID</key>
-	<string>com.googleusercontent.apps.30319094479-ruc6pvekmmtu6uvhq84eq17ri48pl664</string>
+	<string>com.googleusercontent.apps.30319094479-5g1robanf1krnhldm5pma5hfq0ehdc5d</string>
 	<key>ANDROID_CLIENT_ID</key>
-	<string>30319094479-0qfa2ecd8ra5ldgaupjo9cn1pgcafk3k.apps.googleusercontent.com</string>
+	<string>30319094479-5jmfhb0rf00l4b9vqreik7drhth1uc03.apps.googleusercontent.com</string>
 	<key>API_KEY</key>
 	<string>AIzaSyCI6gjT2RAmVJ4c7Gp_9gqUFowhOAKrV2s</string>
 	<key>GCM_SENDER_ID</key>
@@ -15,7 +15,7 @@
 	<key>PLIST_VERSION</key>
 	<string>1</string>
 	<key>BUNDLE_ID</key>
-	<string>com.midas.bloom</string>
+	<string>com.midas.evimoon</string>
 	<key>PROJECT_ID</key>
 	<string>bloom-31efb</string>
 	<key>STORAGE_BUCKET</key>
@@ -31,6 +31,6 @@
 	<key>IS_SIGNIN_ENABLED</key>
 	<true></true>
 	<key>GOOGLE_APP_ID</key>
-	<string>1:30319094479:ios:43a2ed4b4dd5a804be65ba</string>
+	<string>1:30319094479:ios:6af7003ea852b134be65ba</string>
 </dict>
 </plist>

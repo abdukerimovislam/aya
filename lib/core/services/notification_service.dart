@@ -146,6 +146,27 @@ class NotificationService {
     return false;
   }
 
+  /// 🚀 Мгновенное уведомление (ДОБАВЛЕНО ДЛЯ ИИ-ОРАКУЛА)
+  Future<void> showLocalNotification({
+    required int id,
+    required String title,
+    required String body,
+    String? payload,
+  }) async {
+    try {
+      await _notificationsPlugin.show(
+        id,
+        title,
+        body,
+        _notificationDetails(channelId: _channelIdCycle),
+        payload: payload,
+      );
+      debugPrint("✅ Showed immediate notification [$id] '$title'");
+    } catch (e) {
+      debugPrint("❌ Error showing immediate notification [$id]: $e");
+    }
+  }
+
   /// 📅 One-time schedule (cycle)
   Future<void> scheduleNotification({
     required int id,
