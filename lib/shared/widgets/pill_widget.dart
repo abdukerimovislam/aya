@@ -3,10 +3,10 @@ import 'package:provider/provider.dart';
 import 'package:flutter/services.dart';
 import 'dart:math';
 
-import '../../core/l10n/app_localizations.dart';
 import '../../core/theme/app_theme.dart';
 import '../../data/providers/coc_provider.dart';
 import '../../data/providers/cycle_provider.dart';
+import '../../l10n/app_localizations.dart';
 
 
 class PillWidget extends StatefulWidget {

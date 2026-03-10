@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 import '../../core/l10n/app_localizations.dart';
 import '../../core/services/backup_service.dart';
@@ -10,11 +12,35 @@ import '../../core/theme/app_theme.dart';
 import '../../data/providers/cycle_provider.dart';
 import '../../data/providers/settings_provider.dart';
 
-// 🔥 Обновленный импорт
+import '../../l10n/app_localizations.dart';
 import '../../shared/widgets/premium_glass_card.dart';
 
 class ProfileSettingsList extends StatelessWidget {
   const ProfileSettingsList({super.key});
+
+  // 🔥 МЕДИЦИНСКИЙ UX: Диалог настройки старта пачки при включении КОК
+  Future<void> _handleCOCToggle(BuildContext context, bool newValue, CycleProvider cycle, SettingsProvider settings) async {
+    if (!newValue) {
+      // Если просто выключает - выключаем
+      HapticFeedback.mediumImpact();
+      await cycle.setCOCMode(false);
+      return;
+    }
+
+    HapticFeedback.selectionClick();
+
+    // Показываем диалог для выбора даты старта
+    final result = await showDialog<DateTime>(
+      context: context,
+      builder: (ctx) => const _COCStartDialog(),
+    );
+
+    if (result != null) {
+      // Пользователь выбрал дату, включаем КОК с правильной датой
+      await settings.setCOCSettings(21, 7, packStartDate: result); // Сохраняем в настройки
+      await cycle.setCOCMode(true, packStartDate: result); // Передаем в ядро
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -46,7 +72,8 @@ class ProfileSettingsList extends StatelessWidget {
               icon: Icons.medication_outlined,
               title: l10n.prefCOC,
               value: cycle.isCOCEnabled,
-              onChanged: (v) => cycle.setCOCMode(v),
+              // 🔥 Используем умный метод включения
+              onChanged: (v) => _handleCOCToggle(context, v, cycle, settings),
             ),
           ],
         ),
@@ -61,8 +88,8 @@ class ProfileSettingsList extends StatelessWidget {
                 icon: CupertinoIcons.arrow_2_circlepath,
                 title: "Cycle Length",
                 value: cycle.cycleLength.toDouble(),
-                min: 21,
-                max: 45,
+                min: 12, // 🔥 Расширили под полименорею
+                max: 180, // 🔥 Расширили под СПКЯ / Олигоменорею
                 suffix: l10n.unitDays,
                 onChanged: (val) => cycle.setCycleLength(val.toInt()),
               ),
@@ -72,7 +99,7 @@ class ProfileSettingsList extends StatelessWidget {
                 title: "Period Length",
                 value: cycle.avgPeriodDuration.toDouble(),
                 min: 2,
-                max: 9,
+                max: 14, // 🔥 Расширили под меноррагию
                 suffix: l10n.unitDays,
                 onChanged: (val) => cycle.setAveragePeriodDuration(val.toInt()),
               ),
@@ -132,6 +159,83 @@ class ProfileSettingsList extends StatelessWidget {
   }
 }
 
+// 🔥 НОВЫЙ ВИДЖЕТ: Диалог выбора даты старта пачки
+class _COCStartDialog extends StatefulWidget {
+  const _COCStartDialog();
+
+  @override
+  State<_COCStartDialog> createState() => _COCStartDialogState();
+}
+
+class _COCStartDialogState extends State<_COCStartDialog> {
+  DateTime _selectedDate = DateTime.now();
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      backgroundColor: Colors.white,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      title: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(color: AppColors.primary.withOpacity(0.1), shape: BoxShape.circle),
+            child: Icon(Icons.medication, color: AppColors.primary),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              "Start Pill Pack",
+              style: GoogleFonts.inter(fontWeight: FontWeight.w800, fontSize: 20, color: AppColors.textPrimary),
+            ),
+          ),
+        ],
+      ),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            "When did you take the first pill of your current pack?",
+            style: GoogleFonts.inter(fontSize: 14, color: AppColors.textSecondary, height: 1.4),
+          ),
+          const SizedBox(height: 20),
+          SizedBox(
+            height: 120,
+            child: CupertinoDatePicker(
+              mode: CupertinoDatePickerMode.date,
+              initialDateTime: _selectedDate,
+              maximumDate: DateTime.now(),
+              onDateTimeChanged: (DateTime newDate) {
+                setState(() => _selectedDate = newDate);
+              },
+            ),
+          ),
+        ],
+      ),
+      actionsPadding: const EdgeInsets.only(bottom: 16, right: 16, left: 16),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context, null),
+          child: Text("Cancel", style: GoogleFonts.inter(fontWeight: FontWeight.w600, color: AppColors.textSecondary)),
+        ),
+        ElevatedButton(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: AppColors.primary, elevation: 0,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+          ),
+          onPressed: () {
+            HapticFeedback.lightImpact();
+            Navigator.pop(context, _selectedDate);
+          },
+          child: Text("Start", style: GoogleFonts.inter(fontWeight: FontWeight.w700, color: Colors.white)),
+        ),
+      ],
+    );
+  }
+}
+
 class _Divider extends StatelessWidget {
   const _Divider();
   @override
@@ -161,7 +265,6 @@ class ProfileSettingsGroup extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // 🔥 Заменили VisionCard на PremiumGlassCard + Padding (для margin)
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: PremiumGlassCard(

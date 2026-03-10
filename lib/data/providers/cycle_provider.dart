@@ -6,17 +6,18 @@ import 'dart:math' as math;
 
 import '../../core/l10n/app_localizations.dart';
 import '../../core/services/notification_service.dart';
+import '../../l10n/app_localizations.dart';
 import '../models/cycle_model.dart';
 import '../logic/cycle_ai_engine.dart';
 
 enum FertilityChance { low, high, peak }
 enum TTCStrategy { minimal, maximal }
 
-// 🔥 НОВОЕ: Результат логирования цикла для умного UI
 enum CycleLogResult {
   success,
-  suspiciouslyEarly, // Прошло слишком мало времени (нужно спросить "Вы уверены?")
-  futureDate         // Попытка отметить цикл в будущем
+  suspiciouslyEarly, // Полименорея (цикл < 21 дня)
+  ovulationBleeding, // Кровотечение во время овуляции
+  futureDate
 }
 
 class CycleProvider with ChangeNotifier {
@@ -39,6 +40,31 @@ class CycleProvider with ChangeNotifier {
   String? _ovulationOverrideSource;
 
   bool _isLoaded = false;
+
+  // 🔥 МЕДИЦИНСКИЕ ФЛАГИ (Улучшены для патологий)
+  bool get hasProlongedBleeding {
+    if (_history.isEmpty || _isCOCEnabled) return false;
+    return (_history.first.periodDuration ?? 0) > 8; // Меноррагия
+  }
+
+  bool get isCycleLate {
+    if (_isCOCEnabled) return false;
+    return _currentData.phase == CyclePhase.late;
+  }
+
+  int get daysLate {
+    if (_isCOCEnabled) return 0;
+    final diff = _currentData.currentDay - _currentData.totalCycleLength;
+    return diff > 0 ? diff : 0;
+  }
+
+  // Определение Аменореи (пропажа цикла на 60+ дней от ожидаемой даты)
+  bool get isAmenorrhea {
+    return daysLate >= 60;
+  }
+
+  // Знает ли провайдер, что пользователь уже нажал "Закончить"
+  bool get isPeriodEnded => _settingsBox.get('current_period_ended', defaultValue: false);
 
   CycleProvider(this._cycleBox, this._settingsBox, [this._notificationService]) {
     _init();
@@ -192,45 +218,39 @@ class CycleProvider with ChangeNotifier {
     DateTime cycleStart = days.first;
     List<DateTime> currentCycleBleedingDays = [days.first];
 
-    // 🔥 АЛГОРИТМ МЕДИЦИНСКОГО ГРУППИРОВАНИЯ ЦИКЛОВ (МЕГА УМНЫЙ)
     for (int i = 1; i < days.length; i++) {
       DateTime currentDay = days[i];
       bool isExplicitNewCycle = manualStarts.contains(currentDay.millisecondsSinceEpoch);
       int daysSinceCycleStart = currentDay.difference(cycleStart).inDays;
       bool gapLargeEnough = currentDay.difference(currentCycleBleedingDays.last).inDays > 2;
 
-      // Нормальный новый цикл: разрыв больше 2 дней И прошло хотя бы 21 день
       bool isMedicallyPlausibleNewCycle = daysSinceCycleStart >= 21;
 
       if (isExplicitNewCycle || (gapLargeEnough && isMedicallyPlausibleNewCycle)) {
-        // ЗАВЕРШАЕМ СТАРЫЙ ЦИКЛ
-        // Считаем длину месячных ТОЛЬКО по первому непрерывному блоку (отсекаем Spotting)
         int pLen = 1;
         for (int j = 1; j < currentCycleBleedingDays.length; j++) {
           if (currentCycleBleedingDays[j].difference(currentCycleBleedingDays[j - 1]).inDays <= 2) {
             pLen = currentCycleBleedingDays[j].difference(currentCycleBleedingDays.first).inDays + 1;
           } else {
-            break; // Наткнулись на разрыв. Дальше - межменструальные выделения.
+            break;
           }
         }
 
         newHistory.add(CycleModel(
           startDate: cycleStart,
           endDate: currentDay.subtract(const Duration(days: 1)),
+          // СПКЯ/Аменорея защита (лимит 180 дней)
           length: daysSinceCycleStart,
           periodDuration: pLen,
         ));
 
-        // НАЧИНАЕМ НОВЫЙ
         cycleStart = currentDay;
         currentCycleBleedingDays = [currentDay];
       } else {
-        // Это кровь в пределах ТЕКУЩЕГО цикла (Spotting или длинные непрерывные месячные)
         currentCycleBleedingDays.add(currentDay);
       }
     }
 
-    // Добавляем текущий (незавершенный) цикл
     int pLen = 1;
     for (int j = 1; j < currentCycleBleedingDays.length; j++) {
       if (currentCycleBleedingDays[j].difference(currentCycleBleedingDays[j - 1]).inDays <= 2) {
@@ -275,7 +295,7 @@ class CycleProvider with ChangeNotifier {
     double currentWeight = completedCycles.length.toDouble();
 
     for (var c in completedCycles) {
-      if (c.length! >= 15 && c.length! <= 90) {
+      if (c.length! >= 12 && c.length! <= 180) {
         weightedSumCycle += c.length! * currentWeight;
         weightTotalCycle += currentWeight;
       }
@@ -283,7 +303,7 @@ class CycleProvider with ChangeNotifier {
     }
 
     if (weightTotalCycle > 0) {
-      _avgCycleLength = (weightedSumCycle / weightTotalCycle).round().clamp(15, 90);
+      _avgCycleLength = (weightedSumCycle / weightTotalCycle).round().clamp(12, 180);
       _settingsBox.put('avg_cycle_len', _avgCycleLength);
     }
 
@@ -328,7 +348,7 @@ class CycleProvider with ChangeNotifier {
       predictedOvulation = _normalizeDate(_ovulationOverride!);
       effectiveCycleLen = predictedOvulation.difference(safeStart).inDays + 14;
     } else {
-      effectiveCycleLen = avgLen.clamp(15, 90);
+      effectiveCycleLen = avgLen.clamp(12, 180);
       predictedOvulation = safeStart.add(Duration(days: effectiveCycleLen - 14));
     }
 
@@ -470,7 +490,6 @@ class CycleProvider with ChangeNotifier {
     await rescheduleNotifications();
   }
 
-  // 🔥 ИНТЕЛЛЕКТУАЛЬНАЯ ПРОВЕРКА ЦИКЛА: Добавлен флаг isConfirmed и возврат Enum
   Future<CycleLogResult> logActionStartPeriod(DateTime date, {bool isConfirmed = false}) async {
     await _ensureBoxOpen();
     if (_isCOCEnabled) return CycleLogResult.success;
@@ -480,13 +499,25 @@ class CycleProvider with ChangeNotifier {
       return CycleLogResult.futureDate;
     }
 
-    // Защита от ошибочных случайных кликов (Меньше 21 дня - это Полименорея или выделения)
     if (!isConfirmed) {
       final currentStart = _normalizeDate(_currentData.cycleStartDate);
-      final diff = normDate.difference(currentStart).inDays;
-      // Если пытаются начать цикл раньше, чем через 21 день (и это не тот же самый день)
-      if (diff > 0 && diff < 21) {
-        return CycleLogResult.suspiciouslyEarly; // Триггер для UI показать алерт "Вы уверены?"
+      final diffFromCurrent = normDate.difference(currentStart).inDays;
+
+      if (diffFromCurrent > 0 && diffFromCurrent < 21) {
+        final ovDay = ovulationDay;
+        if (diffFromCurrent >= (ovDay - 2) && diffFromCurrent <= (ovDay + 2)) {
+          return CycleLogResult.ovulationBleeding;
+        }
+        return CycleLogResult.suspiciouslyEarly;
+      }
+
+      if (diffFromCurrent < 0) {
+        for (var cycle in _history) {
+          final histDiff = normDate.difference(_normalizeDate(cycle.startDate)).inDays.abs();
+          if (histDiff > 0 && histDiff < 21) {
+            return CycleLogResult.suspiciouslyEarly;
+          }
+        }
       }
     }
 
@@ -503,7 +534,6 @@ class CycleProvider with ChangeNotifier {
     final ms = normDate.millisecondsSinceEpoch;
     if (!timestamps.contains(ms)) timestamps.add(ms);
 
-    // Если прошли проверку, записываем как точный старт
     if (!manualStarts.contains(ms)) manualStarts.add(ms);
 
     await _clearOvulationOverride();
@@ -557,6 +587,23 @@ class CycleProvider with ChangeNotifier {
 
   Future<void> setSpecificCycleStartDate(DateTime date) async => logActionStartPeriod(date, isConfirmed: true);
   Future<void> setPeriodDate(DateTime date) async => togglePeriodDay(date);
+
+  // 🔥 УМНЫЙ ПЕРЕХОД НА TTC (ПЛАНИРОВАНИЕ БЕРЕМЕННОСТИ)
+  Future<void> setTTCMode(bool enabled) async {
+    await _ensureBoxOpen();
+    if (enabled && _isCOCEnabled) return; // Биологически несовместимы
+
+    _isTTCMode = enabled;
+    await _settingsBox.put('ttc_mode_enabled', enabled);
+
+    // Мгновенный пересчет фертильных окон для текущего цикла!
+    if (enabled) {
+      _updateCurrentData(_currentData.cycleStartDate, _avgCycleLength, _avgPeriodDuration);
+      await rescheduleNotifications();
+    }
+
+    notifyListeners();
+  }
 
   Future<void> setTTCStrategy(TTCStrategy strategy) async {
     await _ensureBoxOpen();
@@ -656,21 +703,15 @@ class CycleProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> setTTCMode(bool enabled) async {
-    await _ensureBoxOpen();
-    if (enabled && _isCOCEnabled) return;
-    _isTTCMode = enabled;
-    await _settingsBox.put('ttc_mode_enabled', enabled);
-    notifyListeners();
-  }
-
-  Future<void> setCOCMode(bool enabled, {int currentPillNumber = 1}) async {
+  // 🔥 УМНЫЙ ПЕРЕХОД И ВЫХОД ИЗ РЕЖИМА КОК
+  Future<void> setCOCMode(bool enabled, {int currentPillNumber = 1, DateTime? packStartDate}) async {
     await _ensureBoxOpen();
 
     _isCOCEnabled = enabled;
     await _settingsBox.put('coc_enabled', enabled);
 
     if (enabled) {
+      // ВКЛЮЧЕНИЕ КОК
       _aiConfidence = null;
       if (_isTTCMode) {
         _isTTCMode = false;
@@ -678,20 +719,40 @@ class CycleProvider with ChangeNotifier {
       }
       await _clearOvulationOverride();
 
-      if (currentPillNumber > 1) {
-        final daysToSubtract = currentPillNumber - 1;
-        final correctedStart = DateTime.now().subtract(Duration(days: daysToSubtract));
-        final active = _settingsBox.get('coc_active_count', defaultValue: 21);
-        final brk = _settingsBox.get('coc_break_days', defaultValue: 7);
-        _updateCurrentData(correctedStart, active + brk, brk);
+      DateTime effectiveStart;
+      if (packStartDate != null) {
+        effectiveStart = _normalizeDate(packStartDate);
       } else {
-        final active = _settingsBox.get('coc_active_count', defaultValue: 21);
-        final brk = _settingsBox.get('coc_break_days', defaultValue: 7);
-        _updateCurrentData(DateTime.now(), active + brk, brk);
+        final daysToSubtract = currentPillNumber > 1 ? currentPillNumber - 1 : 0;
+        effectiveStart = _normalizeDate(DateTime.now()).subtract(Duration(days: daysToSubtract));
       }
+
+      final active = _settingsBox.get('coc_active_count', defaultValue: 21);
+      final brk = _settingsBox.get('coc_break_days', defaultValue: 7);
+      _updateCurrentData(effectiveStart, active + brk, brk);
     } else {
+      // 🔥 ВЫКЛЮЧЕНИЕ КОК (MEDICAL FIX):
+      // Если последняя кровь была очень давно (например, больше 40 дней назад,
+      // так как девушка пропускала перерывы на таблетках), мы не можем отбросить ее цикл назад.
+      // Мы автоматически начинаем новый "естественный цикл" с сегодняшнего дня!
       _calculateAIConfidence();
-      _updateCurrentData(_currentData.cycleStartDate, _avgCycleLength, _avgPeriodDuration);
+
+      List<int> timestamps = (_settingsBox.get('bleeding_days') as List?)?.cast<int>() ?? [];
+      if (timestamps.isNotEmpty) {
+        timestamps.sort();
+        final lastBleed = DateTime.fromMillisecondsSinceEpoch(timestamps.last);
+        final daysSinceLastBleed = _normalizeDate(DateTime.now()).difference(_normalizeDate(lastBleed)).inDays;
+
+        if (daysSinceLastBleed > _avgCycleLength) {
+          await logActionStartPeriod(DateTime.now(), isConfirmed: true);
+          return;
+        }
+      } else {
+        await logActionStartPeriod(DateTime.now(), isConfirmed: true);
+        return;
+      }
+
+      await _recalculateEngine();
       await rescheduleNotifications();
     }
     notifyListeners();
@@ -708,7 +769,7 @@ class CycleProvider with ChangeNotifier {
 
   Future<void> setCycleLength(int length) async {
     await _ensureBoxOpen();
-    length = length.clamp(15, 90);
+    length = length.clamp(12, 180); // СПКЯ поддержка
     await _settingsBox.put('avg_cycle_len', length);
     _avgCycleLength = length;
     _updateCurrentData(_currentData.cycleStartDate, length, _avgPeriodDuration);
@@ -728,6 +789,36 @@ class CycleProvider with ChangeNotifier {
     }
   }
 
+  Future<void> resumePeriod() async {
+    await _ensureBoxOpen();
+    if (_isCOCEnabled) return;
+
+    await _settingsBox.put('current_period_ended', false);
+    _updateCurrentData(_currentData.cycleStartDate, _avgCycleLength, _avgPeriodDuration);
+    await rescheduleNotifications();
+  }
+
+  Future<void> undoPeriodStart() async {
+    await _ensureBoxOpen();
+    if (_isCOCEnabled) return;
+
+    final normDate = _normalizeDate(_currentData.cycleStartDate);
+    final ms = normDate.millisecondsSinceEpoch;
+
+    List<int> timestamps = (_settingsBox.get('bleeding_days') as List?)?.cast<int>() ?? [];
+    List<int> manualStarts = (_settingsBox.get('manual_cycle_starts') as List?)?.cast<int>() ?? [];
+
+    timestamps.remove(ms);
+    manualStarts.remove(ms);
+
+    await _settingsBox.put('bleeding_days', timestamps);
+    await _settingsBox.put('manual_cycle_starts', manualStarts);
+    await _settingsBox.put('current_period_ended', false);
+
+    await _recalculateEngine();
+    await rescheduleNotifications();
+  }
+
   Future<void> rescheduleNotifications() async {
     if (_notificationService == null) return;
     try {
@@ -745,6 +836,7 @@ class CycleProvider with ChangeNotifier {
       final l10n = await AppLocalizations.delegate.load(targetLocale);
       final lastStart = _normalizeDate(_currentData.cycleStartDate);
       final len = cycleLength;
+
       final nextPeriodStart = lastStart.add(Duration(days: len));
 
       if (_isCOCEnabled) {
@@ -772,8 +864,17 @@ class CycleProvider with ChangeNotifier {
       final prePeriodDate = nextPeriodStart.subtract(const Duration(days: 1));
       await _scheduleIfFuture(204, prePeriodDate, l10n.notifPeriodSoonTitle, l10n.notifPeriodSoonBody, payload: "screen_calendar");
 
-      final lateDate = nextPeriodStart.add(const Duration(days: 3));
-      await _scheduleIfFuture(205, lateDate, l10n.notifLateTitle, l10n.notifLateBody, payload: "screen_calendar");
+      final lateDay1 = nextPeriodStart.add(const Duration(days: 1));
+      await _scheduleIfFuture(205, lateDay1, l10n.notifLateTitle, l10n.notifLateBody, payload: "screen_calendar");
+
+      final lateDay5 = nextPeriodStart.add(const Duration(days: 5));
+      await _scheduleIfFuture(
+          206,
+          lateDay5,
+          "Period is 5 days late",
+          "Consider taking a pregnancy test if you've been sexually active.",
+          payload: "screen_calendar"
+      );
 
       final now = DateTime.now();
       final todayEvening = DateTime(now.year, now.month, now.day, 20, 0);

@@ -5,6 +5,7 @@ import '../../core/l10n/app_localizations.dart';
 import '../../core/theme/app_theme.dart';
 import '../../data/models/cycle_model.dart';
 import '../../data/providers/cycle_provider.dart';
+import '../../l10n/app_localizations.dart';
 
 
 // 🧬 PARALLAX BACKGROUND

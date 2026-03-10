@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import '../../../core/l10n/app_localizations.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../data/models/cycle_model.dart';
+import '../../../l10n/app_localizations.dart';
 
 
 /// Premium подписочный таймер: градиентное кольцо + glow + тики + glass UI.

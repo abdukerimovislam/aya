@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../../l10n/app_localizations.dart';
 import 'widgets/dna_comparison.dart';
 import 'widgets/liquid_mood_chart.dart';
 import 'widgets/neural_radar.dart';

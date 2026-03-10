@@ -12,7 +12,6 @@ import 'package:intl/intl.dart';
 
 // Новая архитектура Ayla
 import 'ayla_app.dart';
-import 'core/l10n/app_localizations.dart';
 import 'core/services/auth_service.dart';
 import 'core/services/notification_service.dart';
 import 'core/services/secure_storage_service.dart';
@@ -30,6 +29,7 @@ import 'data/providers/wellness_provider.dart';
 import 'features/onboarding/onboarding_screen.dart';
 import 'features/onboarding/splash_screen.dart';
 import 'features/profile/profile_screen.dart';
+import 'l10n/app_localizations.dart';
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 

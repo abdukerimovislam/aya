@@ -4,13 +4,13 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/cupertino.dart';
 
-import '../../core/l10n/app_localizations.dart';
 
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/ttc_theme.dart';
 import '../../data/providers/cycle_provider.dart';
 import '../../data/providers/settings_provider.dart';
 import '../../features/profile/premium_paywall_sheet.dart';
+import '../../l10n/app_localizations.dart';
 import 'mode_transition_overlay.dart';
 
 // NOTE: This widget is used both in Track Cycle and TTC screens.

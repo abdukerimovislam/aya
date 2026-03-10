@@ -7,6 +7,7 @@ import '../../../core/l10n/app_localizations.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../data/models/cycle_model.dart';
 import '../../../data/providers/cycle_provider.dart';
+import '../../../l10n/app_localizations.dart';
 import '../../../shared/widgets/animated_edge_button.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -21,6 +22,7 @@ class _ActionBarConstants {
   static const double handleWidth = 48;
   static const double handleHeight = 5;
   static const double optionIconSize = 26;
+  static const int minDaysBetweenCycles = 11;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -73,6 +75,18 @@ class DashboardActionBar extends StatelessWidget {
     }
 
     if (data.phase == CyclePhase.menstruation) {
+      // 🔥 УМНЫЙ UX: Если юзер уже нажал "Закончить", даем фидбек текстом и цветом!
+      if (provider.isPeriodEnded) {
+        return _ActionConfig(
+          text: "Ending today", // TODO: Добавить в .arb (например, l10n.periodEndingToday)
+          icon: CupertinoIcons.check_mark_circled_solid,
+          textColor: Colors.white,
+          bgColor: AppColors.menstruation.withOpacity(0.7), // Делаем цвет слегка приглушенным
+          isPulsing: false,
+          onTap: () => _showActivePeriodSheet(context),
+        );
+      }
+
       return _ActionConfig(
         text: l10n.phaseMenstruation,
         icon: CupertinoIcons.drop_fill,
@@ -109,7 +123,6 @@ class DashboardActionBar extends StatelessWidget {
 
   Future<void> _handleSmartPeriodStart(BuildContext context, DateTime selectedDate) async {
     try {
-      // 🔥 QA/MED FIX: Используем новый умный метод из CycleProvider
       final result = await provider.logActionStartPeriod(selectedDate);
 
       if (!context.mounted) return;
@@ -120,12 +133,10 @@ class DashboardActionBar extends StatelessWidget {
       }
 
       if (result == CycleLogResult.suspiciouslyEarly) {
-        // 🔥 Медицинский интерцептор: Спрашиваем пользователя, уверена ли она
         _showSuspiciouslyEarlyDialog(context, selectedDate);
         return;
       }
 
-      // Если всё ок (успешный новый цикл)
       _showSuccessSnackbar(context, l10n.msgSaved);
 
     } catch (e) {
@@ -136,7 +147,6 @@ class DashboardActionBar extends StatelessWidget {
 
   // ─── DIALOGS & BOTTOM SHEETS ────────────────────────────────────────────────
 
-  // 🔥 НОВЫЙ ДИАЛОГ: Защита от случайного сброса цикла
   void _showSuspiciouslyEarlyDialog(BuildContext context, DateTime selectedDate) {
     HapticFeedback.heavyImpact();
     showDialog(
@@ -157,7 +167,7 @@ class DashboardActionBar extends StatelessWidget {
             const SizedBox(width: 12),
             Expanded(
               child: Text(
-                "Are you sure?", // Можно вынести в l10n.areYouSure если есть
+                "Are you sure?",
                 style: GoogleFonts.inter(
                   fontWeight: FontWeight.w800,
                   fontSize: 20,
@@ -181,7 +191,6 @@ class DashboardActionBar extends StatelessWidget {
             onPressed: () async {
               Navigator.pop(ctx);
               HapticFeedback.lightImpact();
-              // Если это просто мазня - добавляем день крови, не разрывая цикл
               await provider.togglePeriodDay(selectedDate);
               if (context.mounted) {
                 _showSuccessSnackbar(context, l10n.insightSpottingBody);
@@ -205,7 +214,6 @@ class DashboardActionBar extends StatelessWidget {
             onPressed: () async {
               Navigator.pop(ctx);
               HapticFeedback.mediumImpact();
-              // Если пользователь уверен - форсируем сброс цикла
               await provider.logActionStartPeriod(selectedDate, isConfirmed: true);
               if (context.mounted) {
                 _showSuccessSnackbar(context, l10n.msgSaved);
@@ -277,6 +285,8 @@ class DashboardActionBar extends StatelessWidget {
       isScrollControlled: true,
       builder: (ctx) => _ActivePeriodSheet(
         l10n: l10n,
+        isPeriodEnded: provider.isPeriodEnded, // 🔥 Передаем текущий статус окончания
+        isDayOne: data.currentDay == 1,        // 🔥 Передаем флаг первого дня
         onLogTap: () {
           Navigator.pop(ctx);
           onOpenLogger(context, DateTime.now(), 'log_sheet');
@@ -290,6 +300,17 @@ class DashboardActionBar extends StatelessWidget {
             debugPrint('DashboardActionBar: endCurrentPeriod error: $e');
             if (context.mounted) _showErrorSnackbar(context);
           }
+        },
+        onResumeTap: () async {
+          HapticFeedback.lightImpact();
+          Navigator.pop(ctx);
+          await provider.resumePeriod();
+        },
+        onUndoTap: () async {
+          HapticFeedback.heavyImpact();
+          Navigator.pop(ctx);
+          await provider.undoPeriodStart();
+          if (context.mounted) _showSuccessSnackbar(context, "Period start removed"); // TODO: Вынести в l10n
         },
       ),
     );
@@ -411,13 +432,21 @@ class _PeriodInterceptorSheet extends StatelessWidget {
 
 class _ActivePeriodSheet extends StatelessWidget {
   final AppLocalizations l10n;
+  final bool isPeriodEnded;
+  final bool isDayOne;
   final VoidCallback onLogTap;
   final VoidCallback onEndTap;
+  final VoidCallback onResumeTap;
+  final VoidCallback onUndoTap;
 
   const _ActivePeriodSheet({
     required this.l10n,
+    required this.isPeriodEnded,
+    required this.isDayOne,
     required this.onLogTap,
     required this.onEndTap,
+    required this.onResumeTap,
+    required this.onUndoTap,
   });
 
   @override
@@ -433,13 +462,36 @@ class _ActivePeriodSheet extends StatelessWidget {
           onTap: onLogTap,
         ),
         const SizedBox(height: 12),
-        _SheetOption(
-          icon: CupertinoIcons.check_mark_circled_solid,
-          title: l10n.btnPeriodEnd,
-          subtitle: l10n.dialogEndBody,
-          color: AppColors.textSecondary,
-          onTap: onEndTap,
-        ),
+
+        // 🔥 Умная логика завершения/возобновления
+        if (isPeriodEnded)
+          _SheetOption(
+            icon: CupertinoIcons.play_circle_fill,
+            title: "Resume period", // TODO: Добавить в L10n
+            subtitle: "Still bleeding? Continue current period",
+            color: Colors.orange.shade700,
+            onTap: onResumeTap,
+          )
+        else
+          _SheetOption(
+            icon: CupertinoIcons.check_mark_circled_solid,
+            title: l10n.btnPeriodEnd,
+            subtitle: l10n.dialogEndBody,
+            color: AppColors.textSecondary,
+            onTap: onEndTap,
+          ),
+
+        // 🔥 Опция "Я ошиблась", если это 1-й день цикла!
+        if (isDayOne) ...[
+          const SizedBox(height: 12),
+          _SheetOption(
+            icon: CupertinoIcons.trash_circle_fill,
+            title: "I made a mistake", // TODO: Добавить в L10n
+            subtitle: "Remove period start",
+            color: Colors.redAccent,
+            onTap: onUndoTap,
+          ),
+        ]
       ],
     );
   }

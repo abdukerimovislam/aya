@@ -44,7 +44,7 @@ dependencies:
   iconsax: ^0.0.8
   purchases_flutter: ^9.10.6
   collection: ^1.18.0
-  flutter_timezone: ^2.0.0
+  flutter_timezone: ^3.0.1
   cryptography: ^2.7.0
   sensors_plus: ^7.0.0
 
@@ -67,7 +67,6 @@ flutter:
   uses-material-design: true
 
   assets:
-    - assets/lottie/
     - assets/icon/
 
   fonts:

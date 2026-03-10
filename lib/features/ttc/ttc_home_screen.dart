@@ -12,6 +12,7 @@ import '../../data/models/cycle_model.dart';
 import '../../data/providers/cycle_provider.dart';
 import '../../data/providers/settings_provider.dart';
 import '../../data/providers/wellness_provider.dart';
+import '../../l10n/app_localizations.dart';
 import '../../shared/widgets/mode_switcher.dart';
 import '../dashboard/widgets/ttc_calendar_strip.dart';
 import '../dashboard/widgets/ttc_chart_widget.dart';

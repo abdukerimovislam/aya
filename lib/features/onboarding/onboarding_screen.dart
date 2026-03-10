@@ -13,7 +13,7 @@ import '../../data/providers/coc_provider.dart';
 import '../../data/providers/cycle_provider.dart';
 import '../../data/providers/settings_provider.dart';
 
-// 🔥 Новые импорты
+import '../../l10n/app_localizations.dart';
 import '../../shared/widgets/live_phase_background.dart';
 import '../../shared/widgets/premium_glass_card.dart';
 
@@ -27,6 +27,7 @@ class OnboardingScreen extends StatefulWidget {
 class _OnboardingScreenState extends State<OnboardingScreen> {
   final PageController _pageController = PageController();
   int _currentPage = 0;
+  bool _isProcessing = false; // 🔥 Защита от двойного клика на финише
 
   bool _isCOC = false;
   DateTime _selectedDate = DateTime.now();
@@ -57,7 +58,6 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     return Scaffold(
       body: Stack(
         children: [
-          // 🔥 Использование нового фона
           Positioned.fill(
             child: AnimatedSwitcher(
               duration: const Duration(milliseconds: 800),
@@ -107,6 +107,29 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               ],
             ),
           ),
+
+          // 🔥 Блокирующий экран при сохранении, чтобы не тупило
+          if (_isProcessing)
+            Container(
+              color: Colors.black.withOpacity(0.3),
+              child: Center(
+                child: PremiumGlassCard(
+                  padding: const EdgeInsets.all(24),
+                  borderRadius: 24,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      CircularProgressIndicator(color: AppColors.primary),
+                      const SizedBox(height: 16),
+                      Text(
+                        "Setting up your AI...",
+                        style: GoogleFonts.inter(fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+                      )
+                    ],
+                  ),
+                ),
+              ),
+            ),
         ],
       ),
     );
@@ -140,7 +163,6 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   }
 
   Widget _buildDatePicker(BuildContext context) {
-    // 🔥 Заменили VisionCard
     return PremiumGlassCard(
       padding: const EdgeInsets.all(16),
       child: Theme(
@@ -155,7 +177,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         ),
         child: CalendarDatePicker(
           initialDate: _selectedDate,
-          firstDate: DateTime.now().subtract(const Duration(days: 60)),
+          firstDate: DateTime.now().subtract(const Duration(days: 90)), // 🔥 Расширили под длинные циклы
           lastDate: DateTime.now(),
           onDateChanged: (val) {
             setState(() => _selectedDate = val);
@@ -170,7 +192,6 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        // 🔥 Заменили VisionCard
         PremiumGlassCard(
           padding: const EdgeInsets.symmetric(vertical: 30, horizontal: 20),
           child: Column(
@@ -199,7 +220,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             ),
             child: Slider(
               value: _selectedCycleLength.toDouble(),
-              min: 21, max: 45, divisions: 24,
+              min: 21, max: 45, divisions: 24, // Оставляем базовые лимиты для онбординга (чтобы не пугать 180 днями)
               onChanged: (val) {
                 if (val.toInt() != _selectedCycleLength) {
                   setState(() => _selectedCycleLength = val.toInt());
@@ -372,7 +393,11 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     }
   }
 
+  // 🔥 МЕДИЦИНСКОЕ ИСПРАВЛЕНИЕ: Синхронизация потоков сохранения (без лагов)
   Future<void> _finishOnboarding() async {
+    if (_isProcessing) return; // Защита от дабл-клика
+
+    setState(() => _isProcessing = true);
     HapticFeedback.heavyImpact();
 
     final cycleProvider = context.read<CycleProvider>();
@@ -393,19 +418,25 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
           breakDays: breakDays,
         );
 
-        await cycleProvider.setCOCMode(true);
+        // 🔥 Передаем packStartDate в оба провайдера для идеальной синхронизации
+        await settingsProvider.setCOCSettings(pillCount, breakDays, packStartDate: _selectedDate);
+        await cycleProvider.setCOCMode(true, packStartDate: _selectedDate);
         await cocProvider.toggleCOC(true);
 
       } else {
         await cycleProvider.setCOCMode(false);
-        await cycleProvider.setSpecificCycleStartDate(_selectedDate);
+        // Сначала устанавливаем длину
         await cycleProvider.setCycleLength(_selectedCycleLength);
+        // Затем вызываем умный старт цикла с флагом isConfirmed (ибо это онбординг, тут не нужны алерты)
+        await cycleProvider.logActionStartPeriod(_selectedDate, isConfirmed: true);
       }
 
       await context.read<NotificationService>().requestPermissions();
       await settingsProvider.completeOnboarding();
 
       if (!mounted) return;
+
+      // Красивый переход без зависаний
       Navigator.of(context).pushReplacement(
         PageRouteBuilder(
           transitionDuration: const Duration(milliseconds: 1000),
@@ -415,6 +446,12 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       );
     } catch (e) {
       debugPrint("Onboarding error: $e");
+      if (mounted) {
+        setState(() => _isProcessing = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Error during setup. Please try again.")),
+        );
+      }
     }
   }
 }
@@ -463,7 +500,7 @@ class _ModeCard extends StatelessWidget {
                 ],
               ),
             ),
-            if (isSelected) Icon(Icons.check_circle, color: Colors.white, size: 24),
+            if (isSelected) const Icon(Icons.check_circle, color: Colors.white, size: 24),
           ],
         ),
       ),

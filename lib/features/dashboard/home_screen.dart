@@ -12,6 +12,7 @@ import '../../data/providers/cycle_provider.dart';
 import '../../data/providers/settings_provider.dart';
 
 // Общие виджеты
+import '../../l10n/app_localizations.dart';
 import '../../shared/widgets/cycle_timer_selector.dart';
 import '../../shared/widgets/design_selector_sheet.dart';
 import '../../shared/widgets/pill_widget.dart';
@@ -102,6 +103,8 @@ class _BuildUltraModernScreen extends StatelessWidget {
     final data = provider.currentData;
     final bool isCOC = provider.isCOCEnabled;
     final bool isPremium = settings.isPremium;
+    final int daysLate = provider.daysLate;
+    final bool isAmenorrhea = provider.isAmenorrhea; // 🔥 Достаем статус "Пропажа цикла"
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -117,7 +120,7 @@ class _BuildUltraModernScreen extends StatelessWidget {
                 children: [
                   const SizedBox(height: 16),
 
-                  // HEADER (С контекстным приветствием!)
+                  // HEADER
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 24),
                     child: Row(
@@ -126,14 +129,29 @@ class _BuildUltraModernScreen extends StatelessWidget {
                       children: [
                         _DashboardDateWidget(
                           l10n: l10n,
-                          userName: settings.userName, // Передаем имя
-                          phase: data.phase,           // Передаем фазу
+                          userName: settings.userName,
+                          phase: data.phase,
+                          daysLate: daysLate,
+                          isAmenorrhea: isAmenorrhea, // 🔥 Передаем для приветствия
                         ),
                         _DashboardPremiumBadge(isPremium: isPremium, l10n: l10n),
                       ],
                     ),
                   ),
-                  const SizedBox(height: 40),
+                  const SizedBox(height: 24),
+
+                  // 🔥 SMART LATE ALERT BANNER (С учетом Аменореи)
+                  if (!isCOC && daysLate > 0) ...[
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 24),
+                      child: _LateAlertBanner(
+                          daysLate: daysLate,
+                          isAmenorrhea: isAmenorrhea,
+                          l10n: l10n
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                  ],
 
                   // CENTER TIMER
                   SizedBox(
@@ -171,15 +189,131 @@ class _BuildUltraModernScreen extends StatelessWidget {
   }
 }
 
-// Вспомогательные микро-виджеты хедера, чтобы не выносить их в отдельные файлы
+// ─────────────────────────────────────────────────────────────────────────────
+// 🔥 УМНЫЙ ВИДЖЕТ: БАННЕР ЗАДЕРЖКИ (С ТРЕМЯ УРОВНЯМИ)
+// ─────────────────────────────────────────────────────────────────────────────
+class _LateAlertBanner extends StatelessWidget {
+  final int daysLate;
+  final bool isAmenorrhea;
+  final AppLocalizations l10n;
+
+  const _LateAlertBanner({
+    required this.daysLate,
+    required this.isAmenorrhea,
+    required this.l10n
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    // 3 уровня: Базовая (1-4 дня), Критическая (5-59 дней), Аменорея (60+ дней)
+    final isCritical = daysLate >= 5 && !isAmenorrhea;
+
+    String title;
+    String subtitle;
+    Color primaryColor;
+    Color bgColor;
+    IconData icon;
+
+    if (isAmenorrhea) {
+      // Уровень 3: Аменорея
+      title = "Cycle paused for $daysLate days";
+      subtitle = "Missing periods for more than 2 months can be a sign of PCOS or hormonal imbalance. Consider seeing a doctor.";
+      primaryColor = Colors.deepPurple;
+      bgColor = Colors.deepPurple.withOpacity(0.1);
+      icon = CupertinoIcons.heart_slash_circle_fill;
+    } else if (isCritical) {
+      // Уровень 2: Возможная беременность
+      title = "Your period is $daysLate days late";
+      subtitle = "If you've been sexually active, you might want to take a pregnancy test just to be sure.";
+      primaryColor = Colors.redAccent.shade700;
+      bgColor = Colors.redAccent.withOpacity(0.1);
+      icon = CupertinoIcons.drop_triangle_fill;
+    } else {
+      // Уровень 1: Обычная задержка
+      title = daysLate == 1 ? "Your period is 1 day late" : "Your period is $daysLate days late";
+      subtitle = "A slight delay can be normal due to stress, travel, or lifestyle changes.";
+      primaryColor = Colors.orange.shade800;
+      bgColor = Colors.orangeAccent.withOpacity(0.1);
+      icon = CupertinoIcons.clock_fill;
+    }
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(
+          color: primaryColor.withOpacity(0.3),
+          width: 1,
+        ),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: primaryColor.withOpacity(0.15),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              icon,
+              color: primaryColor,
+              size: 24,
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: GoogleFonts.inter(
+                    color: primaryColor,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 16,
+                    letterSpacing: -0.3,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  subtitle,
+                  style: GoogleFonts.inter(
+                    color: AppColors.textSecondary,
+                    fontWeight: FontWeight.w500,
+                    fontSize: 13,
+                    height: 1.4,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// МИКРО-ВИДЖЕТЫ ХЕДЕРА
+// ─────────────────────────────────────────────────────────────────────────────
 class _DashboardDateWidget extends StatelessWidget {
   final AppLocalizations l10n;
   final String userName;
   final CyclePhase phase;
+  final int daysLate;
+  final bool isAmenorrhea;
 
-  const _DashboardDateWidget({required this.l10n, required this.userName, required this.phase});
+  const _DashboardDateWidget({
+    required this.l10n,
+    required this.userName,
+    required this.phase,
+    required this.daysLate,
+    required this.isAmenorrhea,
+  });
 
-  // 🔥 УМНАЯ ЛОГИКА ПРИВЕТСТВИЙ
   String _getContextualGreeting() {
     final hour = DateTime.now().hour;
     String timeOfDay = "Hello";
@@ -194,7 +328,6 @@ class _DashboardDateWidget extends StatelessWidget {
       timeOfDay = "Time to rest";
     }
 
-    // Имя пользователя (берем первое слово, если есть пробел)
     final firstName = userName.split(' ').first;
 
     String phaseVibe = "";
@@ -203,7 +336,15 @@ class _DashboardDateWidget extends StatelessWidget {
       case CyclePhase.follicular: phaseVibe = "Your energy is rising."; break;
       case CyclePhase.ovulation: phaseVibe = "You are glowing today ✨"; break;
       case CyclePhase.luteal: phaseVibe = "Listen to your body's needs."; break;
-      case CyclePhase.late: phaseVibe = "Take a deep breath."; break;
+      case CyclePhase.late:
+        if (isAmenorrhea) {
+          phaseVibe = "Health first. Remember to take care of yourself.";
+        } else if (daysLate > 0) {
+          phaseVibe = "You are $daysLate ${daysLate == 1 ? 'day' : 'days'} late. Take a deep breath.";
+        } else {
+          phaseVibe = "Take a deep breath.";
+        }
+        break;
     }
 
     return "$timeOfDay, $firstName.\n$phaseVibe";
@@ -214,13 +355,11 @@ class _DashboardDateWidget extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // ЖИВОЕ ПРИВЕТСТВИЕ
         Text(
           _getContextualGreeting(),
           style: GoogleFonts.inter(color: AppColors.textSecondary.withOpacity(0.8), fontWeight: FontWeight.w600, fontSize: 13, height: 1.4),
         ),
         const SizedBox(height: 6),
-        // ДАТА СТАЛА ЧУТЬ СТРОЖЕ
         Text(
           DateFormat('MMMM d', l10n.localeName).format(DateTime.now()),
           style: GoogleFonts.inter(color: AppColors.textPrimary, fontWeight: FontWeight.w900, fontSize: 26, letterSpacing: -1.0),
@@ -229,7 +368,6 @@ class _DashboardDateWidget extends StatelessWidget {
     );
   }
 }
-
 
 class _DashboardPremiumBadge extends StatelessWidget {
   final bool isPremium;
