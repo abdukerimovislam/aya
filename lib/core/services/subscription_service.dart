@@ -15,6 +15,9 @@ class SubscriptionService {
   static final StreamController<bool> _premiumController = StreamController<bool>.broadcast();
   static Stream<bool> get premiumStatusStream => _premiumController.stream;
 
+  // 🔥 ФЛАГ БЕЗОПАСНОСТИ: Гарантирует, что мы не дернем RevenueCat до его настройки
+  static bool _isConfigured = false;
+
   static Future<void> init() async {
     // Не инициализируем на неподдерживаемых платформах (например, Web)
     if (kIsWeb || (!Platform.isIOS && !Platform.isAndroid)) return;
@@ -31,6 +34,7 @@ class SubscriptionService {
 
     if (configuration != null) {
       await Purchases.configure(configuration);
+      _isConfigured = true; // ✅ Отмечаем, что RevenueCat готов к работе
 
       // Слушаем изменения статуса в реальном времени (даже если покупка вне приложения)
       Purchases.addCustomerInfoUpdateListener((customerInfo) {
@@ -39,11 +43,17 @@ class SubscriptionService {
 
       // Первичная проверка при запуске
       await checkPremium();
+    } else {
+      // Если мы на Android и ключ пока закомментирован, безопасно глушим ИИ
+      debugPrint("⚠️ RevenueCat SDK skipped: No configuration provided for this platform.");
+      _premiumController.add(false); // Дефолтно возвращаем отсутствие премиума
     }
   }
 
   /// Проверить текущий статус (и обновить стрим)
   static Future<bool> checkPremium() async {
+    if (!_isConfigured) return false; // 🔥 ЗАЩИТА ОТ КРАША
+
     try {
       final customerInfo = await Purchases.getCustomerInfo();
       return _updateStream(customerInfo);
@@ -55,6 +65,8 @@ class SubscriptionService {
 
   /// Получить доступные тарифы (Paywall)
   static Future<List<Package>> getOfferings() async {
+    if (!_isConfigured) return []; // 🔥 ЗАЩИТА ОТ КРАША
+
     try {
       final offerings = await Purchases.getOfferings();
       if (offerings.current != null && offerings.current!.availablePackages.isNotEmpty) {
@@ -68,13 +80,11 @@ class SubscriptionService {
 
   /// Купить пакет
   static Future<bool> purchasePackage(Package package) async {
+    if (!_isConfigured) return false; // 🔥 ЗАЩИТА ОТ КРАША
+
     try {
       // Покупка для SDK v9+
       final purchaseResult = await Purchases.purchasePackage(package);
-
-      // Здесь мы получаем CustomerInfo напрямую из результата
-      // Если у вас старая версия SDK и нужен dynamic, можно раскомментировать старый вариант,
-      // но для актуальных версий v9+ это стандартный способ:
       final CustomerInfo info = purchaseResult.customerInfo;
 
       return _updateStream(info);
@@ -94,6 +104,8 @@ class SubscriptionService {
 
   /// Восстановить покупки
   static Future<bool> restorePurchases() async {
+    if (!_isConfigured) return false; // 🔥 ЗАЩИТА ОТ КРАША
+
     try {
       final customerInfo = await Purchases.restorePurchases();
       debugPrint("Restore success. Active: ${_checkEntitlement(customerInfo)}");
