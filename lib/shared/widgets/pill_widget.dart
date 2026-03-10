@@ -28,12 +28,8 @@ class _PillWidgetState extends State<PillWidget> {
     if (!coc.isLoaded || !coc.isEnabled) return const SizedBox.shrink();
 
     final currentDay = cycle.currentData.currentDay;
-
-    // ✅ FIX: Use provider logic instead of hardcoded 21 days
-    // This supports both 21/7 and 24/4 pack types automatically
     final bool isBreakWeek = coc.isOnBreak;
 
-    // Обертка для эффекта частиц
     return FireflyOverlay(
       controller: _fireflyCtrl,
       child: AnimatedSwitcher(
@@ -45,7 +41,6 @@ class _PillWidgetState extends State<PillWidget> {
             coc: coc,
             l10n: l10n,
             onTake: () {
-              // ЗАПУСК МАГИИ ПРИ НАЖАТИИ
               _fireflyCtrl.explode();
             }
         ),
@@ -66,11 +61,22 @@ class _ActivePillCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final isTaken = coc.isTakenToday;
 
+    // 🔥 ЛОГИКА ПРОПУСКА ТАБЛЕТКИ
+    final now = TimeOfDay.now();
+    final reminder = coc.reminderTime;
+
+    // Считаем минуты от начала дня для удобного сравнения
+    final nowMinutes = now.hour * 60 + now.minute;
+    final reminderMinutes = reminder.hour * 60 + reminder.minute;
+
+    // Если таблетка НЕ выпита, и текущее время больше времени напоминания (опоздание)
+    final isLate = !isTaken && (nowMinutes > reminderMinutes);
+
     return GestureDetector(
       onTap: () {
         HapticFeedback.mediumImpact();
         if (!isTaken) {
-          onTake(); // Запускаем салют только если ПРИНИМАЕМ
+          onTake();
           coc.takePill();
         } else {
           coc.undoTakePill();
@@ -84,15 +90,25 @@ class _ActivePillCard extends StatelessWidget {
         decoration: BoxDecoration(
           gradient: isTaken
               ? const LinearGradient(colors: [Color(0xFF69F0AE), Color(0xFF00C853)])
+              : isLate
+              ? LinearGradient(colors: [Colors.orangeAccent.withOpacity(0.9), Colors.deepOrangeAccent.withOpacity(0.8)])
               : LinearGradient(colors: [Colors.white.withOpacity(0.8), Colors.white.withOpacity(0.5)]),
           borderRadius: BorderRadius.circular(24),
           border: Border.all(
-            color: isTaken ? Colors.transparent : Colors.white.withOpacity(0.8),
+            color: isTaken
+                ? Colors.transparent
+                : isLate
+                ? Colors.deepOrangeAccent
+                : Colors.white.withOpacity(0.8),
             width: 1.5,
           ),
           boxShadow: [
             BoxShadow(
-              color: isTaken ? const Color(0xFF00C853).withOpacity(0.3) : Colors.black.withOpacity(0.05),
+              color: isTaken
+                  ? const Color(0xFF00C853).withOpacity(0.3)
+                  : isLate
+                  ? Colors.orangeAccent.withOpacity(0.3)
+                  : Colors.black.withOpacity(0.05),
               blurRadius: 20,
               offset: const Offset(0, 8),
             )
@@ -108,8 +124,12 @@ class _ActivePillCard extends StatelessWidget {
                 boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 5)],
               ),
               child: Icon(
-                Icons.medication_rounded,
-                color: isTaken ? const Color(0xFF00C853) : AppColors.primary,
+                isLate && !isTaken ? Icons.notification_important_rounded : Icons.medication_rounded,
+                color: isTaken
+                    ? const Color(0xFF00C853)
+                    : isLate
+                    ? Colors.deepOrangeAccent
+                    : AppColors.primary,
                 size: 26,
               ),
             ),
@@ -121,29 +141,51 @@ class _ActivePillCard extends StatelessWidget {
                   AnimatedSwitcher(
                     duration: const Duration(milliseconds: 200),
                     child: Text(
-                      isTaken ? l10n.pillTaken : l10n.pillTake,
-                      key: ValueKey(isTaken),
+                      isTaken
+                          ? l10n.pillTaken
+                          : isLate
+                          ? "Missed pill?" // TODO: Добавить l10n.pillMissed
+                          : l10n.pillTake,
+                      key: ValueKey("$isTaken-$isLate"),
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 17,
-                        color: isTaken ? Colors.white : AppColors.textPrimary,
+                        color: (isTaken || isLate) ? Colors.white : AppColors.textPrimary,
                       ),
                     ),
                   ),
                   const SizedBox(height: 4),
                   if (!isTaken)
                     Text(
-                      l10n.pillScheduled(coc.reminderTime.format(context)),
-                      style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
+                      isLate
+                          ? "It was scheduled for ${coc.reminderTime.format(context)}"
+                          : l10n.pillScheduled(coc.reminderTime.format(context)),
+                      style: TextStyle(
+                          fontSize: 13,
+                          color: isLate ? Colors.white.withOpacity(0.9) : AppColors.textSecondary
+                      ),
                     ),
                 ],
               ),
             ),
-            AnimatedScale(
-              scale: isTaken ? 1.0 : 0.0,
-              duration: const Duration(milliseconds: 400),
-              curve: Curves.elasticOut,
-              child: const Icon(Icons.check_circle, color: Colors.white, size: 32),
+
+            // Если опоздали, показываем кнопку-призыв, если выпили - галочку
+            AnimatedSwitcher(
+              duration: const Duration(milliseconds: 300),
+              transitionBuilder: (child, animation) => ScaleTransition(scale: animation, child: child),
+              child: isTaken
+                  ? const Icon(Icons.check_circle, color: Colors.white, size: 32, key: ValueKey('taken'))
+                  : isLate
+                  ? Container(
+                key: const ValueKey('late'),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Text("Take now", style: TextStyle(color: Colors.deepOrangeAccent, fontWeight: FontWeight.bold, fontSize: 12)),
+              )
+                  : const SizedBox.shrink(key: ValueKey('empty')),
             ),
           ],
         ),

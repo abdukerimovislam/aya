@@ -20,11 +20,13 @@ class COCProvider with ChangeNotifier {
   DateTime _startDate = DateTime.now();
   int _activePillCount = 21;
   int _breakDays = 7;
+  int _packFormatCode = 21; // Сохраняем код формата (21, 24, 28, 0) для UI
 
   // 🔑 Keys (Synced with CycleProvider)
   static const String _keyEnabled = 'coc_enabled';
   static const String _keyPillCount = 'coc_active_count';
   static const String _keyBreakDays = 'coc_break_days';
+  static const String _keyPackFormat = 'coc_pack_format'; // НОВЫЙ КЛЮЧ
 
   static const String _keyStartDate = 'coc_start_date';
   static const String _keyTimeHour = 'coc_time_hour';
@@ -42,6 +44,7 @@ class COCProvider with ChangeNotifier {
     _isEnabled = _box.get(_keyEnabled, defaultValue: false);
     _activePillCount = _box.get(_keyPillCount, defaultValue: 21);
     _breakDays = _box.get(_keyBreakDays, defaultValue: 7);
+    _packFormatCode = _box.get(_keyPackFormat, defaultValue: 21);
 
     final startMs = _box.get(_keyStartDate);
     if (startMs != null) {
@@ -78,7 +81,13 @@ class COCProvider with ChangeNotifier {
   // --- Getters ---
   bool get isEnabled => _isEnabled;
   TimeOfDay get reminderTime => _reminderTime;
-  int get pillCount => _activePillCount;
+
+  // Возвращает кол-во активных таблеток
+  int get activePillCount => _activePillCount;
+
+  // Возвращает код для UI (какой размер пачки рисовать: 21, 24, 28 или 0)
+  int get pillCount => _packFormatCode;
+
   int get breakDays => _breakDays;
   DateTime get startDate => _startDate;
 
@@ -106,7 +115,7 @@ class COCProvider with ChangeNotifier {
     return currentPillNumber > _activePillCount;
   }
 
-  // --- Smart Logic (New) ---
+  // --- Smart Logic ---
 
   /// Returns the status of a specific date for UI rendering
   PillStatus getPillStatus(DateTime date) {
@@ -122,15 +131,12 @@ class COCProvider with ChangeNotifier {
   }
 
   /// Returns list of dates that have no status (neither taken nor missed)
-  /// Useful for "Did you forget?" dialogs.
   List<DateTime> getUntrackedDates({int limit = 5}) {
     List<DateTime> untracked = [];
     final today = _normalizeDate(DateTime.now());
 
-    // Check last 5 days
     for (int i = 1; i <= limit; i++) {
       final d = today.subtract(Duration(days: i));
-      // Stop if date is before start of COC tracking
       if (d.isBefore(_normalizeDate(_startDate))) break;
 
       if (getPillStatus(d) == PillStatus.pending) {
@@ -141,6 +147,21 @@ class COCProvider with ChangeNotifier {
   }
 
   // --- Actions ---
+
+
+  // 🔥 НОВЫЙ МЕТОД: Начинаем новую пачку и стираем всю прошлую историю таблеток
+  Future<void> startNewPack({required DateTime startDate}) async {
+    _startDate = _normalizeDate(startDate);
+
+    // Жестко очищаем всю историю приемов и пропусков
+    _history.clear();
+    _missed.clear();
+
+    await _box.put(_keyStartDate, _startDate.millisecondsSinceEpoch);
+    await _saveHistory(); // Сохранит пустые списки в базу данных Hive
+
+    notifyListeners();
+  }
 
   Future<void> initSettings({
     required DateTime startDate,
@@ -172,9 +193,37 @@ class COCProvider with ChangeNotifier {
     notifyListeners();
   }
 
+  // 🔥 НОВЫЙ МЕТОД ДЛЯ ДИАЛОГА ВЫБОРА ПАЧКИ
+  Future<void> setPackSize(int size) async {
+    int active;
+    int brk;
+
+    if (size == 21) {
+      active = 21; brk = 7;
+    } else if (size == 24) {
+      active = 24; brk = 4;
+    } else if (size == 28) {
+      active = 21; brk = 7;
+    } else { // size == 0 (Continuous/Mini-pill)
+      active = 28; brk = 0;
+    }
+
+    _activePillCount = active;
+    _breakDays = brk;
+    _packFormatCode = size;
+
+    await _box.put(_keyPillCount, active);
+    await _box.put(_keyBreakDays, brk);
+    await _box.put(_keyPackFormat, size);
+
+    notifyListeners();
+  }
+
   Future<void> setPillCount(int count) async {
     _activePillCount = count;
+    _packFormatCode = count;
     await _box.put(_keyPillCount, count);
+    await _box.put(_keyPackFormat, count);
     notifyListeners();
   }
 

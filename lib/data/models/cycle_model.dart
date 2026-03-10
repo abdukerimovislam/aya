@@ -120,6 +120,10 @@ class CycleData {
   final DateTime cycleStartDate;
   final DateTime? lastPeriodDate;
 
+  // 🔥 ДОБАВЛЕНО ДЛЯ СОВМЕСТИМОСТИ С НОВЫМ КАЛЕНДАРЕМ
+  int get dayOfCycle => currentDay;
+  int get daysToNextPeriod => daysUntilNextPeriod;
+
   CycleData({
     required this.phase,
     required this.currentDay,

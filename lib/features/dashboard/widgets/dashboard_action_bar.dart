@@ -61,15 +61,23 @@ class DashboardActionBar extends StatelessWidget {
 
   // ─── ACTION CONFIG RESOLVER ─────────────────────────────────────────────────
 
+  // ─── ACTION CONFIG RESOLVER ─────────────────────────────────────────────────
+
   _ActionConfig _resolveActionConfig(BuildContext context) {
+    // 🔥 ИСПРАВЛЕНИЕ: В режиме КОК у нас уже есть нижняя карточка управления пачкой.
+    // Поэтому здесь (в главном экшн-баре) мы предлагаем просто логировать симптомы.
     if (isCOC) {
       return _ActionConfig(
-        text: l10n.btnStartNewPack,
-        icon: CupertinoIcons.capsule_fill,
+        text: l10n.logSymptomsTitle, // Будет "Log Symptoms"
+        icon: CupertinoIcons.add,
         textColor: Colors.white,
         bgColor: AppColors.primary,
         isPulsing: false,
-        onTap: () => _handleStartNewCOCPack(context),
+        onTap: () {
+          HapticFeedback.lightImpact();
+          // Открываем логгер на сегодняшний день
+          onOpenLogger(context, DateTime.now(), 'log_sheet');
+        },
       );
     }
 

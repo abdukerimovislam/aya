@@ -10,7 +10,7 @@ import '../../core/l10n/app_localizations.dart';
 import '../../core/theme/app_theme.dart';
 import '../../data/models/cycle_model.dart';
 import '../../data/providers/wellness_provider.dart';
-import '../../data/providers/cycle_provider.dart'; // 🔥 ИМПОРТ НОВОГО УМНОГО ПРОВАЙДЕРА
+import '../../data/providers/cycle_provider.dart';
 
 import '../../shared/widgets/premium_glass_card.dart';
 
@@ -25,7 +25,7 @@ class SymptomLogScreen extends StatefulWidget {
 
 class _SymptomLogScreenState extends State<SymptomLogScreen> {
   late SymptomLog _currentLog;
-  late FlowIntensity _initialFlow; // 🔥 Запоминаем изначальный выбор выделений
+  late FlowIntensity _initialFlow;
   bool _isSaving = false;
 
   @override
@@ -36,7 +36,7 @@ class _SymptomLogScreenState extends State<SymptomLogScreen> {
     _initialFlow = _currentLog.flow;
   }
 
-  // 🔥 МЕДИЦИНСКАЯ СИНХРОНИЗАЦИЯ СИМПТОМОВ И ЦИКЛА
+  // 🔥 ИСПРАВЛЕННАЯ МЕДИЦИНСКАЯ СИНХРОНИЗАЦИЯ
   Future<void> _saveAndClose() async {
     setState(() => _isSaving = true);
     HapticFeedback.lightImpact();
@@ -46,25 +46,32 @@ class _SymptomLogScreenState extends State<SymptomLogScreen> {
 
     await wellnessProvider.saveLog(_currentLog);
 
-    // Если пользователь ИЗМЕНИЛ статус выделений (Flow)
+    // Если пользователь ИЗМЕНИЛ статус выделений
     if (_currentLog.flow != _initialFlow) {
-      // Сценарий 1: Пользователь добавил выделения
-      if (_currentLog.flow != FlowIntensity.none && _initialFlow == FlowIntensity.none) {
-        final result = await cycleProvider.logActionStartPeriod(widget.date);
+      final currentPhase = cycleProvider.getPhaseForDate(widget.date);
+      final isCurrentlyPeriodDay = currentPhase == CyclePhase.menstruation;
 
-        // Если алгоритм выявил аномалию, показываем диалог ПРЯМО ТУТ
-        if (result == CycleLogResult.suspiciouslyEarly || result == CycleLogResult.ovulationBleeding) {
-          setState(() => _isSaving = false);
-          if (mounted) _showMedicalInterceptorDialog(context, widget.date, result, cycleProvider);
-          return; // 🛑 Останавливаем закрытие экрана, ждем ответа юзера!
+      // Сценарий 1: Добавили выделения (а их не было)
+      if (_currentLog.flow != FlowIntensity.none && _initialFlow == FlowIntensity.none) {
+
+        // ВАЖНО: Если этот день И ТАК считается днем месячных (например, юзер уже нажал кнопку на главном экране),
+        // нам НЕ НУЖНО стартовать новый цикл. Просто сохраняем интенсивность (что мы уже сделали выше).
+        if (!isCurrentlyPeriodDay) {
+          // Если это НЕ день месячных, пытаемся начать новый цикл
+          final result = await cycleProvider.logActionStartPeriod(widget.date);
+
+          // Если алгоритм выявил аномалию (рано или овуляция), спрашиваем юзера
+          if (result == CycleLogResult.suspiciouslyEarly || result == CycleLogResult.ovulationBleeding) {
+            setState(() => _isSaving = false);
+            if (mounted) _showMedicalInterceptorDialog(context, widget.date, result, cycleProvider);
+            return; // Ждем ответа, не закрываем экран
+          }
         }
       }
-      // Сценарий 2: Пользователь убрал выделения (отменил клик)
+      // Сценарий 2: Убрали выделения (поставили None, а раньше было)
       else if (_currentLog.flow == FlowIntensity.none && _initialFlow != FlowIntensity.none) {
-        // Проверяем, считается ли этот день сейчас днем менструации
-        final phase = cycleProvider.getPhaseForDate(widget.date);
-        if (phase == CyclePhase.menstruation) {
-          // Если да - отключаем его в ядре
+        // Если день сейчас считается днем крови, отключаем его
+        if (isCurrentlyPeriodDay) {
           await cycleProvider.togglePeriodDay(widget.date);
         }
       }
@@ -75,14 +82,13 @@ class _SymptomLogScreenState extends State<SymptomLogScreen> {
     }
   }
 
-  // 🔥 УМНЫЙ ДИАЛОГ ДЛЯ ЛОГГЕРА СИМПТОМОВ
   void _showMedicalInterceptorDialog(BuildContext context, DateTime date, CycleLogResult result, CycleProvider provider) {
     HapticFeedback.heavyImpact();
     final isOvulation = result == CycleLogResult.ovulationBleeding;
 
     showDialog(
       context: context,
-      barrierDismissible: false, // Заставляем юзера принять решение
+      barrierDismissible: false,
       builder: (ctx) => AlertDialog(
         backgroundColor: Colors.white,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
@@ -120,8 +126,8 @@ class _SymptomLogScreenState extends State<SymptomLogScreen> {
             onPressed: () async {
               Navigator.pop(ctx);
               HapticFeedback.lightImpact();
-              await provider.togglePeriodDay(date); // Просто мазня
-              if (mounted) Navigator.pop(context);  // Закрываем логгер
+              await provider.togglePeriodDay(date); // Просто мазня, не начинаем новый цикл
+              if (mounted) Navigator.pop(context);
             },
             child: Text("Just Spotting", style: GoogleFonts.inter(fontWeight: FontWeight.w600, color: AppColors.textSecondary)),
           ),
@@ -133,8 +139,8 @@ class _SymptomLogScreenState extends State<SymptomLogScreen> {
             onPressed: () async {
               Navigator.pop(ctx);
               HapticFeedback.mediumImpact();
-              await provider.logActionStartPeriod(date, isConfirmed: true); // Форсируем цикл
-              if (mounted) Navigator.pop(context); // Закрываем логгер
+              await provider.logActionStartPeriod(date, isConfirmed: true); // Принудительно начинаем цикл
+              if (mounted) Navigator.pop(context);
             },
             child: Text("New Period", style: GoogleFonts.inter(fontWeight: FontWeight.w700, color: Colors.white)),
           ),

@@ -11,16 +11,16 @@ import '../../core/services/pdf_service.dart';
 import '../../core/theme/app_theme.dart';
 import '../../data/providers/cycle_provider.dart';
 import '../../data/providers/settings_provider.dart';
+import '../../data/providers/coc_provider.dart'; // 🔥 ИМПОРТ COC ПРОВАЙДЕРА
 
 import '../../shared/widgets/premium_glass_card.dart';
+import '../../shared/widgets/pack_selection_dialog.dart'; // 🔥 ИМПОРТ ДИАЛОГА
 
 class ProfileSettingsList extends StatelessWidget {
   const ProfileSettingsList({super.key});
 
-  // 🔥 МЕДИЦИНСКИЙ UX: Диалог настройки старта пачки при включении КОК
   Future<void> _handleCOCToggle(BuildContext context, bool newValue, CycleProvider cycle, SettingsProvider settings) async {
     if (!newValue) {
-      // Если просто выключает - выключаем
       HapticFeedback.mediumImpact();
       await cycle.setCOCMode(false);
       return;
@@ -28,23 +28,52 @@ class ProfileSettingsList extends StatelessWidget {
 
     HapticFeedback.selectionClick();
 
-    // Показываем диалог для выбора даты старта
     final result = await showDialog<DateTime>(
       context: context,
       builder: (ctx) => const _COCStartDialog(),
     );
 
     if (result != null) {
-      // Пользователь выбрал дату, включаем КОК с правильной датой
-      await settings.setCOCSettings(21, 7, packStartDate: result); // Сохраняем в настройки
-      await cycle.setCOCMode(true, packStartDate: result); // Передаем в ядро
+      // По умолчанию включаем режим 21/7
+      await settings.setCOCSettings(21, 7, packStartDate: result);
+      await cycle.setCOCMode(true, packStartDate: result);
     }
+  }
+
+  // 🔥 МЕТОД ВЫЗОВА ВЫБОРА ФОРМАТА ПАЧКИ
+  void _showPackSelection(BuildContext context, COCProvider coc, SettingsProvider settings) {
+    HapticFeedback.lightImpact();
+    showDialog(
+      context: context,
+      barrierColor: Colors.black.withOpacity(0.2),
+      builder: (ctx) => PackSelectionDialog(
+        currentSelection: coc.pillCount,
+        onSelect: (int selection) async {
+          int activePills;
+          int breakDays;
+
+          if (selection == 21) {
+            activePills = 21; breakDays = 7;
+          } else if (selection == 24) {
+            activePills = 24; breakDays = 4;
+          } else if (selection == 28) {
+            activePills = 21; breakDays = 7; // Физически таблеток 28, но активных 21
+          } else { // selection == 0 (Continuous/Mini-pill)
+            activePills = 28; breakDays = 0;
+          }
+
+          await settings.setCOCSettings(activePills, breakDays);
+          await coc.setPackSize(selection);
+        },
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final settings = context.watch<SettingsProvider>();
     final cycle = context.watch<CycleProvider>();
+    final coc = context.watch<COCProvider>(); // Смотрим за КОК
     final l10n = AppLocalizations.of(context)!;
 
     return Column(
@@ -71,9 +100,32 @@ class ProfileSettingsList extends StatelessWidget {
               icon: Icons.medication_outlined,
               title: l10n.prefCOC,
               value: cycle.isCOCEnabled,
-              // 🔥 Используем умный метод включения
               onChanged: (v) => _handleCOCToggle(context, v, cycle, settings),
             ),
+            // 🔥 ЕСЛИ КОК ВКЛЮЧЕН, ПОКАЗЫВАЕМ НАСТРОЙКУ ПАЧКИ
+            if (cycle.isCOCEnabled) ...[
+              const _Divider(),
+              ProfileSettingsTile(
+                icon: CupertinoIcons.capsule_fill,
+                title: l10n.dialogPackTitle, // "Pack Type"
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      "${coc.pillCount} Pills", // Можно заменить на ключи из l10n, если есть
+                      style: GoogleFonts.inter(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.primary,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    const Icon(Icons.arrow_forward_ios, size: 14, color: Colors.grey),
+                  ],
+                ),
+                onTap: () => _showPackSelection(context, coc, settings),
+              ),
+            ]
           ],
         ),
 
@@ -87,8 +139,8 @@ class ProfileSettingsList extends StatelessWidget {
                 icon: CupertinoIcons.arrow_2_circlepath,
                 title: "Cycle Length",
                 value: cycle.cycleLength.toDouble(),
-                min: 12, // 🔥 Расширили под полименорею
-                max: 180, // 🔥 Расширили под СПКЯ / Олигоменорею
+                min: 12,
+                max: 180,
                 suffix: l10n.unitDays,
                 onChanged: (val) => cycle.setCycleLength(val.toInt()),
               ),
@@ -98,7 +150,7 @@ class ProfileSettingsList extends StatelessWidget {
                 title: "Period Length",
                 value: cycle.avgPeriodDuration.toDouble(),
                 min: 2,
-                max: 14, // 🔥 Расширили под меноррагию
+                max: 14,
                 suffix: l10n.unitDays,
                 onChanged: (val) => cycle.setAveragePeriodDuration(val.toInt()),
               ),
@@ -158,7 +210,7 @@ class ProfileSettingsList extends StatelessWidget {
   }
 }
 
-// 🔥 НОВЫЙ ВИДЖЕТ: Диалог выбора даты старта пачки
+// Диалог выбора даты старта пачки
 class _COCStartDialog extends StatefulWidget {
   const _COCStartDialog();
 

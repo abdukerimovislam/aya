@@ -12,6 +12,9 @@ import '../logic/cycle_ai_engine.dart';
 enum FertilityChance { low, high, peak }
 enum TTCStrategy { minimal, maximal }
 
+// 🔥 ДОБАВЛЕНО ДЛЯ КАЛЕНДАРЯ: Типы дней для отрисовки UI
+enum DayType { period, fertile, ovulation, none }
+
 enum CycleLogResult {
   success,
   suspiciouslyEarly, // Полименорея (цикл < 21 дня)
@@ -40,10 +43,10 @@ class CycleProvider with ChangeNotifier {
 
   bool _isLoaded = false;
 
-  // 🔥 МЕДИЦИНСКИЕ ФЛАГИ (Улучшены для патологий)
+  // 🔥 МЕДИЦИНСКИЕ ФЛАГИ
   bool get hasProlongedBleeding {
     if (_history.isEmpty || _isCOCEnabled) return false;
-    return (_history.first.periodDuration ?? 0) > 8; // Меноррагия
+    return (_history.first.periodDuration ?? 0) > 8;
   }
 
   bool get isCycleLate {
@@ -57,12 +60,10 @@ class CycleProvider with ChangeNotifier {
     return diff > 0 ? diff : 0;
   }
 
-  // Определение Аменореи (пропажа цикла на 60+ дней от ожидаемой даты)
   bool get isAmenorrhea {
     return daysLate >= 60;
   }
 
-  // Знает ли провайдер, что пользователь уже нажал "Закончить"
   bool get isPeriodEnded => _settingsBox.get('current_period_ended', defaultValue: false);
 
   CycleProvider(this._cycleBox, this._settingsBox, [this._notificationService]) {
@@ -238,7 +239,6 @@ class CycleProvider with ChangeNotifier {
         newHistory.add(CycleModel(
           startDate: cycleStart,
           endDate: currentDay.subtract(const Duration(days: 1)),
-          // СПКЯ/Аменорея защита (лимит 180 дней)
           length: daysSinceCycleStart,
           periodDuration: pLen,
         ));
@@ -284,10 +284,14 @@ class CycleProvider with ChangeNotifier {
   }
 
   void _calculateSmartAverages() {
+    // Если включен КОК, средние не считаем
     if (_history.isEmpty || _isCOCEnabled) return;
 
     final completedCycles = _history.where((c) => c.length != null).take(8).toList();
-    if (completedCycles.isEmpty) return;
+
+    // Если циклов мало (меньше 3), не будем навязывать "умное" среднее,
+    // чтобы пользователь мог сам настроить базу
+    if (completedCycles.length < 3) return;
 
     double weightedSumCycle = 0;
     double weightTotalCycle = 0;
@@ -306,6 +310,8 @@ class CycleProvider with ChangeNotifier {
       _settingsBox.put('avg_cycle_len', _avgCycleLength);
     }
 
+    // 🔥 ЛОГИКА ДЛЯ ПЕРИОДА:
+    // Считаем среднее только если у нас есть новые данные в истории
     double weightedSumPeriod = 0;
     double weightTotalPeriod = 0;
     currentWeight = completedCycles.length.toDouble();
@@ -394,6 +400,49 @@ class CycleProvider with ChangeNotifier {
     if (notify) notifyListeners();
   }
 
+  // 🔥 ИСПРАВЛЕНО ДЛЯ КАЛЕНДАРЯ: Определение типа дня для закраски ячейки
+  DayType getDayType(DateTime date) {
+    final phase = getPhaseForDate(date);
+
+    if (phase == CyclePhase.menstruation) return DayType.period;
+    if (phase == CyclePhase.ovulation) return DayType.ovulation;
+
+    final cycleDay = getCycleDayFromDate(date);
+    final ovDay = ovulationDay;
+
+    // Фертильное окно подсвечивается только если мы перед овуляцией
+    // (По желанию можно убрать `isTTCMode`, если хочешь показывать окно всем)
+    if (cycleDay >= ovDay - 5 && cycleDay < ovDay) {
+      return DayType.fertile;
+    }
+
+    return DayType.none;
+  }
+
+  // 🔥 ДОБАВЛЕНО ДЛЯ КАЛЕНДАРЯ: Вычисление дня цикла для любой выбранной даты
+  int getCycleDayFromDate(DateTime date) {
+    if (_history.isEmpty) return 1;
+    final normDate = _normalizeDate(date);
+    final normStart = _normalizeDate(_currentData.cycleStartDate);
+
+    // Если дата в текущем цикле или в будущем
+    if (!normDate.isBefore(normStart)) {
+      return normDate.difference(normStart).inDays + 1;
+    }
+
+    // Поиск по истории, если кликнули на прошлый цикл
+    for (var cycle in _history) {
+      final cStart = _normalizeDate(cycle.startDate);
+      final cEnd = cycle.endDate != null ? _normalizeDate(cycle.endDate!) : normStart.subtract(const Duration(days: 1));
+
+      if (!normDate.isBefore(cStart) && !normDate.isAfter(cEnd)) {
+        return normDate.difference(cStart).inDays + 1;
+      }
+    }
+    return 1;
+  }
+
+  // 🔥 ИСПРАВЛЕНО: Убрал CyclePhase.fertile
   CyclePhase _calculatePhase({
     required int day,
     required int length,
@@ -494,10 +543,9 @@ class CycleProvider with ChangeNotifier {
     if (_isCOCEnabled) return CycleLogResult.success;
 
     final normDate = _normalizeDate(date);
-    if (normDate.isAfter(_normalizeDate(DateTime.now()))) {
-      return CycleLogResult.futureDate;
-    }
+    if (normDate.isAfter(_normalizeDate(DateTime.now()))) return CycleLogResult.futureDate;
 
+    // Если это не принудительное подтверждение, проверим на аномалии
     if (!isConfirmed) {
       final currentStart = _normalizeDate(_currentData.cycleStartDate);
       final diffFromCurrent = normDate.difference(currentStart).inDays;
@@ -523,16 +571,25 @@ class CycleProvider with ChangeNotifier {
     List<int> timestamps = (_settingsBox.get('bleeding_days') as List?)?.cast<int>() ?? [];
     List<int> manualStarts = (_settingsBox.get('manual_cycle_starts') as List?)?.cast<int>() ?? [];
 
+    // 🔥 ГЛАВНОЕ ИСПРАВЛЕНИЕ 🔥
+    // Удаляем все записи о крови, которые были В БУДУЩЕМ относительно новой даты старта,
+    // А ТАКЖЕ очищаем "мусорные" записи в пределах 10 дней ДО новой даты,
+    // чтобы не было слипания двух циклов в один огромный.
     timestamps.removeWhere((ts) {
-      return DateTime.fromMillisecondsSinceEpoch(ts).isAfter(normDate);
+      final tDate = DateTime.fromMillisecondsSinceEpoch(ts);
+      // Если дата в будущем или в пределах 10 дней ДО нового старта — удаляем
+      return tDate.isAfter(normDate) || (tDate.isBefore(normDate) && normDate.difference(tDate).inDays <= 10);
     });
+
     manualStarts.removeWhere((ts) {
-      return DateTime.fromMillisecondsSinceEpoch(ts).isAfter(normDate);
+      final tDate = DateTime.fromMillisecondsSinceEpoch(ts);
+      return tDate.isAfter(normDate);
     });
 
     final ms = normDate.millisecondsSinceEpoch;
-    if (!timestamps.contains(ms)) timestamps.add(ms);
 
+    // Добавляем новый чистый старт
+    if (!timestamps.contains(ms)) timestamps.add(ms);
     if (!manualStarts.contains(ms)) manualStarts.add(ms);
 
     await _clearOvulationOverride();
@@ -587,15 +644,13 @@ class CycleProvider with ChangeNotifier {
   Future<void> setSpecificCycleStartDate(DateTime date) async => logActionStartPeriod(date, isConfirmed: true);
   Future<void> setPeriodDate(DateTime date) async => togglePeriodDay(date);
 
-  // 🔥 УМНЫЙ ПЕРЕХОД НА TTC (ПЛАНИРОВАНИЕ БЕРЕМЕННОСТИ)
   Future<void> setTTCMode(bool enabled) async {
     await _ensureBoxOpen();
-    if (enabled && _isCOCEnabled) return; // Биологически несовместимы
+    if (enabled && _isCOCEnabled) return;
 
     _isTTCMode = enabled;
     await _settingsBox.put('ttc_mode_enabled', enabled);
 
-    // Мгновенный пересчет фертильных окон для текущего цикла!
     if (enabled) {
       _updateCurrentData(_currentData.cycleStartDate, _avgCycleLength, _avgPeriodDuration);
       await rescheduleNotifications();
@@ -702,7 +757,6 @@ class CycleProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  // 🔥 УМНЫЙ ПЕРЕХОД И ВЫХОД ИЗ РЕЖИМА КОК
   Future<void> setCOCMode(bool enabled, {int currentPillNumber = 1, DateTime? packStartDate}) async {
     await _ensureBoxOpen();
 
@@ -710,7 +764,6 @@ class CycleProvider with ChangeNotifier {
     await _settingsBox.put('coc_enabled', enabled);
 
     if (enabled) {
-      // ВКЛЮЧЕНИЕ КОК
       _aiConfidence = null;
       if (_isTTCMode) {
         _isTTCMode = false;
@@ -730,10 +783,6 @@ class CycleProvider with ChangeNotifier {
       final brk = _settingsBox.get('coc_break_days', defaultValue: 7);
       _updateCurrentData(effectiveStart, active + brk, brk);
     } else {
-      // 🔥 ВЫКЛЮЧЕНИЕ КОК (MEDICAL FIX):
-      // Если последняя кровь была очень давно (например, больше 40 дней назад,
-      // так как девушка пропускала перерывы на таблетках), мы не можем отбросить ее цикл назад.
-      // Мы автоматически начинаем новый "естественный цикл" с сегодняшнего дня!
       _calculateAIConfidence();
 
       List<int> timestamps = (_settingsBox.get('bleeding_days') as List?)?.cast<int>() ?? [];
@@ -760,15 +809,24 @@ class CycleProvider with ChangeNotifier {
   Future<void> setAveragePeriodDuration(int days) async {
     await _ensureBoxOpen();
     days = days.clamp(1, 14);
+
+    // 🔥 ГАРАНТИРОВАННО СОХРАНЯЕМ В HIVE
     await _settingsBox.put('avg_period_len', days);
+
     _avgPeriodDuration = days;
+
+    // Пересчитываем текущие данные с новым значением
     _updateCurrentData(_currentData.cycleStartDate, _avgCycleLength, days);
+
+    // Пересчитываем уведомления
     await rescheduleNotifications();
+
+    notifyListeners();
   }
 
   Future<void> setCycleLength(int length) async {
     await _ensureBoxOpen();
-    length = length.clamp(12, 180); // СПКЯ поддержка
+    length = length.clamp(12, 180);
     await _settingsBox.put('avg_cycle_len', length);
     _avgCycleLength = length;
     _updateCurrentData(_currentData.cycleStartDate, length, _avgPeriodDuration);

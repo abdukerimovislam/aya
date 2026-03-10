@@ -8,6 +8,7 @@ import 'package:intl/intl.dart';
 import '../../core/l10n/app_localizations.dart';
 import '../../core/theme/app_theme.dart';
 import '../../data/models/cycle_model.dart';
+import '../../data/providers/coc_provider.dart';
 import '../../data/providers/cycle_provider.dart';
 import '../../data/providers/settings_provider.dart';
 
@@ -17,6 +18,9 @@ import '../../shared/widgets/design_selector_sheet.dart';
 import '../../shared/widgets/pill_widget.dart';
 import '../../shared/widgets/premium_glass_card.dart';
 import '../../shared/widgets/live_phase_background.dart';
+
+// 🔥 НОВЫЙ ИМПОРТ ДЛЯ БЛИСТЕРА
+import '../../shared/widgets/pill_blister_card.dart';
 
 // Фиче-виджеты
 import 'widgets/dashboard_micro_calendar.dart';
@@ -55,7 +59,7 @@ class _BuildUltraModernScreen extends StatelessWidget {
 
   const _BuildUltraModernScreen({required this.provider});
 
-  // Логика бесшовной Hero-навигации передается во вложенные виджеты
+  // Логика бесшовной Hero-навигации
   void _openLoggerWithHero(BuildContext context, DateTime date, String heroTag) {
     HapticFeedback.mediumImpact();
     Navigator.of(context).push(PageRouteBuilder(
@@ -117,7 +121,7 @@ class _BuildUltraModernScreen extends StatelessWidget {
                 children: [
                   const SizedBox(height: 16),
 
-                  // HEADER (С контекстным приветствием!)
+                  // HEADER
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 24),
                     child: Row(
@@ -126,8 +130,8 @@ class _BuildUltraModernScreen extends StatelessWidget {
                       children: [
                         _DashboardDateWidget(
                           l10n: l10n,
-                          userName: settings.userName, // Передаем имя
-                          phase: data.phase,           // Передаем фазу
+                          userName: settings.userName,
+                          phase: data.phase,
                         ),
                         _DashboardPremiumBadge(isPremium: isPremium, l10n: l10n),
                       ],
@@ -149,16 +153,29 @@ class _BuildUltraModernScreen extends StatelessWidget {
                   if (isCOC) ...[const SizedBox(height: 24), const PillWidget()],
                   const SizedBox(height: 32),
 
-                  // SMART ACTION BAR
+                  // SMART ACTION BAR (Для логгирования симптомов в любом режиме)
                   DashboardActionBar(data: data, isCOC: isCOC, provider: provider, l10n: l10n, onOpenLogger: _openLoggerWithHero),
                   const SizedBox(height: 40),
 
-                  // MICRO CALENDAR
-                  if (!isCOC) Padding(padding: const EdgeInsets.symmetric(horizontal: 24), child: DashboardMicroCalendar(provider: provider, onOpenLogger: _openLoggerWithHero)),
-                  const SizedBox(height: 20),
-
-                  // INSIGHT CARD
-                  if (!isCOC) Padding(padding: const EdgeInsets.symmetric(horizontal: 24), child: DashboardInsightCard(data: data, l10n: l10n)),
+                  // 🔥 КОНТЕНТ МЕНЯЕТСЯ В ЗАВИСИМОСТИ ОТ РЕЖИМА
+                  if (isCOC) ...[
+                    // ПОЛНЫЙ ВИЗУАЛЬНЫЙ БЛИСТЕР В СТЕКЛЕ
+                    const Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 24),
+                      child: PremiumGlassCard(
+                        borderRadius: 32,
+                        child: PillBlisterCard(),
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    // КНОПКА СТАРТА ПАЧКИ
+                    _COCPackControlCard(provider: provider, l10n: l10n),
+                  ] else ...[
+                    // ОБЫЧНЫЙ РЕЖИМ (Микрокалендарь + Инсайты)
+                    Padding(padding: const EdgeInsets.symmetric(horizontal: 24), child: DashboardMicroCalendar(provider: provider, onOpenLogger: _openLoggerWithHero)),
+                    const SizedBox(height: 20),
+                    Padding(padding: const EdgeInsets.symmetric(horizontal: 24), child: DashboardInsightCard(data: data, l10n: l10n)),
+                  ],
 
                   const SizedBox(height: 140),
                 ],
@@ -171,7 +188,165 @@ class _BuildUltraModernScreen extends StatelessWidget {
   }
 }
 
-// Вспомогательные микро-виджеты хедера, чтобы не выносить их в отдельные файлы
+// ─── БЛОК УПРАВЛЕНИЯ ПАЧКОЙ КОК ─────────────────────────────────────
+class _COCPackControlCard extends StatelessWidget {
+  final CycleProvider provider;
+  final AppLocalizations l10n;
+
+  const _COCPackControlCard({required this.provider, required this.l10n});
+
+  @override
+  Widget build(BuildContext context) {
+    final data = provider.currentData;
+    final currentDay = data.dayOfCycle;
+    final totalDays = data.totalCycleLength;
+
+    final isBreak = data.phase == CyclePhase.menstruation;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 24),
+      child: PremiumGlassCard(
+        padding: const EdgeInsets.all(20),
+        borderRadius: 24,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: isBreak
+                        ? Colors.orangeAccent.withOpacity(0.15)
+                        : AppColors.primary.withOpacity(0.15),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    isBreak ? CupertinoIcons.drop_fill : CupertinoIcons
+                        .shield_fill,
+                    color: isBreak ? Colors.orangeAccent : AppColors.primary,
+                    size: 22,
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        isBreak ? l10n.cocBreakPhase : l10n.cocActivePhase,
+                        style: GoogleFonts.outfit(fontWeight: FontWeight.w800,
+                            fontSize: 18,
+                            color: AppColors.textPrimary,
+                            letterSpacing: -0.5),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        "Day $currentDay of $totalDays",
+                        style: GoogleFonts.inter(fontSize: 13,
+                            color: AppColors.textSecondary,
+                            fontWeight: FontWeight.w600),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+
+            SizedBox(
+              width: double.infinity,
+              child: CupertinoButton(
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                color: isBreak ? AppColors.primary : AppColors.primary
+                    .withOpacity(0.1),
+                borderRadius: BorderRadius.circular(16),
+                onPressed: () => _showStartNewPackDialog(context, provider),
+                child: Text(
+                  l10n.btnStartNewPack,
+                  style: GoogleFonts.inter(
+                    color: isBreak ? Colors.white : AppColors.primary,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 15,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showStartNewPackDialog(BuildContext context, CycleProvider provider) {
+    HapticFeedback.heavyImpact();
+    showDialog(
+      context: context,
+      builder: (ctx) =>
+          AlertDialog(
+            backgroundColor: Colors.white,
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(24)),
+            title: Row(
+              children: [
+                Icon(CupertinoIcons.arrow_2_circlepath_circle_fill,
+                    color: AppColors.primary, size: 28),
+                const SizedBox(width: 10),
+                Expanded(child: Text("Start New Pack?",
+                    style: GoogleFonts.outfit(fontWeight: FontWeight.w800,
+                        color: AppColors.textPrimary))),
+              ],
+            ),
+            content: Text(
+              "This will reset your tracker, clear previous pill history, and start a new pack today.",
+              style: GoogleFonts.inter(
+                  color: AppColors.textSecondary, fontSize: 14, height: 1.4),
+            ),
+            actionsPadding: const EdgeInsets.only(
+                bottom: 16, right: 16, left: 16),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: Text("Cancel", style: GoogleFonts.inter(
+                    color: AppColors.textSecondary,
+                    fontWeight: FontWeight.w600)),
+              ),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 20, vertical: 12),
+                ),
+                onPressed: () async {
+                  Navigator.pop(ctx);
+                  HapticFeedback.mediumImpact();
+
+                  final now = DateTime.now();
+
+                  // 1. Обновляем ядро цикла
+                  await provider.setCOCMode(
+                      true, currentPillNumber: 1, packStartDate: now);
+
+                  // 2. 🔥 Находим COCProvider и стираем историю таблеток
+                  if (context.mounted) {
+                    final coc = Provider.of<COCProvider>(
+                        context, listen: false);
+                    await coc.startNewPack(startDate: now);
+                  }
+                },
+                child: Text("Start Today", style: GoogleFonts.inter(
+                    fontWeight: FontWeight.w700, color: Colors.white)),
+              ),
+            ],
+          ),
+    );
+  }
+}
+
+// ─── Вспомогательные микро-виджеты ──────────────────────────────────
 class _DashboardDateWidget extends StatelessWidget {
   final AppLocalizations l10n;
   final String userName;
@@ -179,7 +354,6 @@ class _DashboardDateWidget extends StatelessWidget {
 
   const _DashboardDateWidget({required this.l10n, required this.userName, required this.phase});
 
-  // 🔥 УМНАЯ ЛОГИКА ПРИВЕТСТВИЙ
   String _getContextualGreeting() {
     final hour = DateTime.now().hour;
     String timeOfDay = "Hello";
@@ -194,7 +368,6 @@ class _DashboardDateWidget extends StatelessWidget {
       timeOfDay = "Time to rest";
     }
 
-    // Имя пользователя (берем первое слово, если есть пробел)
     final firstName = userName.split(' ').first;
 
     String phaseVibe = "";
@@ -214,13 +387,11 @@ class _DashboardDateWidget extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // ЖИВОЕ ПРИВЕТСТВИЕ
         Text(
           _getContextualGreeting(),
           style: GoogleFonts.inter(color: AppColors.textSecondary.withOpacity(0.8), fontWeight: FontWeight.w600, fontSize: 13, height: 1.4),
         ),
         const SizedBox(height: 6),
-        // ДАТА СТАЛА ЧУТЬ СТРОЖЕ
         Text(
           DateFormat('MMMM d', l10n.localeName).format(DateTime.now()),
           style: GoogleFonts.inter(color: AppColors.textPrimary, fontWeight: FontWeight.w900, fontSize: 26, letterSpacing: -1.0),
@@ -229,7 +400,6 @@ class _DashboardDateWidget extends StatelessWidget {
     );
   }
 }
-
 
 class _DashboardPremiumBadge extends StatelessWidget {
   final bool isPremium;
