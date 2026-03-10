@@ -5,7 +5,6 @@ import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 
-import '../../core/l10n/app_localizations.dart';
 import '../../core/theme/app_theme.dart';
 import '../../data/models/cycle_model.dart';
 import '../../data/providers/coc_provider.dart';
@@ -13,6 +12,7 @@ import '../../data/providers/cycle_provider.dart';
 import '../../data/providers/settings_provider.dart';
 
 // Общие виджеты
+import '../../l10n/app_localizations.dart';
 import '../../shared/widgets/cycle_timer_selector.dart';
 import '../../shared/widgets/design_selector_sheet.dart';
 import '../../shared/widgets/pill_widget.dart';

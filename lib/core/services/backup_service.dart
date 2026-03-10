@@ -13,7 +13,6 @@ import '../../data/models/cycle_model.dart';
 import '../../data/providers/cycle_provider.dart';
 import '../../data/providers/settings_provider.dart';
 import '../../l10n/app_localizations.dart';
-import '../l10n/app_localizations.dart';
 import 'auth_service.dart';
 import 'backup_crypto.dart';
 

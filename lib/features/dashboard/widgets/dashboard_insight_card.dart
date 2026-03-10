@@ -6,7 +6,6 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'package:provider/provider.dart'; // 🔥 ДОБАВЛЕНО ДЛЯ ЛОКАЛЬНЫХ ДАННЫХ
 import 'package:intl/intl.dart'; // 🔥 ДОБАВЛЕНО ДЛЯ ДАТЫ
 
-import '../../../core/l10n/app_localizations.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../data/models/cycle_model.dart';
 import '../../../l10n/app_localizations.dart';

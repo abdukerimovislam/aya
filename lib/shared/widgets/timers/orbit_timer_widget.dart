@@ -3,7 +3,6 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 
-import '../../../core/l10n/app_localizations.dart';
 import '../../../data/models/cycle_model.dart';
 import '../../../l10n/app_localizations.dart';
 

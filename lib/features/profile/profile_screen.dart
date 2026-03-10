@@ -11,7 +11,6 @@ import 'theme_selector_sheet.dart';
 import 'profile_logic_mixin.dart';
 import 'profile_settings_list.dart';
 
-import '../../core/l10n/app_localizations.dart';
 import '../../core/services/backup_service.dart';
 import '../../core/services/pdf_service.dart';
 import '../../core/theme/app_theme.dart';

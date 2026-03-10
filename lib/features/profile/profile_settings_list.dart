@@ -5,7 +5,6 @@ import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-import '../../core/l10n/app_localizations.dart';
 import '../../core/services/backup_service.dart';
 import '../../core/services/pdf_service.dart';
 import '../../core/theme/app_theme.dart';
@@ -13,6 +12,7 @@ import '../../data/providers/cycle_provider.dart';
 import '../../data/providers/settings_provider.dart';
 import '../../data/providers/coc_provider.dart'; // 🔥 ИМПОРТ COC ПРОВАЙДЕРА
 
+import '../../l10n/app_localizations.dart';
 import '../../shared/widgets/premium_glass_card.dart';
 import '../../shared/widgets/pack_selection_dialog.dart'; // 🔥 ИМПОРТ ДИАЛОГА
 

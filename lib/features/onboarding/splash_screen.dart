@@ -8,7 +8,6 @@ import 'package:google_fonts/google_fonts.dart';
 
 
 import '../../ayla_app.dart';
-import '../../core/l10n/app_localizations.dart';
 import '../../data/providers/cycle_provider.dart';
 import '../../data/providers/settings_provider.dart';
 import '../../data/providers/wellness_provider.dart';

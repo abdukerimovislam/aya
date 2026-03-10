@@ -3,7 +3,6 @@ import 'package:flutter/cupertino.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart'; // 🔥 Нужен для открытия настроек iOS
 
-import '../../core/l10n/app_localizations.dart';
 import '../../core/services/subscription_service.dart';
 import '../../core/theme/app_theme.dart';
 import '../../data/providers/settings_provider.dart';

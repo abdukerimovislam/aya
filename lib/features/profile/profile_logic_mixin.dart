@@ -6,7 +6,6 @@ import 'package:url_launcher/url_launcher.dart';
 import 'dart:io' show Platform;
 
 import '../../ayla_app.dart';
-import '../../core/l10n/app_localizations.dart';
 import '../../core/services/auth_service.dart';
 import '../../core/theme/app_theme.dart';
 import '../../data/providers/coc_provider.dart';

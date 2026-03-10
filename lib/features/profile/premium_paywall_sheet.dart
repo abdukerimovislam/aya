@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:purchases_flutter/purchases_flutter.dart';
 
-import '../../core/l10n/app_localizations.dart';
 import '../../core/services/subscription_service.dart';
 import '../../core/theme/app_theme.dart';
 import '../../data/providers/settings_provider.dart';

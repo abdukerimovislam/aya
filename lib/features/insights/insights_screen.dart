@@ -1,18 +1,21 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
-import 'package:flutter/services.dart'; // Для HapticFeedback
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:fl_chart/fl_chart.dart';
 
-import '../../core/l10n/app_localizations.dart';
+import '../../l10n/app_localizations.dart';
 import '../../core/theme/app_theme.dart';
 import '../../data/providers/cycle_provider.dart';
 import '../../data/providers/wellness_provider.dart';
 import '../../shared/widgets/premium_glass_card.dart';
-// 🔥 ИМПОРТИРУЕМ ТВОЙ СЕРВИС
 import '../../core/services/pdf_service.dart';
+
+// 🔥 Подключаем логику ИИ и модели
+import '../../data/logic/symptom_intelligence.dart';
+import '../../data/models/cycle_model.dart';
 
 class InsightsScreen extends StatelessWidget {
   const InsightsScreen({super.key});
@@ -25,6 +28,9 @@ class InsightsScreen extends StatelessWidget {
 
     bool hasEnoughData = cycleProvider.history.length >= 2;
     List<MapEntry<String, int>> topSymptoms = _getTopSymptoms(wellnessProvider);
+
+    // Получаем ИИ-инсайт на сегодня
+    final todayInsight = _getTodayIntelligence(context, wellnessProvider, cycleProvider);
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -42,12 +48,10 @@ class InsightsScreen extends StatelessWidget {
           ),
         ),
         actions: [
-          // 🔥 ТЕПЕРЬ КНОПКА РЕАЛЬНО ГЕНЕРИРУЕТ PDF
           IconButton(
             icon: Icon(CupertinoIcons.doc_text_viewfinder, color: AppColors.primary),
             onPressed: () async {
               HapticFeedback.mediumImpact();
-              // Вызываем твой готовый метод!
               await PdfService.generateReport(context);
             },
           )
@@ -59,13 +63,21 @@ class InsightsScreen extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
           children: [
 
-            // ─── БЛОК 1: УМНЫЙ AI-АНАЛИЗ ───
+            // ─── БЛОК 1: ГЛОБАЛЬНЫЙ AI-АНАЛИЗ ЦИКЛА ───
             _buildSectionTitle("Health Analysis"),
             const SizedBox(height: 12),
             _buildAIAnalysisCard(cycleProvider),
-            const SizedBox(height: 32),
+            const SizedBox(height: 24),
 
-            // ─── БЛОК 2: КЛЮЧЕВЫЕ МЕТРИКИ ───
+            // ─── БЛОК 2: УМНЫЙ ИНСАЙТ НА СЕГОДНЯ (Из SymptomIntelligence) ───
+            if (todayInsight != null) ...[
+              _buildSectionTitle("Today's Body Pattern"),
+              const SizedBox(height: 12),
+              _buildSymptomInsightCard(todayInsight),
+              const SizedBox(height: 24),
+            ],
+
+            // ─── БЛОК 3: КЛЮЧЕВЫЕ МЕТРИКИ ───
             _buildSectionTitle("Cycle Vitals"),
             const SizedBox(height: 12),
             Row(
@@ -93,24 +105,32 @@ class InsightsScreen extends StatelessWidget {
             ),
             const SizedBox(height: 32),
 
-            // ─── БЛОК 3: ГРАФИК ЦИКЛОВ С ТРЕНДОМ ───
+            // ─── БЛОК 4: ПРЕМИАЛЬНЫЙ ГРАФИК ЦИКЛОВ ───
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 _buildSectionTitle("Cycle History"),
                 if (hasEnoughData)
-                  Text(
-                    "Avg: ${cycleProvider.cycleLength}d",
-                    style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.primary),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      "Avg: ${cycleProvider.cycleLength}d",
+                      style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.primary),
+                    ),
                   )
               ],
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 16),
             PremiumGlassCard(
               padding: const EdgeInsets.all(20),
               borderRadius: 24,
               child: SizedBox(
-                height: 220,
+                height: 240, // Чуть увеличили высоту для красоты
                 child: hasEnoughData
                     ? _buildCycleBarChart(cycleProvider)
                     : _buildEmptyState("Log at least 2 complete cycles to see your history graph.", CupertinoIcons.chart_bar_alt_fill),
@@ -118,7 +138,7 @@ class InsightsScreen extends StatelessWidget {
             ),
             const SizedBox(height: 32),
 
-            // ─── БЛОК 4: ПАТТЕРНЫ ОРГАНИЗМА ───
+            // ─── БЛОК 5: ПАТТЕРНЫ ОРГАНИЗМА ───
             _buildSectionTitle("Frequent Symptoms"),
             const SizedBox(height: 12),
             topSymptoms.isEmpty
@@ -136,6 +156,24 @@ class InsightsScreen extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  // ─── ЛОГИКА ИНТЕГРАЦИИ С SYMPTOM INTELLIGENCE ─────────────────────────────
+
+  SymptomInsight? _getTodayIntelligence(BuildContext context, WellnessProvider wellness, CycleProvider cycle) {
+    try {
+      final todayLog = wellness.getLogForDate(DateTime.now());
+      final allTodaySymptoms = [...todayLog.symptoms, ...todayLog.painSymptoms];
+
+      if (allTodaySymptoms.isEmpty) return null;
+
+      // 🔥 ИСПРАВЛЕНО: Берем фазу из currentData
+      final currentPhase = cycle.currentData.phase;
+
+      return SymptomIntelligence.getInsight(context, allTodaySymptoms, currentPhase);
+    } catch (e) {
+      return null;
+    }
   }
 
   // ─── КОМПОНЕНТЫ UI ──────────────────────────────────────────────────────────
@@ -157,7 +195,7 @@ class InsightsScreen extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(icon, size: 40, color: AppColors.textSecondary.withOpacity(0.3)),
+          Icon(icon, size: 48, color: AppColors.primary.withOpacity(0.3)),
           const SizedBox(height: 16),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 24.0),
@@ -211,9 +249,9 @@ class InsightsScreen extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            padding: const EdgeInsets.all(10),
+            padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(color: iconColor.withOpacity(0.15), shape: BoxShape.circle),
-            child: Icon(icon, color: iconColor, size: 22),
+            child: Icon(icon, color: iconColor, size: 24),
           ),
           const SizedBox(width: 16),
           Expanded(
@@ -231,6 +269,45 @@ class InsightsScreen extends StatelessWidget {
     );
   }
 
+  // Новый виджет для вывода инсайтов из SymptomIntelligence
+  Widget _buildSymptomInsightCard(SymptomInsight insight) {
+    final Color alertColor = insight.isWarning ? Colors.orangeAccent : AppColors.luteal;
+    final IconData alertIcon = insight.isWarning ? CupertinoIcons.exclamationmark_circle_fill : CupertinoIcons.lightbulb_fill;
+
+    return PremiumGlassCard(
+      padding: const EdgeInsets.all(20),
+      borderRadius: 24,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(alertIcon, color: alertColor, size: 20),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  insight.title,
+                  style: GoogleFonts.outfit(fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+                ),
+              ),
+              if (insight.priority >= 80) // Высший приоритет
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(color: Colors.redAccent.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
+                  child: Text("High Priority", style: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.redAccent)),
+                )
+            ],
+          ),
+          const SizedBox(height: 10),
+          Text(
+            insight.description,
+            style: GoogleFonts.inter(fontSize: 13, color: AppColors.textSecondary, height: 1.5, fontWeight: FontWeight.w500),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildVitalCard({required String title, required String value, required String unit, required String subtitle, required bool isAnomalous, required IconData icon, required Color color}) {
     final displayColor = isAnomalous ? Colors.orangeAccent : color;
 
@@ -242,22 +319,28 @@ class InsightsScreen extends StatelessWidget {
         children: [
           Row(
             children: [
-              Icon(icon, size: 16, color: displayColor),
+              Icon(icon, size: 18, color: displayColor),
               const SizedBox(width: 8),
-              Expanded(child: Text(title, style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textSecondary), maxLines: 1, overflow: TextOverflow.ellipsis)),
+              Expanded(
+                child: Text(title, style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textSecondary), maxLines: 1, overflow: TextOverflow.ellipsis),
+              ),
             ],
           ),
           const SizedBox(height: 16),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.baseline,
-            textBaseline: TextBaseline.alphabetic,
-            children: [
-              Text(value, style: GoogleFonts.outfit(fontSize: 32, fontWeight: FontWeight.w800, color: AppColors.textPrimary)),
-              const SizedBox(width: 4),
-              Text(unit, style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textSecondary)),
-            ],
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.baseline,
+              textBaseline: TextBaseline.alphabetic,
+              children: [
+                Text(value, style: GoogleFonts.outfit(fontSize: 34, fontWeight: FontWeight.w800, color: AppColors.textPrimary)),
+                const SizedBox(width: 4),
+                Text(unit, style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.textSecondary)),
+              ],
+            ),
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 6),
           Text(subtitle, style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w500, color: isAnomalous ? Colors.orangeAccent : AppColors.textSecondary.withOpacity(0.6))),
         ],
       ),
@@ -271,14 +354,24 @@ class InsightsScreen extends StatelessWidget {
     return BarChart(
       BarChartData(
         alignment: BarChartAlignment.spaceAround,
-        maxY: 50, minY: 0,
+        maxY: 50,
+        minY: 0,
         barTouchData: BarTouchData(
           enabled: true,
+          touchCallback: (FlTouchEvent event, barTouchResponse) {
+            if (event.isInterestedForInteractions) {
+              HapticFeedback.selectionClick();
+            }
+          },
           touchTooltipData: BarTouchTooltipData(
             tooltipBgColor: AppColors.textPrimary.withOpacity(0.9),
             tooltipRoundedRadius: 12,
+            tooltipMargin: 8,
             getTooltipItem: (group, groupIndex, rod, rodIndex) {
-              return BarTooltipItem("${rod.toY.toInt()} days", GoogleFonts.inter(color: Colors.white, fontWeight: FontWeight.bold));
+              return BarTooltipItem(
+                  "${rod.toY.toInt()} days",
+                  GoogleFonts.inter(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 13)
+              );
             },
           ),
         ),
@@ -289,8 +382,8 @@ class InsightsScreen extends StatelessWidget {
               showTitles: true,
               getTitlesWidget: (value, meta) {
                 return Padding(
-                  padding: const EdgeInsets.only(top: 8.0),
-                  child: Text("C${value.toInt() + 1}", style: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.bold, color: AppColors.textSecondary)),
+                  padding: const EdgeInsets.only(top: 10.0),
+                  child: Text("C${value.toInt() + 1}", style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.textSecondary)),
                 );
               },
             ),
@@ -303,57 +396,68 @@ class InsightsScreen extends StatelessWidget {
           horizontalLines: [
             HorizontalLine(
               y: avgCycle,
-              color: AppColors.primary.withOpacity(0.5),
+              color: AppColors.primary.withOpacity(0.4),
               strokeWidth: 2,
-              dashArray: [5, 5],
+              dashArray: [6, 6],
               label: HorizontalLineLabel(
                 show: true,
                 alignment: Alignment.topRight,
-                padding: const EdgeInsets.only(right: 5, bottom: 5),
-                style: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.bold, color: AppColors.primary),
-                labelResolver: (line) => "Avg",
+                padding: const EdgeInsets.only(right: 0, bottom: 6),
+                style: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.w800, color: AppColors.primary.withOpacity(0.8)),
+                labelResolver: (line) => "AVG",
               ),
             ),
           ],
         ),
-        gridData: FlGridData(show: false),
+        gridData: const FlGridData(show: false),
         borderData: FlBorderData(show: false),
         barGroups: List.generate(history.length, (index) {
           final cycleLength = history[index].length?.toDouble() ?? avgCycle;
           final isAnomalous = cycleLength < 21 || cycleLength > 35;
-          final Color barColor = isAnomalous ? Colors.orangeAccent : AppColors.primary;
+          final Color mainColor = isAnomalous ? Colors.orangeAccent : AppColors.primary;
 
           return BarChartGroupData(
             x: index,
             barRods: [
               BarChartRodData(
                 toY: cycleLength,
-                color: barColor,
-                width: 16,
-                borderRadius: BorderRadius.circular(6),
-                backDrawRodData: BackgroundBarChartRodData(show: true, toY: 50, color: AppColors.textSecondary.withOpacity(0.05)),
+                gradient: LinearGradient(
+                  colors: [mainColor.withOpacity(0.6), mainColor],
+                  begin: Alignment.bottomCenter,
+                  end: Alignment.topCenter,
+                ),
+                width: 18,
+                borderRadius: BorderRadius.circular(8),
+                backDrawRodData: BackgroundBarChartRodData(
+                    show: true,
+                    toY: 50,
+                    color: AppColors.textSecondary.withOpacity(0.06)
+                ),
               ),
             ],
           );
         }),
       ),
-      swapAnimationDuration: const Duration(milliseconds: 800),
-      swapAnimationCurve: Curves.easeOutCubic,
+      swapAnimationDuration: const Duration(milliseconds: 850),
+      swapAnimationCurve: Curves.easeOutQuart,
     );
   }
 
   Widget _buildSymptomCard(String symptomName, int count) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 10.0),
+      padding: const EdgeInsets.only(bottom: 12.0),
       child: PremiumGlassCard(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         borderRadius: 16,
         child: Row(
           children: [
             Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(color: AppColors.textSecondary.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
-              child: Icon(CupertinoIcons.waveform_path, size: 16, color: AppColors.textSecondary),
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                  color: AppColors.primary.withOpacity(0.08),
+                  borderRadius: BorderRadius.circular(12)
+              ),
+              child: Icon(CupertinoIcons.waveform_path, size: 18, color: AppColors.primary),
             ),
             const SizedBox(width: 16),
             Expanded(
@@ -363,9 +467,13 @@ class InsightsScreen extends StatelessWidget {
               ),
             ),
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              decoration: BoxDecoration(color: AppColors.primary.withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
-              child: Text("$count times", style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.primary)),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                  color: AppColors.background.withOpacity(0.5),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: AppColors.textSecondary.withOpacity(0.1))
+              ),
+              child: Text("$count days", style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.textSecondary)),
             ),
           ],
         ),

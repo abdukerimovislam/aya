@@ -4,8 +4,8 @@ import 'package:hive/hive.dart';
 import 'package:intl/intl.dart';
 import 'dart:math' as math;
 
-import '../../core/l10n/app_localizations.dart';
 import '../../core/services/notification_service.dart';
+import '../../l10n/app_localizations.dart';
 import '../models/cycle_model.dart';
 import '../logic/cycle_ai_engine.dart';
 
