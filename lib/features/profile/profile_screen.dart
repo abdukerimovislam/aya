@@ -5,6 +5,7 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'dart:ui';
 
+import '../../l10n/app_localizations.dart';
 import 'premium_paywall_sheet.dart';
 import 'theme_selector_sheet.dart';
 import 'profile_logic_mixin.dart';

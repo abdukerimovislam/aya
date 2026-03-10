@@ -5,10 +5,10 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import 'data/providers/cycle_provider.dart';
-import 'core/l10n/app_localizations.dart';
 import 'core/theme/app_theme.dart';
 
 // 🔥 Обновленный импорт
+import 'l10n/app_localizations.dart';
 import 'shared/widgets/live_phase_background.dart';
 
 // Экраны (Фичи)

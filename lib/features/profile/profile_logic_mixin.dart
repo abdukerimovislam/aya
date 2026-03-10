@@ -12,6 +12,7 @@ import '../../core/theme/app_theme.dart';
 import '../../data/providers/coc_provider.dart';
 import '../../data/providers/cycle_provider.dart';
 import '../../data/providers/settings_provider.dart';
+import '../../l10n/app_localizations.dart';
 import '../../shared/widgets/coc_start_dialog.dart';
 import '../../shared/widgets/mode_transition_overlay.dart';
 import '../../shared/widgets/pack_selection_dialog.dart';

@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter/services.dart';
-import '../../core/l10n/app_localizations.dart';
 
 import '../../core/theme/app_theme.dart';
 import '../../data/models/timer_design.dart';
 import '../../data/providers/settings_provider.dart';
 import '../../features/profile/premium_paywall_sheet.dart';
+import '../../l10n/app_localizations.dart';
 
 class DesignSelectorSheet extends StatelessWidget {
   const DesignSelectorSheet({super.key});

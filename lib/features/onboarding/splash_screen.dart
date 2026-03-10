@@ -12,6 +12,7 @@ import '../../core/l10n/app_localizations.dart';
 import '../../data/providers/cycle_provider.dart';
 import '../../data/providers/settings_provider.dart';
 import '../../data/providers/wellness_provider.dart';
+import '../../l10n/app_localizations.dart';
 import 'onboarding_screen.dart';
 import 'language_selection_screen.dart'; // 🔥 Импорт экрана выбора языка
 

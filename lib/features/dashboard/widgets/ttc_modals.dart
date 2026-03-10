@@ -10,6 +10,7 @@ import '../../../core/theme/ttc_theme.dart';
 import '../../../data/models/cycle_model.dart';
 import '../../../data/providers/cycle_provider.dart';
 import '../../../data/providers/wellness_provider.dart';
+import '../../../l10n/app_localizations.dart';
 
 
 // --- ГЛАССМОРФИЗМ ОБЕРТКА (Blur) ---
