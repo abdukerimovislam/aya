@@ -32,7 +32,6 @@ class SettingsProvider extends ChangeNotifier {
 
   bool _notificationsEnabled = false;
   bool _biometricsEnabled = false;
-  bool _isTTCMode = false;
   bool _dailyLogEnabled = false;
 
   TimerDesign _currentDesign = TimerDesign.nebula;
@@ -46,7 +45,6 @@ class SettingsProvider extends ChangeNotifier {
   Locale get locale => _locale;
   bool get notificationsEnabled => _notificationsEnabled;
   bool get biometricsEnabled => _biometricsEnabled;
-  bool get isTTCMode => _isTTCMode;
   bool get dailyLogEnabled => _dailyLogEnabled;
   TimerDesign get currentDesign => _currentDesign;
   bool get isPremium => _isPremium;
@@ -90,9 +88,6 @@ class SettingsProvider extends ChangeNotifier {
     final bool appWasReset = !_box.containsKey(_keyOnboarding);
 
     if (appWasReset) {
-      // 🔥 КРИТИЧЕСКИЙ ФИКС: Убрали await _storageService.clearAll(),
-      // чтобы провайдер не удалял ключ шифрования БД при первом запуске!
-      _isTTCMode = false;
       _notificationsEnabled = false;
       _biometricsEnabled = false;
       _dailyLogEnabled = false;
@@ -104,7 +99,8 @@ class SettingsProvider extends ChangeNotifier {
     } else {
       _notificationsEnabled = await _storageService.getNotificationsEnabled();
       _biometricsEnabled = await _storageService.getBiometricsEnabled();
-      _isTTCMode = await _storageService.getTTCMode();
+
+      // 🔥 isTTCMode удален из SecureStorage, так как режим хранится в Hive (CycleProvider)
 
       _dailyLogEnabled = _box.get(_keyDailyLog, defaultValue: false);
       _isPremium = _box.get(_keyPremium, defaultValue: false);
@@ -232,13 +228,6 @@ class SettingsProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> setTTCMode(bool value) async {
-    if (_isTTCMode == value) return;
-    _isTTCMode = value;
-    await _storageService.saveTTCMode(value);
-    notifyListeners();
-  }
-
   Future<void> setCOCSettings(int active, int brk, {DateTime? packStartDate}) async {
     await _box.put(_keyCOCActive, active);
     await _box.put(_keyCOCBreak, brk);
@@ -296,10 +285,6 @@ class SettingsProvider extends ChangeNotifier {
 
   Future<void> wipeData() async {
     await _box.clear();
-    // Не вызываем _storageService.clearAll() здесь,
-    // так как удаление данных целиком теперь идет через ProfileScreen
-
-    _isTTCMode = false;
     _notificationsEnabled = false;
     _biometricsEnabled = false;
     _dailyLogEnabled = false;

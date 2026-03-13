@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -9,7 +10,6 @@ import '../../l10n/app_localizations.dart';
 import 'premium_paywall_sheet.dart';
 import 'theme_selector_sheet.dart';
 import 'profile_logic_mixin.dart';
-import 'profile_settings_list.dart';
 
 import '../../core/services/backup_service.dart';
 import '../../core/services/pdf_service.dart';
@@ -20,8 +20,6 @@ import '../../data/providers/cycle_provider.dart';
 import '../../data/providers/settings_provider.dart';
 import '../../data/providers/wellness_provider.dart';
 import '../../shared/widgets/mode_transition_overlay.dart';
-
-// 🔥 Обновленный импорт
 import '../../shared/widgets/premium_glass_card.dart';
 
 class ProfileScreen extends StatelessWidget with ProfileLogicMixin {
@@ -36,7 +34,7 @@ class ProfileScreen extends StatelessWidget with ProfileLogicMixin {
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
-      builder: (context) => _LanguageSelectorSheet(),
+      builder: (sheetContext) => _LanguageSelectorSheet(),
     );
   }
 
@@ -45,7 +43,74 @@ class ProfileScreen extends StatelessWidget with ProfileLogicMixin {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => _EditProfileSheet(),
+      builder: (sheetContext) => _EditProfileSheet(),
+    );
+  }
+
+  // 🔥 ИСПРАВЛЕННЫЙ ДИАЛОГ ВЫБОРА ЦЕЛИ (БЕЗ SHADOWING)
+  void _showGoalSelector(BuildContext context) {
+    final cycle = context.read<CycleProvider>();
+    final currentMode = cycle.appMode;
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      // 🔥 Меняем имя переменной на sheetContext, чтобы не убить основной context
+      builder: (sheetContext) => Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(height: 12),
+              Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.grey.withOpacity(0.3), borderRadius: BorderRadius.circular(2))),
+              const SizedBox(height: 20),
+              Text(
+                "My Goal",
+                style: GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+              ),
+              const SizedBox(height: 20),
+              _GoalOption(
+                title: "Track my cycle",
+                subtitle: "Standard period and ovulation tracking",
+                icon: CupertinoIcons.drop,
+                color: AppColors.primary,
+                isSelected: currentMode == AppMode.standard,
+                onTap: () {
+                  Navigator.pop(sheetContext);
+                  cycle.setAppMode(AppMode.standard);
+                },
+              ),
+              _GoalOption(
+                title: "Prevent pregnancy",
+                subtitle: "Track my birth control pill",
+                icon: CupertinoIcons.shield,
+                color: Colors.teal,
+                isSelected: currentMode == AppMode.coc,
+                onTap: () {
+                  Navigator.pop(sheetContext); // Закрываем BottomSheet
+                  showCOCStartDialog(context); // 🔥 Передаем живой context экрана!
+                },
+              ),
+              _GoalOption(
+                title: "Try to conceive",
+                subtitle: "Maximized fertility predictions & BBT",
+                icon: CupertinoIcons.heart_circle,
+                color: Colors.purple,
+                isSelected: currentMode == AppMode.ttc,
+                onTap: () {
+                  Navigator.pop(sheetContext);
+                  cycle.setAppMode(AppMode.ttc);
+                },
+              ),
+              const SizedBox(height: 24),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
@@ -58,9 +123,29 @@ class ProfileScreen extends StatelessWidget with ProfileLogicMixin {
     final wellness = context.watch<WellnessProvider>();
     final coc = context.watch<COCProvider>();
 
-    final bool isCOC = coc.isEnabled;
-    final bool isTTC = settings.isTTCMode;
     final bool isPremium = settings.isPremium;
+
+    String goalText = "";
+    IconData goalIcon = CupertinoIcons.drop;
+    Color goalColor = AppColors.primary;
+
+    switch (cycle.appMode) {
+      case AppMode.standard:
+        goalText = "Track my cycle";
+        goalIcon = CupertinoIcons.drop;
+        goalColor = AppColors.primary;
+        break;
+      case AppMode.coc:
+        goalText = "Prevent pregnancy (Pill)";
+        goalIcon = CupertinoIcons.shield;
+        goalColor = Colors.teal;
+        break;
+      case AppMode.ttc:
+        goalText = "Try to conceive";
+        goalIcon = CupertinoIcons.heart_circle;
+        goalColor = Colors.purple;
+        break;
+    }
 
     return Scaffold(
       backgroundColor: Colors.transparent,
@@ -177,57 +262,58 @@ class ProfileScreen extends StatelessWidget with ProfileLogicMixin {
             sliver: SliverList(
               delegate: SliverChildListDelegate([
 
-                if (!isTTC) ...[
-                  _buildSectionHeader(l10n.settingsContraception),
-                  _buildGlassGroup(
-                    children: [
-                      ProfileSwitchTile(
-                        icon: Icons.medication_liquid_rounded,
-                        title: l10n.settingsTrackPill,
-                        value: isCOC,
-                        onChanged: (val) {
-                          if (val) {
-                            showCOCStartDialog(context);
-                          } else {
-                            ModeTransitionOverlay.show(context, TransitionMode.tracking, l10n.transitionTrack, onComplete: () {
-                              coc.toggleCOC(false);
-                              cycle.setCOCMode(false);
-                              goToHome(context);
-                            });
-                          }
-                        },
-                      ),
-                      if (isCOC) ...[
-                        _buildDivider(),
-                        ProfileSettingsTile(
-                          icon: Icons.grid_on_rounded,
-                          title: l10n.settingsPackType,
-                          trailing: _buildBadge(l10n.settingsPills(coc.pillCount)),
-                          onTap: () => showPackTypePicker(context),
-                        ),
-                        _buildDivider(),
-                        ProfileSettingsTile(
-                          icon: Icons.access_alarm_rounded,
-                          title: l10n.settingsReminder,
-                          trailing: Text(
-                              coc.reminderTime.format(context),
-                              style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold)
-                          ),
-                          onTap: () async {
-                            final newTime = await showTimePicker(context: context, initialTime: coc.reminderTime);
-                            if (newTime != null) coc.setTime(newTime, notifTitle: l10n.notifPillTitle, notifBody: l10n.notifPillBody);
-                          },
-                        ),
-                      ],
-                    ],
-                  ),
-                  const SizedBox(height: 24),
-                ],
-
-                _buildSectionHeader(isCOC ? l10n.settingsPackSettings : l10n.sectionCycle),
+                // MY GOAL
+                _buildSectionHeader("My Goal"),
                 _buildGlassGroup(
                   children: [
-                    if (!isCOC)
+                    ProfileSettingsTile(
+                      icon: goalIcon,
+                      iconColor: goalColor,
+                      title: goalText,
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            "Change",
+                            style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.w600, fontSize: 14),
+                          ),
+                          const SizedBox(width: 4),
+                          Icon(Icons.arrow_forward_ios_rounded, size: 14, color: Colors.grey.withOpacity(0.5)),
+                        ],
+                      ),
+                      onTap: () => _showGoalSelector(context),
+                    ),
+
+                    if (cycle.appMode == AppMode.coc) ...[
+                      _buildDivider(),
+                      ProfileSettingsTile(
+                        icon: Icons.grid_on_rounded,
+                        title: l10n.settingsPackType,
+                        trailing: _buildBadge(l10n.settingsPills(coc.pillCount)),
+                        onTap: () => showPackTypePicker(context),
+                      ),
+                      _buildDivider(),
+                      ProfileSettingsTile(
+                        icon: Icons.access_alarm_rounded,
+                        title: l10n.settingsReminder,
+                        trailing: Text(
+                            coc.reminderTime.format(context),
+                            style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold)
+                        ),
+                        onTap: () async {
+                          final newTime = await showTimePicker(context: context, initialTime: coc.reminderTime);
+                          if (newTime != null) coc.setTime(newTime, notifTitle: l10n.notifPillTitle, notifBody: l10n.notifPillBody);
+                        },
+                      ),
+                    ]
+                  ],
+                ),
+                const SizedBox(height: 24),
+
+                if (cycle.appMode != AppMode.coc) ...[
+                  _buildSectionHeader(l10n.sectionCycle),
+                  _buildGlassGroup(
+                    children: [
                       ProfileSliderTile(
                         icon: Icons.loop_rounded,
                         title: l10n.insightAvgCycle,
@@ -236,18 +322,19 @@ class ProfileScreen extends StatelessWidget with ProfileLogicMixin {
                         onChanged: (val) => cycle.setCycleLength(val.toInt()),
                         suffix: l10n.daysUnit,
                       ),
-                    if (!isCOC) _buildDivider(),
-                    ProfileSliderTile(
-                      icon: isCOC ? Icons.pause_circle_outline_rounded : Icons.water_drop_rounded,
-                      title: isCOC ? (coc.pillCount == 28 ? l10n.settingsPlaceboCount : l10n.settingsBreakDuration) : l10n.insightAvgPeriod,
-                      value: cycle.periodDuration.toDouble().clamp(2.0, 10.0),
-                      min: 2, max: 10,
-                      onChanged: (val) => cycle.setAveragePeriodDuration(val.toInt()),
-                      suffix: l10n.daysUnit,
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 24),
+                      _buildDivider(),
+                      ProfileSliderTile(
+                        icon: Icons.water_drop_rounded,
+                        title: l10n.insightAvgPeriod,
+                        value: cycle.periodDuration.toDouble().clamp(2.0, 10.0),
+                        min: 2, max: 10,
+                        onChanged: (val) => cycle.setAveragePeriodDuration(val.toInt()),
+                        suffix: l10n.daysUnit,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 24),
+                ],
 
                 _buildSectionHeader(l10n.settingsGeneral),
                 _buildGlassGroup(
@@ -445,7 +532,6 @@ class ProfileScreen extends StatelessWidget with ProfileLogicMixin {
     );
   }
 
-  // 🔥 Заменили VisionCard
   Widget _buildGlassGroup({required List<Widget> children}) {
     return PremiumGlassCard(
       padding: EdgeInsets.zero,
@@ -544,6 +630,159 @@ class ProfileScreen extends StatelessWidget with ProfileLogicMixin {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l10n.msgExportError)));
       }
     }
+  }
+}
+
+// --- ВНУТРЕННИЕ ВИДЖЕТЫ ---
+
+class _GoalOption extends StatelessWidget {
+  final String title;
+  final String subtitle;
+  final IconData icon;
+  final Color color;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  const _GoalOption({
+    required this.title,
+    required this.subtitle,
+    required this.icon,
+    required this.color,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      contentPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+      leading: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.15),
+          shape: BoxShape.circle,
+        ),
+        child: Icon(icon, color: color, size: 24),
+      ),
+      title: Text(
+        title,
+        style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+      ),
+      subtitle: Text(
+        subtitle,
+        style: GoogleFonts.inter(fontSize: 13, color: AppColors.textSecondary),
+      ),
+      trailing: isSelected ? Icon(Icons.check_circle, color: color) : null,
+      onTap: () {
+        HapticFeedback.selectionClick();
+        onTap();
+      },
+    );
+  }
+}
+
+class ProfileSettingsTile extends StatelessWidget {
+  final IconData icon;
+  final Color? iconColor;
+  final String title;
+  final Widget? trailing;
+  final VoidCallback? onTap;
+
+  const ProfileSettingsTile({super.key, required this.icon, required this.title, this.trailing, this.onTap, this.iconColor});
+
+  @override
+  Widget build(BuildContext context) {
+    final color = iconColor ?? AppColors.primary;
+    return ListTile(
+      onTap: onTap,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      leading: Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(color: color.withOpacity(0.08), borderRadius: BorderRadius.circular(10)),
+        child: Icon(icon, color: color, size: 22),
+      ),
+      title: Text(title, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
+      trailing: trailing,
+    );
+  }
+}
+
+class ProfileSwitchTile extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final bool value;
+  final ValueChanged<bool> onChanged;
+
+  const ProfileSwitchTile({super.key, required this.icon, required this.title, required this.value, required this.onChanged});
+
+  @override
+  Widget build(BuildContext context) {
+    return ProfileSettingsTile(
+      icon: icon,
+      title: title,
+      onTap: () => onChanged(!value),
+      trailing: CupertinoSwitch(value: value, onChanged: onChanged, activeColor: AppColors.primary),
+    );
+  }
+}
+
+class ProfileSliderTile extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final double value;
+  final double min;
+  final double max;
+  final ValueChanged<double> onChanged;
+  final String suffix;
+
+  const ProfileSliderTile({
+    super.key,
+    required this.icon,
+    required this.title,
+    required this.value,
+    required this.min,
+    required this.max,
+    required this.onChanged,
+    required this.suffix,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        ListTile(
+          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
+          leading: Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(color: AppColors.primary.withOpacity(0.08), borderRadius: BorderRadius.circular(10)),
+            child: Icon(icon, color: AppColors.primary, size: 22),
+          ),
+          title: Text(title, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
+          trailing: Text("${value.toInt()} $suffix", style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.primary, fontSize: 16)),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+          child: SliderTheme(
+            data: SliderTheme.of(context).copyWith(
+              trackHeight: 4,
+              thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 10),
+              overlayShape: const RoundSliderOverlayShape(overlayRadius: 20),
+              activeTrackColor: AppColors.primary,
+              inactiveTrackColor: AppColors.primary.withOpacity(0.2),
+              thumbColor: AppColors.primary,
+              overlayColor: AppColors.primary.withOpacity(0.1),
+            ),
+            child: Slider(
+              value: value,
+              min: min,
+              max: max,
+              divisions: (max - min).toInt(),
+              onChanged: onChanged,
+            ),
+          ),
+        ),
+      ],
+    );
   }
 }
 

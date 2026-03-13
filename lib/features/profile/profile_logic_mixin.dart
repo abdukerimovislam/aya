@@ -17,11 +17,9 @@ import '../../shared/widgets/mode_transition_overlay.dart';
 import '../../shared/widgets/pack_selection_dialog.dart';
 import '../onboarding/onboarding_screen.dart';
 
-
-
 mixin ProfileLogicMixin {
 
-  // 🔥 SMOOTH FADE TRANSITION TO HOME
+  // 🔥 ПЛАВНЫЙ ПЕРЕХОД ДОМОЙ
   void goToHome(BuildContext context) {
     Future.delayed(const Duration(milliseconds: 50), () {
       if (context.mounted) {
@@ -64,7 +62,7 @@ mixin ProfileLogicMixin {
     }
   }
 
-  // --- DIALOGS ---
+  // --- ДИАЛОГИ ---
   void showPackTypePicker(BuildContext context) {
     final coc = Provider.of<COCProvider>(context, listen: false);
     final cycle = Provider.of<CycleProvider>(context, listen: false);
@@ -95,7 +93,6 @@ mixin ProfileLogicMixin {
     final l10n = AppLocalizations.of(context)!;
     final coc = Provider.of<COCProvider>(context, listen: false);
     final cycle = Provider.of<CycleProvider>(context, listen: false);
-    final settings = Provider.of<SettingsProvider>(context, listen: false); // Needed to force-disable TTC
 
     showGeneralDialog(
       context: context,
@@ -110,15 +107,16 @@ mixin ProfileLogicMixin {
           child: COCStartDialog(
             onFreshStart: () {
               Navigator.pop(ctx);
-              ModeTransitionOverlay.show(context, TransitionMode.coc, l10n.transitionCOC, onComplete: () {
-                // 🔥 Ensure TTC is OFF when enabling COC
-                settings.setTTCMode(false);
-                cycle.setTTCMode(false);
-
+              ModeTransitionOverlay.show(context, TransitionMode.coc, l10n.transitionCOC, onComplete: () async {
+                final now = DateTime.now();
                 coc.toggleCOC(true, notifTitle: l10n.notifPillTitle, notifBody: l10n.notifPillBody);
-                cycle.setCOCMode(true);
-                cycle.startNewCycle();
-                goToHome(context);
+
+                // 🔥 1. Сбрасываем историю таблеток (визуальный блистер)
+                await coc.startNewPack(startDate: now);
+                // 🔥 2. Обновляем ядро цикла (передаем дату старта напрямую)
+                await cycle.setCOCMode(true, packStartDate: now);
+
+                if (context.mounted) goToHome(context);
               });
             },
             onContinue: () async {
@@ -126,21 +124,20 @@ mixin ProfileLogicMixin {
               final DateTime? picked = await showDatePicker(
                 context: context,
                 initialDate: DateTime.now(),
-                // 🔥 Expanded range to 90 days
                 firstDate: DateTime.now().subtract(const Duration(days: 90)),
                 lastDate: DateTime.now(),
                 builder: (context, child) => Theme(data: Theme.of(context).copyWith(colorScheme: ColorScheme.light(primary: AppColors.primary)), child: child!),
               );
               if (picked != null) {
-                ModeTransitionOverlay.show(context, TransitionMode.coc, l10n.transitionCOC, onComplete: () {
-                  // 🔥 Ensure TTC is OFF when enabling COC
-                  settings.setTTCMode(false);
-                  cycle.setTTCMode(false);
-
+                ModeTransitionOverlay.show(context, TransitionMode.coc, l10n.transitionCOC, onComplete: () async {
                   coc.toggleCOC(true, notifTitle: l10n.notifPillTitle, notifBody: l10n.notifPillBody);
-                  cycle.setCOCMode(true);
-                  cycle.setSpecificCycleStartDate(picked);
-                  goToHome(context);
+
+                  // 🔥 1. Сбрасываем историю таблеток на ВЫБРАННУЮ дату
+                  await coc.startNewPack(startDate: picked);
+                  // 🔥 2. Обновляем ядро (передаем выбранную дату)
+                  await cycle.setCOCMode(true, packStartDate: picked);
+
+                  if (context.mounted) goToHome(context);
                 });
               }
             },
@@ -188,13 +185,13 @@ mixin ProfileLogicMixin {
       final auth = AuthService();
       if (await auth.canCheckBiometrics) {
         if (await auth.authenticate(l10n.authBiometricsReason)) {
-          settings.setBiometricsEnabled(true); // ✅ Fixed Method Name
+          settings.setBiometricsEnabled(true);
         }
       } else {
         if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l10n.msgBiometricsError)));
       }
     } else {
-      settings.setBiometricsEnabled(false); // ✅ Fixed Method Name
+      settings.setBiometricsEnabled(false);
     }
   }
 }
