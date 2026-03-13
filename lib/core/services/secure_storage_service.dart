@@ -12,11 +12,18 @@ class SecureStorageService {
 
   late final FlutterSecureStorage _storage;
 
+  // 🔥 Флаг миграции/сброса ключей
+  bool _wasHiveKeyReset = false;
+
+  /// Возвращает true, если ключ Hive был пересоздан (например, из-за сброса Keystore на Android).
+  /// Это сигнал для `main.dart` о том, что старые зашифрованные базы Hive нужно удалить перед открытием!
+  bool get wasHiveKeyReset => _wasHiveKeyReset;
+
   SecureStorageService._internal() {
     _storage = const FlutterSecureStorage(
       aOptions: AndroidOptions(
         encryptedSharedPreferences: true,
-        // ✅ Сброс при ошибке ключей (Android)
+        // ✅ Сброс при ошибке ключей (Защита от битых MAC после сброса пинкода телефона)
         resetOnError: true,
       ),
       iOptions: IOSOptions(
@@ -68,42 +75,19 @@ class SecureStorageService {
     }
   }
 
-  // --- PUBLIC API (existing) ---
+  // --- PUBLIC API ---
 
-  Future<void> saveNotificationsEnabled(bool enabled) async {
-    await _write(_keyNotifications, enabled.toString());
-  }
+  Future<void> saveNotificationsEnabled(bool enabled) async => await _write(_keyNotifications, enabled.toString());
+  Future<bool> getNotificationsEnabled() async => (await _read(_keyNotifications)) == 'true';
 
-  Future<bool> getNotificationsEnabled() async {
-    final val = await _read(_keyNotifications);
-    return val == 'true';
-  }
+  Future<void> saveBiometricsEnabled(bool enabled) async => await _write(_keyBiometrics, enabled.toString());
+  Future<bool> getBiometricsEnabled() async => (await _read(_keyBiometrics)) == 'true';
 
-  Future<void> saveBiometricsEnabled(bool enabled) async {
-    await _write(_keyBiometrics, enabled.toString());
-  }
+  Future<void> saveLanguage(String langCode) async => await _write(_keyLanguage, langCode);
+  Future<String?> getLanguage() async => await _read(_keyLanguage);
 
-  Future<bool> getBiometricsEnabled() async {
-    final val = await _read(_keyBiometrics);
-    return val == 'true';
-  }
-
-  Future<void> saveLanguage(String langCode) async {
-    await _write(_keyLanguage, langCode);
-  }
-
-  Future<String?> getLanguage() async {
-    return await _read(_keyLanguage);
-  }
-
-  Future<void> saveTTCMode(bool enabled) async {
-    await _write(_keyTTC, enabled.toString());
-  }
-
-  Future<bool> getTTCMode() async {
-    final val = await _read(_keyTTC);
-    return val == 'true';
-  }
+  Future<void> saveTTCMode(bool enabled) async => await _write(_keyTTC, enabled.toString());
+  Future<bool> getTTCMode() async => (await _read(_keyTTC)) == 'true';
 
   Future<void> clearAll() async {
     try {
@@ -113,13 +97,10 @@ class SecureStorageService {
     }
   }
 
-  // --- NEW: Hive encryption key management ---
+  // --- Hive encryption key management & Migration ---
 
-  /// Returns a stable 32-byte key for HiveAesCipher.
-  /// Stored in secure storage as base64.
-  ///
-  /// ⚠️ If this key changes, previously stored Hive data becomes unreadable.
-  /// So: generate once, persist forever (unless you intentionally reset user data).
+  /// Возвращает стабильный 32-байтный ключ для HiveAesCipher.
+  /// Если ключ поврежден или удален (resetOnError), генерирует новый и поднимает флаг `wasHiveKeyReset`.
   Future<Uint8List> getOrCreateHiveCipherKey() async {
     try {
       final existing = await _read(_keyHiveCipher);
@@ -128,22 +109,26 @@ class SecureStorageService {
         if (bytes.length == 32) {
           return Uint8List.fromList(bytes);
         } else {
-          debugPrint("⚠️ Hive cipher key has invalid length: ${bytes.length}. Regenerating.");
+          debugPrint("⚠️ Внимание: Неверный размер ключа Hive (${bytes.length}). Требуется миграция.");
         }
       }
     } catch (e) {
-      debugPrint("❌ Failed to read Hive cipher key: $e");
+      debugPrint("❌ Ошибка при чтении ключа шифрования Hive: $e");
     }
 
-    // Generate new 32-byte key
+    // Если мы дошли сюда, значит ключа нет (первый запуск) или он был сброшен системой.
+    debugPrint("🔄 Генерация нового 32-байтного ключа для Hive...");
+
+    // Поднимаем флаг, чтобы основное приложение знало, что старые базы не откроются
+    _wasHiveKeyReset = true;
+
     final rnd = Random.secure();
     final keyBytes = Uint8List.fromList(List<int>.generate(32, (_) => rnd.nextInt(256)));
 
     try {
       await _write(_keyHiveCipher, base64Encode(keyBytes));
     } catch (e) {
-      debugPrint("❌ Failed to store Hive cipher key: $e");
-      // If we cannot store it reliably, better to crash early than corrupt data.
+      debugPrint("❌ КРИТИЧЕСКАЯ ОШИБКА: Не удалось сохранить ключ Hive: $e");
       rethrow;
     }
 

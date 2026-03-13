@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:ui' show PlatformDispatcher;
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -42,13 +43,33 @@ final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 void callbackDispatcher() {
   Workmanager().executeTask((task, inputData) async {
     try {
-      // Инициализируем Flutter биндинги
+      // 1. Инициализируем Flutter биндинги
       WidgetsFlutterBinding.ensureInitialized();
-
-      // Инициализируем БД для фонового изолята
       await Hive.initFlutter();
 
-      // Запускаем ИИ анализ (через наш безопасный Cloudflare Proxy)
+      // 2. 🔥 ДОБАВЛЕНО: Достаем ключ шифрования для фонового изолята
+      final storageService = SecureStorageService();
+      final encryptionKey = await storageService.getOrCreateHiveCipherKey();
+
+      // 3. Регистрируем адаптеры в новом изоляте
+      try {
+        if (!Hive.isAdapterRegistered(0)) Hive.registerAdapter(CycleModelAdapter());
+        if (!Hive.isAdapterRegistered(1)) Hive.registerAdapter(SymptomLogAdapter());
+        if (!Hive.isAdapterRegistered(2)) Hive.registerAdapter(PersonalModelAdapter());
+        if (!Hive.isAdapterRegistered(3)) Hive.registerAdapter(FlowIntensityAdapter());
+        if (!Hive.isAdapterRegistered(4)) Hive.registerAdapter(CyclePhaseAdapter());
+        if (!Hive.isAdapterRegistered(5)) Hive.registerAdapter(OvulationTestResultAdapter());
+        if (!Hive.isAdapterRegistered(6)) Hive.registerAdapter(CervicalMucusTypeAdapter());
+      } catch (e) {
+        debugPrint("Background adapters already registered");
+      }
+
+      // 4. 🔥 ДОБАВЛЕНО: Безопасно открываем базы С ШИФРОВАНИЕМ, чтобы ИИ мог их прочитать
+      if (!Hive.isBoxOpen('settings')) await Hive.openBox('settings', encryptionCipher: HiveAesCipher(encryptionKey));
+      if (!Hive.isBoxOpen('cycles')) await Hive.openBox('cycles', encryptionCipher: HiveAesCipher(encryptionKey));
+      if (!Hive.isBoxOpen('symptom_logs')) await Hive.openBox('symptom_logs', encryptionCipher: HiveAesCipher(encryptionKey));
+
+      // 5. Запускаем ИИ анализ (теперь он имеет доступ к зашифрованным данным!)
       await AiOracleService.fetchDailyInsight(isManual: false);
 
       return Future.value(true);
@@ -75,14 +96,16 @@ void main() async {
   };
 
   await runZonedGuarded(() async {
-    // 🔥 ВАЖНО: Инициализация биндингов внутри зоны для избежания "Zone Mismatch"
     WidgetsFlutterBinding.ensureInitialized();
 
     // 1) Critical services
     await SubscriptionService.init();
     final storageService = SecureStorageService();
 
-    // 2) System UI
+    // 🔥 2) Получаем или создаем ключ для шифрования Hive
+    final encryptionKey = await storageService.getOrCreateHiveCipherKey();
+
+    // 3) System UI
     SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
       statusBarColor: Colors.transparent,
       statusBarIconBrightness: Brightness.dark,
@@ -94,10 +117,24 @@ void main() async {
       DeviceOrientation.portraitDown,
     ]);
 
-    // 3) Hive init
+    // 4) Hive init
     await Hive.initFlutter();
 
-    // 4) Register adapters (safe)
+    // 🔥 ЗАЩИТА ОТ КРАША КЕЙСТОРА ANDROID 🔥
+    if (storageService.wasHiveKeyReset) {
+      debugPrint("🚨 ВНИМАНИЕ: Зафиксирован сброс ключа шифрования! Удаляем старые нечитаемые базы...");
+      try {
+        await Hive.deleteBoxFromDisk('settings');
+        await Hive.deleteBoxFromDisk('cycles');
+        await Hive.deleteBoxFromDisk('symptom_logs');
+        await Hive.deleteBoxFromDisk('coc_settings');
+        debugPrint("✅ Старые базы успешно удалены. Приложение спасено от краш-лупа.");
+      } catch (e) {
+        debugPrint("❌ Ошибка при удалении старых баз: $e");
+      }
+    }
+
+    // 5) Register adapters (safe)
     try {
       if (!Hive.isAdapterRegistered(0)) Hive.registerAdapter(CycleModelAdapter());
       if (!Hive.isAdapterRegistered(1)) Hive.registerAdapter(SymptomLogAdapter());
@@ -110,13 +147,13 @@ void main() async {
       debugPrint("⚠️ Hive Adapter Registration Warning: $e");
     }
 
-    // 5) Open boxes safely
-    final settingsBox = await _openBoxSafely('settings');
-    final cycleBox = await _openBoxSafely('cycles');
-    final wellnessBox = await _openBoxSafely('symptom_logs');
-    final cocBox = await _openBoxSafely('coc_settings');
+    // 6) Open boxes safely with ENCRYPTION
+    final settingsBox = await _openBoxSafely('settings', encryptionKey);
+    final cycleBox = await _openBoxSafely('cycles', encryptionKey);
+    final wellnessBox = await _openBoxSafely('symptom_logs', encryptionKey);
+    final cocBox = await _openBoxSafely('coc_settings', encryptionKey);
 
-    // 6) Notifications
+    // 7) Notifications
     final notificationService = NotificationService();
     await notificationService.init(
       onNotificationTap: (payload) {
@@ -131,20 +168,20 @@ void main() async {
       },
     );
 
-    // 7) Инициализация Workmanager для ежедневного ИИ-анализа
+    // 8) Инициализация Workmanager
     try {
       Workmanager().initialize(
         callbackDispatcher,
-        isInDebugMode: false, // ВАЖНО: На проде должно быть false!
+        isInDebugMode: false,
       );
 
       Workmanager().registerPeriodicTask(
-        "daily_ai_insight_task", // Уникальный ID задачи
-        "fetchDailyInsight",     // Имя задачи
-        frequency: const Duration(hours: 24), // Выполнять раз в сутки
+        "daily_ai_insight_task",
+        "fetchDailyInsight",
+        frequency: const Duration(hours: 24),
         constraints: Constraints(
-          networkType: NetworkType.connected, // Только при наличии интернета
-          requiresBatteryNotLow: true,        // Только если батарея не садится
+          networkType: NetworkType.connected,
+          requiresBatteryNotLow: true,
         ),
       );
     } catch (e) {
@@ -165,10 +202,10 @@ void main() async {
   });
 }
 
-/// Opens Hive box safely to prevent crash loops on corrupted data
-Future<Box> _openBoxSafely(String name) async {
+/// Opens Hive box safely with Encryption to prevent crash loops
+Future<Box> _openBoxSafely(String name, Uint8List key) async {
   try {
-    return await Hive.openBox(name);
+    return await Hive.openBox(name, encryptionCipher: HiveAesCipher(key));
   } catch (e) {
     debugPrint("🔥 Hive openBox failed for '$name': $e");
     debugPrint("🧯 Attempting recovery: delete only '$name' box and reopen...");
@@ -178,7 +215,7 @@ Future<Box> _openBoxSafely(String name) async {
       if (exists) {
         await Hive.deleteBoxFromDisk(name);
       }
-      return await Hive.openBox(name);
+      return await Hive.openBox(name, encryptionCipher: HiveAesCipher(key));
     } catch (e2) {
       debugPrint("❌ Hive recovery failed for '$name': $e2");
       rethrow;

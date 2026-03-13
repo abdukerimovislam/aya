@@ -31,33 +31,28 @@ import '../profile/premium_paywall_sheet.dart';
 import '../profile/subscription_status_sheet.dart';
 import '../logger/symptom_log_screen.dart';
 
-class HomeScreen extends StatefulWidget {
+// 🔥 ОПТИМИЗАЦИЯ 1: HomeScreen теперь StatelessWidget без лишней перерисовки
+class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
 
   @override
-  State<HomeScreen> createState() => _HomeScreenState();
-}
-
-class _HomeScreenState extends State<HomeScreen> {
-  @override
   Widget build(BuildContext context) {
-    final cycleProvider = context.watch<CycleProvider>();
+    // 🔥 ОПТИМИЗАЦИЯ 2: Подписываемся ТОЛЬКО на флаг загрузки
+    final isLoaded = context.select<CycleProvider, bool>((p) => p.isLoaded);
 
-    if (!cycleProvider.isLoaded) {
+    if (!isLoaded) {
       return Scaffold(
         backgroundColor: Colors.transparent,
         body: Center(child: CupertinoActivityIndicator(color: AppColors.primary)),
       );
     }
 
-    return _BuildUltraModernScreen(provider: cycleProvider);
+    return const _BuildUltraModernScreen();
   }
 }
 
 class _BuildUltraModernScreen extends StatelessWidget {
-  final CycleProvider provider;
-
-  const _BuildUltraModernScreen({required this.provider});
+  const _BuildUltraModernScreen({super.key});
 
   // Логика бесшовной Hero-навигации
   void _openLoggerWithHero(BuildContext context, DateTime date, String heroTag) {
@@ -99,13 +94,21 @@ class _BuildUltraModernScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final settings = context.watch<SettingsProvider>();
     final l10n = AppLocalizations.of(context);
     if (l10n == null) return const SizedBox.shrink();
 
-    final data = provider.currentData;
-    final bool isCOC = provider.isCOCEnabled;
-    final bool isPremium = settings.isPremium;
+    // 🔥 ОПТИМИЗАЦИЯ 3: Точечные селекторы вместо context.watch!
+    // Экран перерисуется, только если реально изменятся данные таймера, а не фоновая история.
+    final data = context.select<CycleProvider, CycleData>((p) => p.currentData);
+    final bool isCOC = context.select<CycleProvider, bool>((p) => p.isCOCEnabled);
+
+    final String userName = context.select<SettingsProvider, String>((p) => p.userName);
+    final bool isPremium = context.select<SettingsProvider, bool>((p) => p.isPremium);
+
+    // 🔥 ОПТИМИЗАЦИЯ 4: Ссылка на провайдер без подписки (context.read)
+    // Нужна только для передачи логики в кнопки (например, сохранить симптом),
+    // чтобы кнопки не триггерили ребилд самого дашборда.
+    final provider = context.read<CycleProvider>();
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -130,7 +133,7 @@ class _BuildUltraModernScreen extends StatelessWidget {
                       children: [
                         _DashboardDateWidget(
                           l10n: l10n,
-                          userName: settings.userName,
+                          userName: userName,
                           phase: data.phase,
                         ),
                         _DashboardPremiumBadge(isPremium: isPremium, l10n: l10n),
@@ -157,7 +160,7 @@ class _BuildUltraModernScreen extends StatelessWidget {
                   DashboardActionBar(data: data, isCOC: isCOC, provider: provider, l10n: l10n, onOpenLogger: _openLoggerWithHero),
                   const SizedBox(height: 40),
 
-                  // 🔥 КОНТЕНТ МЕНЯЕТСЯ В ЗАВИСИМОСТИ ОТ РЕЖИМА
+                  // КОНТЕНТ МЕНЯЕТСЯ В ЗАВИСИМОСТИ ОТ РЕЖИМА
                   if (isCOC) ...[
                     // ПОЛНЫЙ ВИЗУАЛЬНЫЙ БЛИСТЕР В СТЕКЛЕ
                     const Padding(

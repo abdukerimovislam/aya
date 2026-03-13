@@ -263,7 +263,7 @@ class BackupService {
 
       final innerJson = jsonEncode(backupData);
 
-      // ✅ Encrypt into envelope (v2)
+      // ✅ Encrypt into envelope
       final envelope = await BackupCrypto.encryptEnvelopeAsync(
         plaintext: innerJson,
         password: password,
@@ -303,7 +303,7 @@ class BackupService {
 
   /// 📥 RESTORE FROM BACKUP
   /// Supports:
-  /// - Encrypted v2 envelope (AES-GCM)
+  /// - Encrypted envelope (AES-GCM)
   /// - Legacy plain JSON (v1) for backward compatibility
   static Future<void> restoreBackup(BuildContext context) async {
     final confirmed = await _confirmSensitiveAction(
@@ -349,14 +349,15 @@ class BackupService {
 
       Map<String, dynamic> appData;
 
-      // Detect encrypted envelope v2
-      final isEnvelopeV2 = top is Map &&
-          top['version'] == BackupCrypto.version &&
+      // 🔥 ИСПРАВЛЕНО: Теперь мы поддерживаем любую зашифрованную версию <= currentVersion
+      final isEncryptedEnvelope = top is Map &&
+          top['version'] != null &&
+          top['version'] <= BackupCrypto.currentVersion &&
           top['alg'] == 'AES-GCM-256' &&
           top['ciphertext'] != null &&
           top['mac'] != null;
 
-      if (isEnvelopeV2) {
+      if (isEncryptedEnvelope) {
         final password = await _askPassword(
           context,
           confirm: false,
@@ -369,7 +370,7 @@ class BackupService {
 
         try {
           final plaintext = await BackupCrypto.decryptEnvelopeAsyncToPlaintext(
-            envelope: Map<String, dynamic>.from(top as Map),
+            envelope: Map<String, dynamic>.from(top),
             password: password,
           );
           final decoded = jsonDecode(plaintext);

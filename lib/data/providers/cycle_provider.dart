@@ -29,6 +29,10 @@ class CycleProvider with ChangeNotifier {
 
   CycleData _currentData = CycleData.empty();
   List<CycleModel> _history = [];
+
+  // 🔥 ОПТИМИЗАЦИЯ 1: Кеш истории, чтобы не пересоздавать List.unmodifiable на каждый кадр
+  List<CycleModel>? _cachedHistory;
+
   CycleConfidenceResult? _aiConfidence;
 
   bool _isCOCEnabled = false;
@@ -71,7 +75,10 @@ class CycleProvider with ChangeNotifier {
   }
 
   CycleData get currentData => _currentData;
-  List<CycleModel> get history => List.unmodifiable(_history);
+
+  // 🔥 ОПТИМИЗАЦИЯ 1: Отдаем закешированный список
+  List<CycleModel> get history => _cachedHistory ??= List.unmodifiable(_history);
+
   CycleConfidenceResult? get aiConfidence => _aiConfidence;
 
   int get cycleLength => _currentData.totalCycleLength > 0
@@ -156,8 +163,8 @@ class CycleProvider with ChangeNotifier {
     _ovulationOverride = null;
     _ovulationOverrideSource = null;
     try {
-      await _settingsBox.delete('current_ovulation_override');
-      await _settingsBox.delete('current_ovulation_override_source');
+      // 🔥 ОПТИМИЗАЦИЯ 2: Пакетное удаление
+      await _settingsBox.deleteAll(['current_ovulation_override', 'current_ovulation_override_source']);
     } catch (_) {}
   }
 
@@ -176,7 +183,7 @@ class CycleProvider with ChangeNotifier {
 
       _isLoaded = true;
       notifyListeners();
-      rescheduleNotifications();
+      rescheduleNotifications(); // Асинхронно
     } catch (e) {
       debugPrint("CycleProvider Init Error: $e");
       _isLoaded = true;
@@ -198,6 +205,7 @@ class CycleProvider with ChangeNotifier {
     if (timestamps.isEmpty) {
       await _cycleBox.clear();
       _history = [];
+      _cachedHistory = null; // Сбрасываем кеш
       DateTime fallbackStart = DateTime.now();
       int? savedFallback = _settingsBox.get('fallback_start_date');
       if (savedFallback != null) {
@@ -270,7 +278,10 @@ class CycleProvider with ChangeNotifier {
     await _cycleBox.addAll(newHistory);
 
     final oldHistory = _history.isNotEmpty ? _history.first : null;
+
+    // 🔥 ОПТИМИЗАЦИЯ 1: Сбрасываем кеш при загрузке новой истории
     _history = newHistory.reversed.toList();
+    _cachedHistory = null;
 
     if (oldHistory != null && _history.first.startDate.isAfter(oldHistory.startDate)) {
       await _settingsBox.put('current_period_ended', false);
@@ -510,22 +521,27 @@ class CycleProvider with ChangeNotifier {
     List<int> manualStarts = (_settingsBox.get('manual_cycle_starts') as List?)?.cast<int>() ?? [];
     final ms = normDate.millisecondsSinceEpoch;
 
+    bool shouldUnsetPeriodEnded = false;
+
     if (timestamps.contains(ms)) {
       timestamps.remove(ms);
       manualStarts.remove(ms);
     } else {
       timestamps.add(ms);
 
-      if (!_isCOCEnabled) {
-        final currentStart = _normalizeDate(_currentData.cycleStartDate);
-        if (!normDate.isBefore(currentStart)) {
-          await _settingsBox.put('current_period_ended', false);
-        }
+      if (!_isCOCEnabled && !normDate.isBefore(_normalizeDate(_currentData.cycleStartDate))) {
+        shouldUnsetPeriodEnded = true;
       }
     }
 
-    await _settingsBox.put('bleeding_days', timestamps);
-    await _settingsBox.put('manual_cycle_starts', manualStarts);
+    // 🔥 ОПТИМИЗАЦИЯ 2: Пакетная запись (I/O Batching)
+    Map<String, dynamic> updates = {
+      'bleeding_days': timestamps,
+      'manual_cycle_starts': manualStarts,
+    };
+    if (shouldUnsetPeriodEnded) updates['current_period_ended'] = false;
+
+    await _settingsBox.putAll(updates);
 
     if (_isCOCEnabled) {
       final active = _settingsBox.get('coc_active_count', defaultValue: 21);
@@ -535,7 +551,7 @@ class CycleProvider with ChangeNotifier {
     }
 
     await _recalculateEngine();
-    await rescheduleNotifications();
+    rescheduleNotifications(); // ОПТИМИЗАЦИЯ 3: Без await
   }
 
   Future<CycleLogResult> logActionStartPeriod(DateTime date, {bool isConfirmed = false}) async {
@@ -594,12 +610,15 @@ class CycleProvider with ChangeNotifier {
 
     await _clearOvulationOverride();
 
-    await _settingsBox.put('current_period_ended', false);
-    await _settingsBox.put('bleeding_days', timestamps);
-    await _settingsBox.put('manual_cycle_starts', manualStarts);
+    // 🔥 ОПТИМИЗАЦИЯ 2: Пакетная запись (I/O Batching)
+    await _settingsBox.putAll({
+      'current_period_ended': false,
+      'bleeding_days': timestamps,
+      'manual_cycle_starts': manualStarts,
+    });
 
     await _recalculateEngine();
-    await rescheduleNotifications();
+    rescheduleNotifications(); // ОПТИМИЗАЦИЯ 3: Без await
 
     return CycleLogResult.success;
   }
@@ -632,13 +651,14 @@ class CycleProvider with ChangeNotifier {
       return !d.isBefore(end);
     });
 
-    timestamps = timestamps.toSet().toList();
-
-    await _settingsBox.put('bleeding_days', timestamps);
-    await _settingsBox.put('current_period_ended', true);
+    // 🔥 ОПТИМИЗАЦИЯ 2: Пакетная запись (I/O Batching)
+    await _settingsBox.putAll({
+      'bleeding_days': timestamps.toSet().toList(),
+      'current_period_ended': true,
+    });
 
     await _recalculateEngine();
-    await rescheduleNotifications();
+    rescheduleNotifications(); // ОПТИМИЗАЦИЯ 3: Без await
   }
 
   Future<void> setSpecificCycleStartDate(DateTime date) async => logActionStartPeriod(date, isConfirmed: true);
@@ -653,10 +673,10 @@ class CycleProvider with ChangeNotifier {
 
     if (enabled) {
       _updateCurrentData(_currentData.cycleStartDate, _avgCycleLength, _avgPeriodDuration);
-      await rescheduleNotifications();
+      rescheduleNotifications(); // ОПТИМИЗАЦИЯ 3: Без await
     }
 
-    notifyListeners();
+    // notifyListeners() вызывается внутри _updateCurrentData
   }
 
   Future<void> setTTCStrategy(TTCStrategy strategy) async {
@@ -675,11 +695,15 @@ class CycleProvider with ChangeNotifier {
 
     _ovulationOverride = normDate;
     _ovulationOverrideSource = source;
-    await _settingsBox.put('current_ovulation_override', _ovulationOverride!.millisecondsSinceEpoch);
-    await _settingsBox.put('current_ovulation_override_source', source);
+
+    // 🔥 ОПТИМИЗАЦИЯ 2: Пакетная запись
+    await _settingsBox.putAll({
+      'current_ovulation_override': _ovulationOverride!.millisecondsSinceEpoch,
+      'current_ovulation_override_source': source,
+    });
 
     _updateCurrentData(_currentData.cycleStartDate, _avgCycleLength, _avgPeriodDuration);
-    await rescheduleNotifications();
+    rescheduleNotifications(); // ОПТИМИЗАЦИЯ 3: Без await
   }
 
   Future<void> clearOvulationIfMatchesLHTestDate(DateTime testDate) async {
@@ -691,8 +715,7 @@ class CycleProvider with ChangeNotifier {
 
     await _clearOvulationOverride();
     _updateCurrentData(_currentData.cycleStartDate, _avgCycleLength, _avgPeriodDuration);
-    await rescheduleNotifications();
-    notifyListeners();
+    rescheduleNotifications(); // ОПТИМИЗАЦИЯ 3: Без await
   }
 
   Future<void> tryAutoConfirmOvulationFromBBT(List<MapEntry<DateTime, double>> tempHistory) async {
@@ -740,12 +763,15 @@ class CycleProvider with ChangeNotifier {
 
     _ovulationOverride = estimatedOvulation;
     _ovulationOverrideSource = 'bbt';
-    await _settingsBox.put('current_ovulation_override', estimatedOvulation.millisecondsSinceEpoch);
-    await _settingsBox.put('current_ovulation_override_source', 'bbt');
+
+    // 🔥 ОПТИМИЗАЦИЯ 2: Пакетная запись
+    await _settingsBox.putAll({
+      'current_ovulation_override': estimatedOvulation.millisecondsSinceEpoch,
+      'current_ovulation_override_source': 'bbt',
+    });
 
     _updateCurrentData(_currentData.cycleStartDate, _avgCycleLength, _avgPeriodDuration);
-    await rescheduleNotifications();
-    notifyListeners();
+    rescheduleNotifications(); // ОПТИМИЗАЦИЯ 3: Без await
   }
 
   Future<void> clearOvulationData(DateTime date) async {
@@ -753,8 +779,7 @@ class CycleProvider with ChangeNotifier {
     if (date.isBefore(_currentData.cycleStartDate)) return;
     await _clearOvulationOverride();
     _updateCurrentData(_currentData.cycleStartDate, _avgCycleLength, _avgPeriodDuration);
-    await rescheduleNotifications();
-    notifyListeners();
+    rescheduleNotifications(); // ОПТИМИЗАЦИЯ 3: Без await
   }
 
   Future<void> setCOCMode(bool enabled, {int currentPillNumber = 1, DateTime? packStartDate}) async {
@@ -801,16 +826,15 @@ class CycleProvider with ChangeNotifier {
       }
 
       await _recalculateEngine();
-      await rescheduleNotifications();
+      rescheduleNotifications(); // ОПТИМИЗАЦИЯ 3: Без await
     }
-    notifyListeners();
+    // notifyListeners вызывается внутри методов
   }
 
   Future<void> setAveragePeriodDuration(int days) async {
     await _ensureBoxOpen();
     days = days.clamp(1, 14);
 
-    // 🔥 ГАРАНТИРОВАННО СОХРАНЯЕМ В HIVE
     await _settingsBox.put('avg_period_len', days);
 
     _avgPeriodDuration = days;
@@ -819,9 +843,7 @@ class CycleProvider with ChangeNotifier {
     _updateCurrentData(_currentData.cycleStartDate, _avgCycleLength, days);
 
     // Пересчитываем уведомления
-    await rescheduleNotifications();
-
-    notifyListeners();
+    rescheduleNotifications(); // ОПТИМИЗАЦИЯ 3: Без await
   }
 
   Future<void> setCycleLength(int length) async {
@@ -830,7 +852,7 @@ class CycleProvider with ChangeNotifier {
     await _settingsBox.put('avg_cycle_len', length);
     _avgCycleLength = length;
     _updateCurrentData(_currentData.cycleStartDate, length, _avgPeriodDuration);
-    await rescheduleNotifications();
+    rescheduleNotifications(); // ОПТИМИЗАЦИЯ 3: Без await
   }
 
   void _calculateAIConfidence() {
@@ -852,7 +874,7 @@ class CycleProvider with ChangeNotifier {
 
     await _settingsBox.put('current_period_ended', false);
     _updateCurrentData(_currentData.cycleStartDate, _avgCycleLength, _avgPeriodDuration);
-    await rescheduleNotifications();
+    rescheduleNotifications(); // ОПТИМИЗАЦИЯ 3: Без await
   }
 
   Future<void> undoPeriodStart() async {
@@ -868,12 +890,15 @@ class CycleProvider with ChangeNotifier {
     timestamps.remove(ms);
     manualStarts.remove(ms);
 
-    await _settingsBox.put('bleeding_days', timestamps);
-    await _settingsBox.put('manual_cycle_starts', manualStarts);
-    await _settingsBox.put('current_period_ended', false);
+    // 🔥 ОПТИМИЗАЦИЯ 2: Пакетная запись (I/O Batching)
+    await _settingsBox.putAll({
+      'bleeding_days': timestamps,
+      'manual_cycle_starts': manualStarts,
+      'current_period_ended': false,
+    });
 
     await _recalculateEngine();
-    await rescheduleNotifications();
+    rescheduleNotifications(); // ОПТИМИЗАЦИЯ 3: Без await
   }
 
   Future<void> rescheduleNotifications() async {
