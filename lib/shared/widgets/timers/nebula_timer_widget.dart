@@ -42,7 +42,6 @@ class _NebulaTimerWidgetState extends State<NebulaTimerWidget> with TickerProvid
   bool _isDragging = false;
 
   final List<_NanoParticle> _particles = [];
-  // Оптимизированное количество: 600 дает отличную плотность без лагов
   final int _particleCount = 600;
 
   final int _startTime = DateTime.now().millisecondsSinceEpoch;
@@ -51,7 +50,10 @@ class _NebulaTimerWidgetState extends State<NebulaTimerWidget> with TickerProvid
   void initState() {
     super.initState();
     _renderController = AnimationController(vsync: this, duration: const Duration(seconds: 1))..repeat();
-    _pulseController = AnimationController(vsync: this, duration: const Duration(seconds: 2))..repeat(reverse: true);
+
+    // Если задержка, пульсируем чуть быстрее
+    final isLate = widget.data.phase == CyclePhase.late;
+    _pulseController = AnimationController(vsync: this, duration: Duration(milliseconds: isLate ? 1200 : 2000))..repeat(reverse: true);
 
     _generate3DSphere();
   }
@@ -69,7 +71,7 @@ class _NebulaTimerWidgetState extends State<NebulaTimerWidget> with TickerProvid
         theta: theta,
         phi: phi,
         speed: 0.8 + (random.nextDouble() * 0.4),
-        size: 0.6 + (random.nextDouble() * 1.2), // Слегка увеличили базовый размер
+        size: 0.6 + (random.nextDouble() * 1.2),
       ));
     }
   }
@@ -79,6 +81,13 @@ class _NebulaTimerWidgetState extends State<NebulaTimerWidget> with TickerProvid
     super.didUpdateWidget(oldWidget);
     if (oldWidget.data.cycleStartDate != widget.data.cycleStartDate || oldWidget.isCOC != widget.isCOC) {
       setState(() { _selectedDay = null; _isDragging = false; });
+    }
+
+    final wasLate = oldWidget.data.phase == CyclePhase.late;
+    final isLate = widget.data.phase == CyclePhase.late;
+    if (wasLate != isLate) {
+      _pulseController.duration = Duration(milliseconds: isLate ? 1200 : 2000);
+      _pulseController.repeat(reverse: true);
     }
   }
 
@@ -131,99 +140,122 @@ class _NebulaTimerWidgetState extends State<NebulaTimerWidget> with TickerProvid
     final displayDate = today.add(Duration(days: dateOffset));
     final dateString = DateFormat('MMM d').format(displayDate);
 
-    return SizedBox(
-      width: 320,
-      height: 320,
-      child: GestureDetector(
-        behavior: HitTestBehavior.translucent,
-        onPanStart: (details) {
-          setState(() => _isDragging = true);
-          _handlePan(details.localPosition, 320);
-        },
-        onPanUpdate: (details) => _handlePan(details.localPosition, 320),
-        onPanEnd: (details) => setState(() => _isDragging = false),
-        child: Stack(
-          alignment: Alignment.center,
-          children: [
+    // 🔥 ЛОГИКА ЗАДЕРЖКИ (LATE STATE)
+    final bool isLate = displayPhase == CyclePhase.late;
+    final int daysLate = displayDay - widget.data.totalCycleLength;
+    final String mainNumberText = isLate ? "$daysLate" : "$displayDay";
+    final String labelText = isLate ? "DAYS LATE" : "DAY";
 
-            // ОРБИТА
-            AnimatedBuilder(
-              animation: _pulseController,
-              builder: (context, child) {
-                return CustomPaint(
-                  size: const Size(300, 300),
-                  painter: _OrbitTicksPainter(
-                    totalDays: widget.data.totalCycleLength,
-                    currentDay: widget.data.currentDay,
-                    selectedDay: _selectedDay,
-                    phases: phases,
-                    isCOC: widget.isCOC,
-                    pulseValue: _pulseController.value,
-                  ),
-                );
-              },
-            ),
+    return RepaintBoundary(
+      child: SizedBox(
+        width: 320,
+        height: 320,
+        child: GestureDetector(
+          behavior: HitTestBehavior.translucent,
+          onPanStart: (details) {
+            if (isLate && _selectedDay == null) return; // Блокируем свайп, если задержка, чтобы не сбить фокус
+            setState(() => _isDragging = true);
+            _handlePan(details.localPosition, 320);
+          },
+          onPanUpdate: (details) {
+            if (isLate && _selectedDay == null) return;
+            _handlePan(details.localPosition, 320);
+          },
+          onPanEnd: (details) => setState(() => _isDragging = false),
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
 
-            // 3D СФЕРА НАНОЧАСТИЦ
-            AnimatedBuilder(
-              animation: Listenable.merge([_renderController, _pulseController]),
-              builder: (context, child) {
-                return CustomPaint(
-                  size: const Size(270, 270),
-                  painter: _NanoSpherePainter(
-                    startTime: _startTime,
-                    pulseValue: _pulseController.value,
-                    baseColor: displayColor,
-                    accentColor: accentColor,
-                    particles: _particles,
-                  ),
-                );
-              },
-            ),
+              // ОРБИТА
+              AnimatedBuilder(
+                animation: _pulseController,
+                builder: (context, child) {
+                  return CustomPaint(
+                    size: const Size(300, 300),
+                    painter: _OrbitTicksPainter(
+                      totalDays: widget.data.totalCycleLength,
+                      currentDay: widget.data.currentDay,
+                      selectedDay: _selectedDay,
+                      phases: phases,
+                      isCOC: widget.isCOC,
+                      pulseValue: _pulseController.value,
+                    ),
+                  );
+                },
+              ),
 
-            // Центральный матовый круг
-            ClipRRect(
-              borderRadius: BorderRadius.circular(100),
-              child: BackdropFilter(
-                filter: ui.ImageFilter.blur(sigmaX: 8, sigmaY: 8),
-                child: Container(
-                  width: 140, height: 140,
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.65),
-                    shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white.withOpacity(0.8), width: 1.5),
+              // 3D СФЕРА НАНОЧАСТИЦ
+              AnimatedBuilder(
+                animation: Listenable.merge([_renderController, _pulseController]),
+                builder: (context, child) {
+                  return CustomPaint(
+                    size: const Size(270, 270),
+                    painter: _NanoSpherePainter(
+                      startTime: _startTime,
+                      pulseValue: _pulseController.value,
+                      baseColor: displayColor,
+                      accentColor: accentColor,
+                      particles: _particles,
+                    ),
+                  );
+                },
+              ),
+
+              // Центральный матовый круг
+              ClipRRect(
+                borderRadius: BorderRadius.circular(100),
+                child: BackdropFilter(
+                  filter: ui.ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+                  child: Container(
+                    width: 140, height: 140,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.65),
+                      shape: BoxShape.circle,
+                      border: Border.all(color: Colors.white.withOpacity(0.8), width: 1.5),
+                    ),
                   ),
                 ),
               ),
-            ),
 
-            // Текст поверх
-            AnimatedSwitcher(
-              duration: const Duration(milliseconds: 200),
-              child: Column(
-                key: ValueKey(displayDay),
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    _selectedDay == null ? "DAY" : dateString.toUpperCase(),
-                    style: GoogleFonts.inter(color: AppColors.textSecondary, fontSize: 10, letterSpacing: 2.5, fontWeight: FontWeight.w800),
-                  ),
-                  Text(
-                    "$displayDay",
-                    style: GoogleFonts.inter(fontSize: 64, fontWeight: FontWeight.w200, color: AppColors.textPrimary, height: 1.1, letterSpacing: -2),
-                  ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(color: displayColor.withOpacity(0.15), borderRadius: BorderRadius.circular(20)),
-                    child: Text(
-                      displayName.toUpperCase(),
-                      style: GoogleFonts.inter(color: displayColor, fontSize: 9, fontWeight: FontWeight.w800, letterSpacing: 1.0),
+              // Текст поверх
+              AnimatedSwitcher(
+                duration: const Duration(milliseconds: 200),
+                child: Column(
+                  key: ValueKey("$displayDay-$isLate"),
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      _selectedDay == null ? labelText : dateString.toUpperCase(),
+                      style: GoogleFonts.inter(
+                          color: isLate ? Colors.orangeAccent.shade700 : AppColors.textSecondary,
+                          fontSize: 10,
+                          letterSpacing: 2.5,
+                          fontWeight: FontWeight.w800
+                      ),
                     ),
-                  ),
-                ],
+                    Text(
+                      mainNumberText,
+                      style: GoogleFonts.inter(
+                          fontSize: isLate && daysLate > 9 ? 48 : 64,
+                          fontWeight: FontWeight.w200,
+                          color: isLate ? Colors.orangeAccent.shade700 : AppColors.textPrimary,
+                          height: 1.1,
+                          letterSpacing: -2
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(color: displayColor.withOpacity(0.15), borderRadius: BorderRadius.circular(20)),
+                      child: Text(
+                        displayName.toUpperCase(),
+                        style: GoogleFonts.inter(color: displayColor, fontSize: 9, fontWeight: FontWeight.w800, letterSpacing: 1.0),
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -251,18 +283,18 @@ class _NebulaTimerWidgetState extends State<NebulaTimerWidget> with TickerProvid
       case CyclePhase.follicular: return AppColors.follicular;
       case CyclePhase.ovulation: return AppColors.ovulation;
       case CyclePhase.luteal: return AppColors.luteal;
-      case CyclePhase.late: return Colors.redAccent;
+      case CyclePhase.late: return Colors.orangeAccent.shade700; // Яркий предупреждающий цвет
     }
   }
 
   Color _getAccentColor(CyclePhase phase, bool isCOC) {
     if (isCOC) return Colors.indigoAccent;
     switch (phase) {
-      case CyclePhase.menstruation: return Colors.orangeAccent;
+      case CyclePhase.menstruation: return Colors.redAccent;
       case CyclePhase.follicular: return Colors.lightBlueAccent;
       case CyclePhase.ovulation: return Colors.purpleAccent;
       case CyclePhase.luteal: return Colors.pinkAccent;
-      case CyclePhase.late: return Colors.orange;
+      case CyclePhase.late: return Colors.redAccent;
     }
   }
 
@@ -278,7 +310,6 @@ class _NebulaTimerWidgetState extends State<NebulaTimerWidget> with TickerProvid
   }
 }
 
-// ОПТИМИЗИРОВАННАЯ КИСТЬ ОРБИТЫ
 class _OrbitTicksPainter extends CustomPainter {
   final int totalDays;
   final int currentDay;
@@ -301,7 +332,6 @@ class _OrbitTicksPainter extends CustomPainter {
     final center = Offset(size.width / 2, size.height / 2);
     final radius = size.width / 2;
 
-    // Кэшируем кисти вне цикла
     final Paint trackPaint = Paint()..color = Colors.black.withOpacity(0.02)..style = PaintingStyle.stroke..strokeWidth = 2.0;
     final Paint tickPaint = Paint()..style = PaintingStyle.fill;
     final Paint whiteTickPaint = Paint()..color = Colors.white..style = PaintingStyle.fill;
@@ -378,7 +408,6 @@ class _OrbitTicksPainter extends CustomPainter {
           oldDelegate.pulseValue != pulseValue;
 }
 
-// 🔥 ВЫСОКОПРОИЗВОДИТЕЛЬНАЯ КИСТЬ ДЛЯ 3D СФЕРЫ
 class _NanoSpherePainter extends CustomPainter {
   final int startTime;
   final double pulseValue;
@@ -401,21 +430,17 @@ class _NanoSpherePainter extends CustomPainter {
 
     final double time = (DateTime.now().millisecondsSinceEpoch - startTime) / 1000.0 * 0.6;
 
-    // ОПТИМИЗАЦИЯ 1: Вычисляем тригонометрию наклона ОДИН раз
     const tilt = math.pi / 9;
     final double cosTilt = math.cos(tilt);
     final double sinTilt = math.sin(tilt);
 
-    // ОПТИМИЗАЦИЯ 2: Предварительно генерируем массив цветов (Color Palette),
-    // чтобы не делать Color.lerp сотни раз каждый кадр.
     final List<Color> colorPalette = List.generate(
         100,
             (index) => Color.lerp(baseColor, accentColor, index / 99.0)!
     );
 
-    // ОПТИМИЗАЦИЯ 3: Создаем кисти вне цикла
     final Paint particlePaint = Paint()..style = PaintingStyle.fill;
-    final Paint glowPaint = Paint()..style = PaintingStyle.fill; // БЕЗ BLUR
+    final Paint glowPaint = Paint()..style = PaintingStyle.fill;
 
     for (int i = 0; i < particles.length; i++) {
       final p = particles[i];
@@ -427,7 +452,6 @@ class _NanoSpherePainter extends CustomPainter {
       double y3d = radius * math.sin(rotPhi) * math.sin(rotTheta);
       double z3d = radius * math.cos(rotPhi);
 
-      // Применяем заранее вычисленный наклон
       double y = y3d * cosTilt - z3d * sinTilt;
       double z = y3d * sinTilt + z3d * cosTilt;
       double x = x3d;
@@ -438,20 +462,17 @@ class _NanoSpherePainter extends CustomPainter {
 
       double colorMix = (math.sin(time * 2 + p.theta * 2) + 1) / 2;
 
-      // Берем цвет из кэшированной палитры
       int colorIndex = (colorMix * 99).round().clamp(0, 99);
       Color finalColor = colorPalette[colorIndex];
 
       particlePaint.color = finalColor.withOpacity(opacity);
       Offset screenPos = Offset(center.dx + x, center.dy + y);
 
-      // Рисуем основную точку
       canvas.drawCircle(screenPos, drawSize, particlePaint);
 
-      // ОПТИМИЗАЦИЯ 4: Фейковое свечение вместо MaskFilter.blur
       if (depth > 0.85) {
-        glowPaint.color = finalColor.withOpacity(opacity * 0.15); // Очень низкая прозрачность
-        canvas.drawCircle(screenPos, drawSize * 2.5, glowPaint); // Рисуем просто большой круг поверх
+        glowPaint.color = finalColor.withOpacity(opacity * 0.15);
+        canvas.drawCircle(screenPos, drawSize * 2.5, glowPaint);
       }
     }
   }

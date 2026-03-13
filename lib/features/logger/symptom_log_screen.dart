@@ -7,11 +7,10 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 
 import '../../core/theme/app_theme.dart';
-import '../../data/models/cycle_model.dart';
-import '../../data/providers/wellness_provider.dart';
-import '../../data/providers/cycle_provider.dart';
-
 import '../../l10n/app_localizations.dart';
+import '../../data/models/cycle_model.dart';
+import '../../data/providers/cycle_provider.dart';
+import '../../data/providers/wellness_provider.dart';
 import '../../shared/widgets/premium_glass_card.dart';
 
 class SymptomLogScreen extends StatefulWidget {
@@ -24,62 +23,82 @@ class SymptomLogScreen extends StatefulWidget {
 }
 
 class _SymptomLogScreenState extends State<SymptomLogScreen> {
-  late SymptomLog _currentLog;
-  late FlowIntensity _initialFlow;
+  late SymptomLog _log;
+  bool _isLoaded = false;
+  bool _isFutureDate = false;
   bool _isSaving = false;
+
+  FlowIntensity _initialFlow = FlowIntensity.none;
 
   @override
   void initState() {
     super.initState();
-    final provider = Provider.of<WellnessProvider>(context, listen: false);
-    _currentLog = provider.getLogForDate(widget.date);
-    _initialFlow = _currentLog.flow;
+    _checkFutureDate();
+    if (!_isFutureDate) {
+      _loadLog();
+    }
   }
 
-  // 🔥 ИСПРАВЛЕННАЯ МЕДИЦИНСКАЯ СИНХРОНИЗАЦИЯ
+  void _checkFutureDate() {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final target = DateTime(widget.date.year, widget.date.month, widget.date.day);
+
+    if (target.isAfter(today)) {
+      _isFutureDate = true;
+    }
+  }
+
+  void _loadLog() {
+    final wellness = context.read<WellnessProvider>();
+    _log = wellness.getLogForDate(widget.date);
+    _initialFlow = _log.flow;
+    setState(() => _isLoaded = true);
+  }
+
+  // 🔥 Умное сохранение: Отделяем мазню от настоящих месячных
   Future<void> _saveAndClose() async {
-    setState(() => _isSaving = true);
     HapticFeedback.lightImpact();
 
-    final wellnessProvider = Provider.of<WellnessProvider>(context, listen: false);
-    final cycleProvider = Provider.of<CycleProvider>(context, listen: false);
+    if (_isFutureDate) {
+      Navigator.of(context).pop();
+      return;
+    }
 
-    await wellnessProvider.saveLog(_currentLog);
+    setState(() => _isSaving = true);
 
-    // Если пользователь ИЗМЕНИЛ статус выделений
-    if (_currentLog.flow != _initialFlow) {
-      final currentPhase = cycleProvider.getPhaseForDate(widget.date);
+    final wellness = context.read<WellnessProvider>();
+    final cycle = context.read<CycleProvider>();
+
+    await wellness.saveLog(_log);
+
+    if (_log.flow != _initialFlow) {
+      final currentPhase = cycle.getPhaseForDate(widget.date);
       final isCurrentlyPeriodDay = currentPhase == CyclePhase.menstruation;
 
-      // Сценарий 1: Добавили выделения (а их не было)
-      if (_currentLog.flow != FlowIntensity.none && _initialFlow == FlowIntensity.none) {
+      // Медицинское правило: Только эти статусы начинают менструацию
+      final isNowMenstruation = _log.flow == FlowIntensity.light ||
+          _log.flow == FlowIntensity.medium ||
+          _log.flow == FlowIntensity.heavy;
 
-        // ВАЖНО: Если этот день И ТАК считается днем месячных (например, юзер уже нажал кнопку на главном экране),
-        // нам НЕ НУЖНО стартовать новый цикл. Просто сохраняем интенсивность (что мы уже сделали выше).
-        if (!isCurrentlyPeriodDay) {
-          // Если это НЕ день месячных, пытаемся начать новый цикл
-          final result = await cycleProvider.logActionStartPeriod(widget.date);
+      // Сценарий 1: Юзер поставил полноценные месячные, а в ядре это не отмечено
+      if (isNowMenstruation && !isCurrentlyPeriodDay) {
+        final result = await cycle.logActionStartPeriod(widget.date);
 
-          // Если алгоритм выявил аномалию (рано или овуляция), спрашиваем юзера
-          if (result == CycleLogResult.suspiciouslyEarly || result == CycleLogResult.ovulationBleeding) {
-            setState(() => _isSaving = false);
-            if (mounted) _showMedicalInterceptorDialog(context, widget.date, result, cycleProvider);
-            return; // Ждем ответа, не закрываем экран
-          }
+        // 🧠 MEDICAL INTERCEPTOR: Защита от аномалий
+        if (result == CycleLogResult.suspiciouslyEarly || result == CycleLogResult.ovulationBleeding) {
+          setState(() => _isSaving = false);
+          if (mounted) _showMedicalInterceptorDialog(context, widget.date, result, cycle);
+          return; // Оставляем экран открытым, ждем решения юзера
         }
       }
-      // Сценарий 2: Убрали выделения (поставили None, а раньше было)
-      else if (_currentLog.flow == FlowIntensity.none && _initialFlow != FlowIntensity.none) {
-        // Если день сейчас считается днем крови, отключаем его
-        if (isCurrentlyPeriodDay) {
-          await cycleProvider.togglePeriodDay(widget.date);
-        }
+      // Сценарий 2: Юзер убрал месячные (поставил None), а в ядре день отмечен как месячные
+      else if (!isNowMenstruation && isCurrentlyPeriodDay) {
+        await cycle.togglePeriodDay(widget.date);
       }
     }
 
-    if (mounted) {
-      Navigator.pop(context);
-    }
+    if (mounted) Navigator.of(context).pop();
   }
 
   void _showMedicalInterceptorDialog(BuildContext context, DateTime date, CycleLogResult result, CycleProvider provider) {
@@ -109,7 +128,7 @@ class _SymptomLogScreenState extends State<SymptomLogScreen> {
             Expanded(
               child: Text(
                   isOvulation ? "Ovulation Bleeding?" : "Are you sure?",
-                  style: GoogleFonts.inter(fontWeight: FontWeight.w800, fontSize: 18, color: AppColors.textPrimary)
+                  style: GoogleFonts.outfit(fontWeight: FontWeight.w800, fontSize: 18, color: AppColors.textPrimary)
               ),
             ),
           ],
@@ -123,11 +142,24 @@ class _SymptomLogScreenState extends State<SymptomLogScreen> {
         actionsPadding: const EdgeInsets.only(bottom: 16, right: 16, left: 16),
         actions: [
           TextButton(
-            onPressed: () async {
+            onPressed: () {
               Navigator.pop(ctx);
               HapticFeedback.lightImpact();
-              await provider.togglePeriodDay(date); // Просто мазня, не начинаем новый цикл
-              if (mounted) Navigator.pop(context);
+
+              // 🔥 РЕШЕНИЕ БЕЗ ИЗМЕНЕНИЯ БАЗЫ ДАННЫХ:
+              // Возвращаем FlowIntensity в None, но добавляем "Spotting" в симптомы!
+              final wellness = context.read<WellnessProvider>();
+              final updatedSymptoms = List<String>.from(_log.symptoms);
+              if (!updatedSymptoms.contains('Spotting')) {
+                updatedSymptoms.add('Spotting');
+              }
+
+              wellness.saveLog(_log.copyWith(
+                flow: FlowIntensity.none,
+                symptoms: updatedSymptoms,
+              ));
+
+              if (mounted) Navigator.pop(context); // Закрываем логгер
             },
             child: Text("Just Spotting", style: GoogleFonts.inter(fontWeight: FontWeight.w600, color: AppColors.textSecondary)),
           ),
@@ -139,7 +171,7 @@ class _SymptomLogScreenState extends State<SymptomLogScreen> {
             onPressed: () async {
               Navigator.pop(ctx);
               HapticFeedback.mediumImpact();
-              await provider.logActionStartPeriod(date, isConfirmed: true); // Принудительно начинаем цикл
+              await provider.logActionStartPeriod(date, isConfirmed: true); // Принудительный старт цикла
               if (mounted) Navigator.pop(context);
             },
             child: Text("New Period", style: GoogleFonts.inter(fontWeight: FontWeight.w700, color: Colors.white)),
@@ -149,248 +181,316 @@ class _SymptomLogScreenState extends State<SymptomLogScreen> {
     );
   }
 
-  void _toggleSymptom(String symptom, bool isPain) {
-    HapticFeedback.selectionClick();
-    SystemSound.play(SystemSoundType.click);
-    setState(() {
-      if (isPain) {
-        final list = List<String>.from(_currentLog.painSymptoms);
-        list.contains(symptom) ? list.remove(symptom) : list.add(symptom);
-        _currentLog = _currentLog.copyWith(painSymptoms: list);
-      } else {
-        final list = List<String>.from(_currentLog.symptoms);
-        list.contains(symptom) ? list.remove(symptom) : list.add(symptom);
-        _currentLog = _currentLog.copyWith(symptoms: list);
-      }
-    });
-  }
-
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
+    final l10n = AppLocalizations.of(context);
+    final dateStr = DateFormat('MMMM d, yyyy').format(widget.date);
 
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: IconButton(
-          icon: Icon(CupertinoIcons.clear, color: AppColors.textPrimary),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: Text(
-          DateFormat('MMMM d, yyyy', l10n.localeName).format(widget.date),
-          style: GoogleFonts.inter(
-            fontWeight: FontWeight.bold,
-            fontSize: 16,
-            color: AppColors.textPrimary,
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.background,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
+      ),
+      child: Column(
+        children: [
+          // Handle Bar
+          Container(
+            margin: const EdgeInsets.only(top: 12, bottom: 12),
+            width: 48,
+            height: 5,
+            decoration: BoxDecoration(
+              color: AppColors.textSecondary.withOpacity(0.2),
+              borderRadius: BorderRadius.circular(10),
+            ),
           ),
-        ),
-        actions: [
-          if (_isSaving)
-            const Padding(
-              padding: EdgeInsets.only(right: 20),
-              child: Center(child: CupertinoActivityIndicator()),
-            )
-          else
-            TextButton(
-              onPressed: _saveAndClose,
-              child: Text(
-                l10n.btnSave ?? "Save",
-                style: GoogleFonts.inter(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
-                  color: AppColors.primary,
+
+          // Header
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      _isFutureDate ? "Future Prediction" : (l10n?.logSymptomsTitle ?? "Daily Log"),
+                      style: GoogleFonts.outfit(fontSize: 22, fontWeight: FontWeight.w800, color: AppColors.textPrimary),
+                    ),
+                    Text(
+                      dateStr,
+                      style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.textSecondary),
+                    ),
+                  ],
+                ),
+                _isSaving
+                    ? const Padding(padding: EdgeInsets.only(right: 16), child: CupertinoActivityIndicator())
+                    : CupertinoButton(
+                  padding: EdgeInsets.zero,
+                  onPressed: _saveAndClose,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      "Done",
+                      style: GoogleFonts.inter(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          Divider(height: 1, color: AppColors.textSecondary.withOpacity(0.1)),
+
+          // ─── FUTURE DATE STATE ───
+          if (_isFutureDate)
+            Expanded(
+              child: Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(32.0),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(24),
+                        decoration: BoxDecoration(
+                          color: AppColors.primary.withOpacity(0.1),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(CupertinoIcons.sparkles, size: 48, color: AppColors.primary),
+                      ),
+                      const SizedBox(height: 24),
+                      Text(
+                        "The Future is Bright",
+                        style: GoogleFonts.outfit(fontSize: 20, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        "You cannot log symptoms for future dates. Check your calendar to see predictions for your upcoming phases.",
+                        textAlign: TextAlign.center,
+                        style: GoogleFonts.inter(fontSize: 15, color: AppColors.textSecondary, height: 1.5),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             )
+
+          // ─── NORMAL LOGGER STATE ───
+          else if (_isLoaded)
+            Expanded(
+              child: ListView(
+                physics: const BouncingScrollPhysics(),
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+                children: [
+                  _buildSectionTitle("Bleeding & Flow"),
+                  const SizedBox(height: 12),
+                  _buildFlowSelector(),
+                  const SizedBox(height: 32),
+
+                  _buildSectionTitle("Vitals"),
+                  const SizedBox(height: 12),
+                  _buildVitalSlider("Mood", _log.mood, (v) => setState(() => _log = _log.copyWith(mood: v.toInt())), CupertinoIcons.smiley),
+                  _buildVitalSlider("Energy", _log.energy, (v) => setState(() => _log = _log.copyWith(energy: v.toInt())), CupertinoIcons.bolt_fill),
+                  _buildVitalSlider("Sleep", _log.sleep, (v) => setState(() => _log = _log.copyWith(sleep: v.toInt())), CupertinoIcons.moon_stars_fill),
+                  const SizedBox(height: 32),
+
+                  _buildSectionTitle("Physical Symptoms"),
+                  const SizedBox(height: 12),
+                  _buildSymptomGrid(
+                    ['Cramps', 'Headache', 'Bloating', 'Acne', 'Tender Breasts', 'Backache', 'Nausea', 'Fatigue'],
+                    true, // isPain = true
+                  ),
+                  const SizedBox(height: 32),
+
+                  _buildSectionTitle("Mental & Emotional"),
+                  const SizedBox(height: 12),
+                  _buildSymptomGrid(
+                    ['Anxious', 'Irritable', 'Crying Spells', 'Brain Fog', 'Happy', 'Focused', 'Calm'],
+                    false, // isPain = false
+                  ),
+                  const SizedBox(height: 32),
+
+                  _buildSectionTitle("Other Factors & Issues"),
+                  const SizedBox(height: 12),
+                  _buildSymptomGrid(
+                    // 🔥 Добавили Spotting сюда, чтобы юзер мог выбрать его руками
+                    ['Spotting', 'Alcohol', 'Travel', 'High Stress', 'Sick', 'Exercise', 'Poor Diet'],
+                    false, // isPain = false (сохранится в symptoms)
+                  ),
+
+                  const SizedBox(height: 60),
+                ],
+              ),
+            )
+          else
+            const Expanded(child: Center(child: CupertinoActivityIndicator())),
         ],
       ),
-      body: SafeArea(
-        child: ListView(
-          physics: const BouncingScrollPhysics(),
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+    );
+  }
+
+  // --- UI Builders ---
+
+  Widget _buildSectionTitle(String title) {
+    return Text(
+      title,
+      style: GoogleFonts.outfit(fontSize: 18, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+    );
+  }
+
+  Widget _buildFlowSelector() {
+    // 🔥 Оставили только валидные значения базы данных
+    final flows = [
+      {'val': FlowIntensity.none, 'icon': CupertinoIcons.drop, 'label': 'None'},
+      {'val': FlowIntensity.light, 'icon': CupertinoIcons.drop_fill, 'label': 'Light'},
+      {'val': FlowIntensity.medium, 'icon': CupertinoIcons.drop_fill, 'label': 'Medium'},
+      {'val': FlowIntensity.heavy, 'icon': CupertinoIcons.drop_fill, 'label': 'Heavy'},
+    ];
+
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      physics: const BouncingScrollPhysics(),
+      child: Row(
+        children: flows.map((f) {
+          final isSelected = _log.flow == f['val'];
+          return GestureDetector(
+            onTap: () {
+              HapticFeedback.selectionClick();
+              setState(() => _log = _log.copyWith(flow: f['val'] as FlowIntensity));
+            },
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              margin: const EdgeInsets.only(right: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              decoration: BoxDecoration(
+                color: isSelected ? AppColors.menstruation : AppColors.background,
+                border: Border.all(color: isSelected ? AppColors.menstruation : AppColors.textSecondary.withOpacity(0.2)),
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: isSelected ? [BoxShadow(color: AppColors.menstruation.withOpacity(0.3), blurRadius: 8, offset: const Offset(0, 4))] : [],
+              ),
+              child: Row(
+                children: [
+                  Icon(f['icon'] as IconData, size: 16, color: isSelected ? Colors.white : AppColors.textSecondary),
+                  const SizedBox(width: 8),
+                  Text(
+                    f['label'] as String,
+                    style: GoogleFonts.inter(
+                      fontSize: 14,
+                      fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                      color: isSelected ? Colors.white : AppColors.textPrimary,
+                    ),
+                  )
+                ],
+              ),
+            ),
+          );
+        }).toList(),
+      ),
+    );
+  }
+
+  Widget _buildVitalSlider(String label, int value, Function(double) onChanged, IconData icon) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16.0),
+      child: PremiumGlassCard(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        borderRadius: 20,
+        child: Row(
           children: [
-            Text(
-              l10n.logFlow.toUpperCase(),
-              style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.textSecondary, letterSpacing: 1.0),
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(color: AppColors.primary.withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
+              child: Icon(icon, color: AppColors.primary, size: 20),
             ),
-            const SizedBox(height: 12),
-            PremiumGlassCard(
-              padding: const EdgeInsets.all(16),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _buildFlowButton(FlowIntensity.light, l10n.flowLight, l10n),
-                  _buildFlowButton(FlowIntensity.medium, l10n.flowMedium, l10n),
-                  _buildFlowButton(FlowIntensity.heavy, l10n.flowHeavy, l10n),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(label, style: GoogleFonts.inter(fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
+                      Text("$value/5", style: GoogleFonts.inter(fontWeight: FontWeight.bold, color: AppColors.primary, fontSize: 12)),
+                    ],
+                  ),
+                  SliderTheme(
+                    data: SliderThemeData(
+                      trackHeight: 4,
+                      activeTrackColor: AppColors.primary,
+                      inactiveTrackColor: AppColors.textSecondary.withOpacity(0.1),
+                      thumbColor: AppColors.primary,
+                      overlayColor: AppColors.primary.withOpacity(0.2),
+                      thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 10),
+                    ),
+                    child: Slider(
+                      value: value.toDouble(),
+                      min: 1, max: 5, divisions: 4,
+                      onChanged: (v) {
+                        HapticFeedback.selectionClick();
+                        onChanged(v);
+                      },
+                    ),
+                  ),
                 ],
               ),
             ),
-
-            const SizedBox(height: 32),
-
-            Text(
-              l10n.logMood.toUpperCase(),
-              style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.textSecondary, letterSpacing: 1.0),
-            ),
-            const SizedBox(height: 12),
-            PremiumGlassCard(
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  _buildMoodEmoji(1, "😭"),
-                  _buildMoodEmoji(2, "😟"),
-                  _buildMoodEmoji(3, "😐"),
-                  _buildMoodEmoji(4, "🙂"),
-                  _buildMoodEmoji(5, "🤩"),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 32),
-
-            Text(
-              l10n.logPain.toUpperCase(),
-              style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.textSecondary, letterSpacing: 1.0),
-            ),
-            const SizedBox(height: 12),
-            Wrap(
-              spacing: 10,
-              runSpacing: 10,
-              children: [
-                _buildSymptomChip('cramps', l10n.painCramps, true),
-                _buildSymptomChip('headache', l10n.painHeadache, true),
-                _buildSymptomChip('backache', l10n.painBack, true),
-                _buildSymptomChip('tender_breasts', "Tender Breasts", true),
-              ],
-            ),
-
-            const SizedBox(height: 32),
-
-            Text(
-              l10n.logSymptoms.toUpperCase(),
-              style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.textSecondary, letterSpacing: 1.0),
-            ),
-            const SizedBox(height: 12),
-            Wrap(
-              spacing: 10,
-              runSpacing: 10,
-              children: [
-                _buildSymptomChip('bloating', l10n.symptomBloating, false),
-                _buildSymptomChip('acne', l10n.symptomAcne, false),
-                _buildSymptomChip('nausea', l10n.symptomNausea, false),
-                _buildSymptomChip('fatigue', "Fatigue", false),
-                _buildSymptomChip('insomnia', "Insomnia", false),
-              ],
-            ),
-
-            const SizedBox(height: 60),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildFlowButton(FlowIntensity flow, String label, AppLocalizations l10n) {
-    final isSelected = _currentLog.flow == flow;
-    final color = AppColors.menstruation;
+  Widget _buildSymptomGrid(List<String> options, bool isPain) {
+    final selectedList = isPain ? _log.painSymptoms : _log.symptoms;
 
-    return GestureDetector(
-      onTap: () {
-        HapticFeedback.selectionClick();
-        SystemSound.play(SystemSoundType.click);
-        setState(() {
-          _currentLog = _currentLog.copyWith(
-            flow: isSelected ? FlowIntensity.none : flow,
-          );
-        });
-      },
-      child: Column(
-        children: [
-          AnimatedContainer(
+    return Wrap(
+      spacing: 10,
+      runSpacing: 10,
+      children: options.map((symptom) {
+        final isSelected = selectedList.contains(symptom);
+        return GestureDetector(
+          onTap: () {
+            HapticFeedback.lightImpact();
+            setState(() {
+              final list = List<String>.from(selectedList);
+              if (isSelected) {
+                list.remove(symptom);
+              } else {
+                list.add(symptom);
+              }
+
+              if (isPain) {
+                _log = _log.copyWith(painSymptoms: list);
+              } else {
+                _log = _log.copyWith(symptoms: list);
+              }
+            });
+          },
+          child: AnimatedContainer(
             duration: const Duration(milliseconds: 200),
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
             decoration: BoxDecoration(
-              color: isSelected ? color.withOpacity(0.2) : Colors.transparent,
-              shape: BoxShape.circle,
-              border: Border.all(color: isSelected ? color : AppColors.textSecondary.withOpacity(0.2), width: 2),
+              color: isSelected ? AppColors.primary : Colors.transparent,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: isSelected ? AppColors.primary : AppColors.textSecondary.withOpacity(0.2)),
             ),
-            child: Icon(
-              CupertinoIcons.drop_fill,
-              color: isSelected ? color : AppColors.textSecondary.withOpacity(0.5),
-              size: flow == FlowIntensity.light ? 20 : (flow == FlowIntensity.medium ? 26 : 32),
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            label,
-            style: GoogleFonts.inter(
-              fontSize: 12,
-              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-              color: isSelected ? color : AppColors.textSecondary,
+            child: Text(
+              symptom,
+              style: GoogleFonts.inter(
+                fontSize: 14,
+                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                color: isSelected ? Colors.white : AppColors.textPrimary,
+              ),
             ),
           ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildMoodEmoji(int level, String emoji) {
-    final isSelected = _currentLog.mood == level;
-
-    return GestureDetector(
-      onTap: () {
-        HapticFeedback.selectionClick();
-        SystemSound.play(SystemSoundType.click);
-        setState(() {
-          _currentLog = _currentLog.copyWith(
-            mood: isSelected ? 3 : level,
-          );
-        });
-      },
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: isSelected ? AppColors.primary.withOpacity(0.15) : Colors.transparent,
-          shape: BoxShape.circle,
-        ),
-        child: Text(
-          emoji,
-          style: TextStyle(fontSize: isSelected ? 32 : 24),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSymptomChip(String key, String label, bool isPain) {
-    final isSelected = isPain ? _currentLog.painSymptoms.contains(key) : _currentLog.symptoms.contains(key);
-    final activeColor = isPain ? Colors.redAccent : AppColors.primary;
-
-    return GestureDetector(
-      onTap: () => _toggleSymptom(key, isPain),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        decoration: BoxDecoration(
-          color: isSelected ? activeColor.withOpacity(0.15) : Colors.white.withOpacity(0.5),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: isSelected ? activeColor.withOpacity(0.5) : Colors.white,
-            width: 1.5,
-          ),
-        ),
-        child: Text(
-          label,
-          style: GoogleFonts.inter(
-            color: isSelected ? activeColor : AppColors.textPrimary,
-            fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-            fontSize: 14,
-          ),
-        ),
-      ),
+        );
+      }).toList(),
     );
   }
 }
