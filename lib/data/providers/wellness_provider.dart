@@ -58,7 +58,6 @@ class WellnessProvider extends ChangeNotifier {
 
   List<SymptomLog> get allLogs => _logsCache.values.toList();
 
-  // ✅ FIX: Вернули метод для совместимости с ProfileScreen
   List<SymptomLog> getLogHistory() {
     return _logsCache.values.toList();
   }
@@ -78,7 +77,7 @@ class WellnessProvider extends ChangeNotifier {
 
   List<MapEntry<DateTime, double>> getTemperatureHistory() {
     final entries = _logsCache.values
-        .where((log) => log.temperature != null && log.temperature! > 35.0 && log.temperature! < 42.0) // Фильтр аномалий
+        .where((log) => log.temperature != null && log.temperature! > 35.0 && log.temperature! < 42.0)
         .map((log) => MapEntry(log.date, log.temperature!))
         .toList();
 
@@ -88,7 +87,7 @@ class WellnessProvider extends ChangeNotifier {
 
   List<MapEntry<DateTime, double>> getWeightHistory() {
     final entries = _logsCache.values
-        .where((log) => log.weight != null && log.weight! > 30) // Фильтр аномалий
+        .where((log) => log.weight != null && log.weight! > 30)
         .map((log) => MapEntry(log.date, log.weight!))
         .toList();
 
@@ -162,13 +161,12 @@ class WellnessProvider extends ChangeNotifier {
     return moodValues;
   }
 
-  // --- 🧠 SMART ANALYTICS (NEW) ---
+  // --- 🧠 SMART ANALYTICS ---
 
   List<String> getTopSymptomsForPhase(CyclePhase targetPhase, CycleProvider cycle) {
     final Map<String, int> counts = {};
 
     for (var log in _logsCache.values) {
-      // Игнорируем логи старше 3 месяцев
       if (DateTime.now().difference(log.date).inDays > 90) continue;
 
       if (cycle.getPhaseForDate(log.date) == targetPhase) {
@@ -201,24 +199,28 @@ class WellnessProvider extends ChangeNotifier {
       for (var log in logs) {
         if (log.symptoms.contains(factor)) {
           factorCount++;
-          for (var pain in log.painSymptoms) {
-            painCounts[pain] = (painCounts[pain] ?? 0) + 1;
-          }
-          // Ищем на следующий день (Похмелье?)
+
+          // 🔥 ИСПРАВЛЕНО: Складываем симптомы за 2 дня в Set,
+          // чтобы избежать двойного счета и вероятности > 100%
+          final Set<String> incidentPains = {};
+          incidentPains.addAll(log.painSymptoms);
+
           final nextDay = log.date.add(const Duration(days: 1));
           if (hasLogForDate(nextDay)) {
-            final nextLog = getLogForDate(nextDay);
-            for (var pain in nextLog.painSymptoms) {
-              painCounts[pain] = (painCounts[pain] ?? 0) + 1;
-            }
+            incidentPains.addAll(getLogForDate(nextDay).painSymptoms);
+          }
+
+          // Теперь увеличиваем счетчики корректно
+          for (var pain in incidentPains) {
+            painCounts[pain] = (painCounts[pain] ?? 0) + 1;
           }
         }
       }
 
-      if (factorCount >= 3) { // Минимум 3 совпадения
+      if (factorCount >= 3) {
         painCounts.forEach((pain, count) {
           double probability = count / factorCount;
-          if (probability >= 0.6) { // Если связь >= 60%
+          if (probability >= 0.6) {
             insights.add({
               'factor': factor,
               'symptom': pain,

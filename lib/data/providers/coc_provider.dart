@@ -16,17 +16,17 @@ class COCProvider with ChangeNotifier {
   List<DateTime> _history = []; // Taken pills
   List<DateTime> _missed = [];  // Missed pills (forgot to take)
 
-  // 🔥 Pack Data
+  // Pack Data
   DateTime _startDate = DateTime.now();
   int _activePillCount = 21;
   int _breakDays = 7;
   int _packFormatCode = 21; // Сохраняем код формата (21, 24, 28, 0) для UI
 
-  // 🔑 Keys (Synced with CycleProvider)
+  // 🔑 Keys
   static const String _keyEnabled = 'coc_enabled';
   static const String _keyPillCount = 'coc_active_count';
   static const String _keyBreakDays = 'coc_break_days';
-  static const String _keyPackFormat = 'coc_pack_format'; // НОВЫЙ КЛЮЧ
+  static const String _keyPackFormat = 'coc_pack_format';
 
   static const String _keyStartDate = 'coc_start_date';
   static const String _keyTimeHour = 'coc_time_hour';
@@ -82,15 +82,10 @@ class COCProvider with ChangeNotifier {
   bool get isEnabled => _isEnabled;
   TimeOfDay get reminderTime => _reminderTime;
 
-  // Возвращает кол-во активных таблеток
   int get activePillCount => _activePillCount;
-
-  // Возвращает код для UI (какой размер пачки рисовать: 21, 24, 28 или 0)
   int get pillCount => _packFormatCode;
-
   int get breakDays => _breakDays;
   DateTime get startDate => _startDate;
-
   bool get isLoaded => true;
 
   int get totalCycleLength => _activePillCount + _breakDays;
@@ -100,7 +95,6 @@ class COCProvider with ChangeNotifier {
     return _isSameDayInList(_history, today);
   }
 
-  // Calculate current pill number (1-based)
   int get currentPillNumber {
     final now = _normalizeDate(DateTime.now());
     final start = _normalizeDate(_startDate);
@@ -117,20 +111,31 @@ class COCProvider with ChangeNotifier {
 
   // --- Smart Logic ---
 
-  /// Returns the status of a specific date for UI rendering
+  /// Проверяет, является ли указанная дата днем перерыва относительно текущей пачки
+  bool isBreakDay(DateTime date) {
+    if (_breakDays == 0) return false; // Если непрерывный прием (0 дней перерыва)
+
+    final normDate = _normalizeDate(date);
+    final start = _normalizeDate(_startDate);
+    final diff = normDate.difference(start).inDays;
+
+    if (diff < 0) return false;
+    final dayInCycle = (diff % totalCycleLength) + 1;
+
+    return dayInCycle > _activePillCount;
+  }
+
   PillStatus getPillStatus(DateTime date) {
     final normDate = _normalizeDate(date);
     final today = _normalizeDate(DateTime.now());
 
     if (normDate.isAfter(today)) return PillStatus.future;
-
     if (_isSameDayInList(_history, normDate)) return PillStatus.taken;
     if (_isSameDayInList(_missed, normDate)) return PillStatus.missed;
 
     return PillStatus.pending;
   }
 
-  /// Returns list of dates that have no status (neither taken nor missed)
   List<DateTime> getUntrackedDates({int limit = 5}) {
     List<DateTime> untracked = [];
     final today = _normalizeDate(DateTime.now());
@@ -138,6 +143,9 @@ class COCProvider with ChangeNotifier {
     for (int i = 1; i <= limit; i++) {
       final d = today.subtract(Duration(days: i));
       if (d.isBefore(_normalizeDate(_startDate))) break;
+
+      // 🔥 ИСПРАВЛЕНО 1: Игнорируем дни перерыва, в эти дни статус Pending не имеет смысла!
+      if (isBreakDay(d)) continue;
 
       if (getPillStatus(d) == PillStatus.pending) {
         untracked.add(d);
@@ -148,18 +156,10 @@ class COCProvider with ChangeNotifier {
 
   // --- Actions ---
 
-
-  // 🔥 НОВЫЙ МЕТОД: Начинаем новую пачку и стираем всю прошлую историю таблеток
+  // 🔥 ИСПРАВЛЕНО 2: Сдвигаем якорь, но не стираем данные (Амнезия пачки)
   Future<void> startNewPack({required DateTime startDate}) async {
     _startDate = _normalizeDate(startDate);
-
-    // Жестко очищаем всю историю приемов и пропусков
-    _history.clear();
-    _missed.clear();
-
     await _box.put(_keyStartDate, _startDate.millisecondsSinceEpoch);
-    await _saveHistory(); // Сохранит пустые списки в базу данных Hive
-
     notifyListeners();
   }
 
@@ -193,7 +193,6 @@ class COCProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  // 🔥 НОВЫЙ МЕТОД ДЛЯ ДИАЛОГА ВЫБОРА ПАЧКИ
   Future<void> setPackSize(int size) async {
     int active;
     int brk;
@@ -256,7 +255,6 @@ class COCProvider with ChangeNotifier {
   Future<void> takePillOnDate(DateTime date) async {
     final normDate = _normalizeDate(date);
 
-    // If it was marked missed, remove from missed
     if (_isSameDayInList(_missed, normDate)) {
       _missed.removeWhere((d) => _isSameDay(d, normDate));
     }
@@ -265,17 +263,16 @@ class COCProvider with ChangeNotifier {
 
     _history.add(normDate);
     _history.sort();
-    if (_history.length > 90) _history.removeAt(0);
+
+    // 🔥 ИСПРАВЛЕНО 3: Больше не удаляем данные, которым больше 90 дней! Храним всю историю.
 
     await _saveHistory();
     notifyListeners();
   }
 
-  // New: Mark as Missed (Forgot to take)
   Future<void> markAsMissed(DateTime date) async {
     final normDate = _normalizeDate(date);
 
-    // If it was marked taken, remove from taken
     if (_isSameDayInList(_history, normDate)) {
       _history.removeWhere((d) => _isSameDay(d, normDate));
     }
@@ -284,7 +281,8 @@ class COCProvider with ChangeNotifier {
 
     _missed.add(normDate);
     _missed.sort();
-    if (_missed.length > 90) _missed.removeAt(0);
+
+    // 🔥 ИСПРАВЛЕНО 3: Больше не удаляем данные.
 
     await _saveHistory();
     notifyListeners();
@@ -298,7 +296,6 @@ class COCProvider with ChangeNotifier {
   Future<void> undoTakePillOnDate(DateTime date) async {
     final normDate = _normalizeDate(date);
     _history.removeWhere((d) => _isSameDay(d, normDate));
-    // Also remove from missed if present (reset to pending)
     _missed.removeWhere((d) => _isSameDay(d, normDate));
 
     await _saveHistory();

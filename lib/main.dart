@@ -195,6 +195,7 @@ void main() async {
       cocBox: cocBox,
       storageService: storageService,
       notificationService: notificationService,
+      encryptedBoxOpener: (name) => _openBoxSafely(name, encryptionKey),
     ));
   }, (Object error, StackTrace stack) {
     debugPrint('🔥 Uncaught zoned error: $error');
@@ -230,6 +231,7 @@ class AylaAppRoot extends StatelessWidget {
   final Box cocBox;
   final SecureStorageService storageService;
   final NotificationService notificationService;
+  final Future<Box> Function(String name)? encryptedBoxOpener;
 
   const AylaAppRoot({
     super.key,
@@ -239,6 +241,7 @@ class AylaAppRoot extends StatelessWidget {
     required this.cocBox,
     required this.storageService,
     required this.notificationService,
+    this.encryptedBoxOpener,
   });
 
   @override
@@ -252,7 +255,11 @@ class AylaAppRoot extends StatelessWidget {
           create: (_) => SettingsProvider(settingsBox, storageService, notificationService),
         ),
         ChangeNotifierProvider(
-          create: (_) => CycleProvider(cycleBox, settingsBox, notificationService),
+          create: (_) => CycleProvider(
+            cycleBox,
+            settingsBox,
+            notificationService,
+          ),
         ),
         ChangeNotifierProvider(
           create: (_) => WellnessProvider(wellnessBox),
