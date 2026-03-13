@@ -141,7 +141,9 @@ class CycleProvider with ChangeNotifier {
   }
 
   DateTime _normalizeDate(DateTime d) {
-    return DateTime(d.year, d.month, d.day);
+    // 🔥 ФИКС ЧАСОВЫХ ПОЯСОВ: Сохраняем дату в UTC Полдень.
+    // Перелеты в другие страны больше не сдвинут дни цикла!
+    return DateTime.utc(d.year, d.month, d.day, 12, 0, 0);
   }
 
   void _loadOverrides() {
@@ -294,14 +296,12 @@ class CycleProvider with ChangeNotifier {
     _updateCurrentData(latestCycle.startDate, _avgCycleLength, _avgPeriodDuration);
   }
 
+  // 🔥 ИСПРАВЛЕНИЕ 1: Защита от выбросов (Медицинский фильтр)
   void _calculateSmartAverages() {
-    // Если включен КОК, средние не считаем
     if (_history.isEmpty || _isCOCEnabled) return;
 
     final completedCycles = _history.where((c) => c.length != null).take(8).toList();
 
-    // Если циклов мало (меньше 3), не будем навязывать "умное" среднее,
-    // чтобы пользователь мог сам настроить базу
     if (completedCycles.length < 3) return;
 
     double weightedSumCycle = 0;
@@ -309,7 +309,8 @@ class CycleProvider with ChangeNotifier {
     double currentWeight = completedCycles.length.toDouble();
 
     for (var c in completedCycles) {
-      if (c.length! >= 12 && c.length! <= 180) {
+      // Игнорируем аномально длинные/короткие циклы (от 20 до 45 дней - норма)
+      if (c.length! >= 20 && c.length! <= 45) {
         weightedSumCycle += c.length! * currentWeight;
         weightTotalCycle += currentWeight;
       }
@@ -317,18 +318,17 @@ class CycleProvider with ChangeNotifier {
     }
 
     if (weightTotalCycle > 0) {
-      _avgCycleLength = (weightedSumCycle / weightTotalCycle).round().clamp(12, 180);
+      _avgCycleLength = (weightedSumCycle / weightTotalCycle).round().clamp(21, 45);
       _settingsBox.put('avg_cycle_len', _avgCycleLength);
     }
 
-    // 🔥 ЛОГИКА ДЛЯ ПЕРИОДА:
-    // Считаем среднее только если у нас есть новые данные в истории
     double weightedSumPeriod = 0;
     double weightTotalPeriod = 0;
     currentWeight = completedCycles.length.toDouble();
 
     for (var c in completedCycles) {
-      if (c.periodDuration != null && c.periodDuration! >= 2 && c.periodDuration! <= 14) {
+      // Нормальная длительность месячных от 2 до 10 дней
+      if (c.periodDuration != null && c.periodDuration! >= 2 && c.periodDuration! <= 10) {
         weightedSumPeriod += c.periodDuration! * currentWeight;
         weightTotalPeriod += currentWeight;
       }
@@ -336,7 +336,7 @@ class CycleProvider with ChangeNotifier {
     }
 
     if (weightTotalPeriod > 0) {
-      _avgPeriodDuration = (weightedSumPeriod / weightTotalPeriod).round().clamp(2, 14);
+      _avgPeriodDuration = (weightedSumPeriod / weightTotalPeriod).round().clamp(2, 10);
       _settingsBox.put('avg_period_len', _avgPeriodDuration);
     }
   }
@@ -411,7 +411,25 @@ class CycleProvider with ChangeNotifier {
     if (notify) notifyListeners();
   }
 
-  // 🔥 ИСПРАВЛЕНО ДЛЯ КАЛЕНДАРЯ: Определение типа дня для закраски ячейки
+  // 🔥 ИСПРАВЛЕНИЕ 2: Локатор исторического цикла
+  CycleModel? _getCycleForDate(DateTime date) {
+    final normDate = _normalizeDate(date);
+    final normStart = _normalizeDate(_currentData.cycleStartDate);
+
+    if (!normDate.isBefore(normStart)) return null;
+
+    for (var cycle in _history) {
+      final cStart = _normalizeDate(cycle.startDate);
+      final cEnd = cycle.endDate != null ? _normalizeDate(cycle.endDate!) : normStart.subtract(const Duration(days: 1));
+
+      if (!normDate.isBefore(cStart) && !normDate.isAfter(cEnd)) {
+        return cycle;
+      }
+    }
+    return null;
+  }
+
+  // 🔥 ИСПРАВЛЕНО ДЛЯ КАЛЕНДАРЯ: Точность фертильного окна в прошлом
   DayType getDayType(DateTime date) {
     final phase = getPhaseForDate(date);
 
@@ -419,10 +437,16 @@ class CycleProvider with ChangeNotifier {
     if (phase == CyclePhase.ovulation) return DayType.ovulation;
 
     final cycleDay = getCycleDayFromDate(date);
-    final ovDay = ovulationDay;
 
-    // Фертильное окно подсвечивается только если мы перед овуляцией
-    // (По желанию можно убрать `isTTCMode`, если хочешь показывать окно всем)
+    int ovDay = ovulationDay;
+    final histCycle = _getCycleForDate(date);
+    if (histCycle != null && !_isCOCEnabled) {
+      int cLen = histCycle.length ?? _avgCycleLength;
+      ovDay = histCycle.ovulationOverrideDate != null
+          ? _normalizeDate(histCycle.ovulationOverrideDate!).difference(_normalizeDate(histCycle.startDate)).inDays + 1
+          : math.max(1, cLen - 14);
+    }
+
     if (cycleDay >= ovDay - 5 && cycleDay < ovDay) {
       return DayType.fertile;
     }
@@ -430,30 +454,23 @@ class CycleProvider with ChangeNotifier {
     return DayType.none;
   }
 
-  // 🔥 ДОБАВЛЕНО ДЛЯ КАЛЕНДАРЯ: Вычисление дня цикла для любой выбранной даты
   int getCycleDayFromDate(DateTime date) {
     if (_history.isEmpty) return 1;
     final normDate = _normalizeDate(date);
     final normStart = _normalizeDate(_currentData.cycleStartDate);
 
-    // Если дата в текущем цикле или в будущем
     if (!normDate.isBefore(normStart)) {
       return normDate.difference(normStart).inDays + 1;
     }
 
-    // Поиск по истории, если кликнули на прошлый цикл
-    for (var cycle in _history) {
-      final cStart = _normalizeDate(cycle.startDate);
-      final cEnd = cycle.endDate != null ? _normalizeDate(cycle.endDate!) : normStart.subtract(const Duration(days: 1));
-
-      if (!normDate.isBefore(cStart) && !normDate.isAfter(cEnd)) {
-        return normDate.difference(cStart).inDays + 1;
-      }
+    final histCycle = _getCycleForDate(date);
+    if (histCycle != null) {
+      return normDate.difference(_normalizeDate(histCycle.startDate)).inDays + 1;
     }
+
     return 1;
   }
 
-  // 🔥 ИСПРАВЛЕНО: Убрал CyclePhase.fertile
   CyclePhase _calculatePhase({
     required int day,
     required int length,
@@ -500,15 +517,51 @@ class CycleProvider with ChangeNotifier {
     return CyclePhase.luteal;
   }
 
+  // 🔥 ИСПРАВЛЕНО ДЛЯ КАЛЕНДАРЯ: Точность фаз в прошлом
   CyclePhase? getPhaseForDate(DateTime date) {
-    final normalized = _normalizeDate(date);
-    return _calculatePhase(
-        day: normalized.difference(_normalizeDate(_currentData.cycleStartDate)).inDays + 1,
+    final normDate = _normalizeDate(date);
+    final normStart = _normalizeDate(_currentData.cycleStartDate);
+
+    if (_isCOCEnabled) {
+      int day = getCycleDayFromDate(date);
+      return _calculatePhase(
+        day: day,
         length: _currentData.totalCycleLength,
-        dateToCheck: normalized,
-        isCOC: _isCOCEnabled,
-        cycleStart: _normalizeDate(_currentData.cycleStartDate),
-        ovulationDate: _normalizeDate(_currentData.cycleStartDate).add(Duration(days: ovulationDay - 1))
+        dateToCheck: normDate,
+        isCOC: true,
+        cycleStart: normStart,
+        ovulationDate: normDate,
+      );
+    }
+
+    final histCycle = _getCycleForDate(date);
+
+    if (histCycle != null) {
+      int day = normDate.difference(_normalizeDate(histCycle.startDate)).inDays + 1;
+      int cLen = histCycle.length ?? _avgCycleLength;
+
+      int hOvDay = histCycle.ovulationOverrideDate != null
+          ? _normalizeDate(histCycle.ovulationOverrideDate!).difference(_normalizeDate(histCycle.startDate)).inDays + 1
+          : math.max(1, cLen - 14);
+
+      return _calculatePhase(
+        day: day,
+        length: cLen,
+        dateToCheck: normDate,
+        isCOC: false,
+        cycleStart: _normalizeDate(histCycle.startDate),
+        ovulationDate: _normalizeDate(histCycle.startDate).add(Duration(days: hOvDay - 1)),
+      );
+    }
+
+    int day = normDate.difference(normStart).inDays + 1;
+    return _calculatePhase(
+        day: day,
+        length: _currentData.totalCycleLength,
+        dateToCheck: normDate,
+        isCOC: false,
+        cycleStart: normStart,
+        ovulationDate: normStart.add(Duration(days: ovulationDay - 1))
     );
   }
 
@@ -587,10 +640,6 @@ class CycleProvider with ChangeNotifier {
     List<int> timestamps = (_settingsBox.get('bleeding_days') as List?)?.cast<int>() ?? [];
     List<int> manualStarts = (_settingsBox.get('manual_cycle_starts') as List?)?.cast<int>() ?? [];
 
-    // 🔥 ГЛАВНОЕ ИСПРАВЛЕНИЕ 🔥
-    // Удаляем все записи о крови, которые были В БУДУЩЕМ относительно новой даты старта,
-    // А ТАКЖЕ очищаем "мусорные" записи в пределах 10 дней ДО новой даты,
-    // чтобы не было слипания двух циклов в один огромный.
     timestamps.removeWhere((ts) {
       final tDate = DateTime.fromMillisecondsSinceEpoch(ts);
       // Если дата в будущем или в пределах 10 дней ДО нового старта — удаляем
@@ -675,8 +724,6 @@ class CycleProvider with ChangeNotifier {
       _updateCurrentData(_currentData.cycleStartDate, _avgCycleLength, _avgPeriodDuration);
       rescheduleNotifications(); // ОПТИМИЗАЦИЯ 3: Без await
     }
-
-    // notifyListeners() вызывается внутри _updateCurrentData
   }
 
   Future<void> setTTCStrategy(TTCStrategy strategy) async {
@@ -828,7 +875,6 @@ class CycleProvider with ChangeNotifier {
       await _recalculateEngine();
       rescheduleNotifications(); // ОПТИМИЗАЦИЯ 3: Без await
     }
-    // notifyListeners вызывается внутри методов
   }
 
   Future<void> setAveragePeriodDuration(int days) async {
@@ -836,13 +882,9 @@ class CycleProvider with ChangeNotifier {
     days = days.clamp(1, 14);
 
     await _settingsBox.put('avg_period_len', days);
-
     _avgPeriodDuration = days;
 
-    // Пересчитываем текущие данные с новым значением
     _updateCurrentData(_currentData.cycleStartDate, _avgCycleLength, days);
-
-    // Пересчитываем уведомления
     rescheduleNotifications(); // ОПТИМИЗАЦИЯ 3: Без await
   }
 

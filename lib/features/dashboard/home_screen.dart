@@ -13,13 +13,11 @@ import '../../data/providers/settings_provider.dart';
 
 // Общие виджеты
 import '../../l10n/app_localizations.dart';
-import '../../shared/widgets/cycle_timer_selector.dart';
-import '../../shared/widgets/design_selector_sheet.dart';
+// 🔥 ИМПОРТИРУЕМ НАПРЯМУЮ ЕДИНСТВЕННЫЙ ТАЙМЕР
+import '../../shared/widgets/timers/nebula_timer_widget.dart';
 import '../../shared/widgets/pill_widget.dart';
 import '../../shared/widgets/premium_glass_card.dart';
 import '../../shared/widgets/live_phase_background.dart';
-
-// 🔥 НОВЫЙ ИМПОРТ ДЛЯ БЛИСТЕРА
 import '../../shared/widgets/pill_blister_card.dart';
 
 // Фиче-виджеты
@@ -31,13 +29,11 @@ import '../profile/premium_paywall_sheet.dart';
 import '../profile/subscription_status_sheet.dart';
 import '../logger/symptom_log_screen.dart';
 
-// 🔥 ОПТИМИЗАЦИЯ 1: HomeScreen теперь StatelessWidget без лишней перерисовки
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    // 🔥 ОПТИМИЗАЦИЯ 2: Подписываемся ТОЛЬКО на флаг загрузки
     final isLoaded = context.select<CycleProvider, bool>((p) => p.isLoaded);
 
     if (!isLoaded) {
@@ -54,7 +50,6 @@ class HomeScreen extends StatelessWidget {
 class _BuildUltraModernScreen extends StatelessWidget {
   const _BuildUltraModernScreen({super.key});
 
-  // Логика бесшовной Hero-навигации
   void _openLoggerWithHero(BuildContext context, DateTime date, String heroTag) {
     HapticFeedback.mediumImpact();
     Navigator.of(context).push(PageRouteBuilder(
@@ -97,17 +92,12 @@ class _BuildUltraModernScreen extends StatelessWidget {
     final l10n = AppLocalizations.of(context);
     if (l10n == null) return const SizedBox.shrink();
 
-    // 🔥 ОПТИМИЗАЦИЯ 3: Точечные селекторы вместо context.watch!
-    // Экран перерисуется, только если реально изменятся данные таймера, а не фоновая история.
     final data = context.select<CycleProvider, CycleData>((p) => p.currentData);
     final bool isCOC = context.select<CycleProvider, bool>((p) => p.isCOCEnabled);
 
     final String userName = context.select<SettingsProvider, String>((p) => p.userName);
     final bool isPremium = context.select<SettingsProvider, bool>((p) => p.isPremium);
 
-    // 🔥 ОПТИМИЗАЦИЯ 4: Ссылка на провайдер без подписки (context.read)
-    // Нужна только для передачи логики в кнопки (например, сохранить симптом),
-    // чтобы кнопки не триггерили ребилд самого дашборда.
     final provider = context.read<CycleProvider>();
 
     return Scaffold(
@@ -142,27 +132,22 @@ class _BuildUltraModernScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 40),
 
-                  // CENTER TIMER
+                  // 🔥 CENTER TIMER (Напрямую используем Nebula, без Stack и Selector)
                   SizedBox(
-                    width: MediaQuery.of(context).size.width * 0.85, height: MediaQuery.of(context).size.width * 0.85,
-                    child: Stack(
-                      alignment: Alignment.center,
-                      children: [
-                        CycleTimerSelector(data: data, isCOC: isCOC),
-                        const Positioned(right: 0, top: 0, child: _DesignButton()),
-                      ],
-                    ),
+                    width: MediaQuery.of(context).size.width * 0.85,
+                    height: MediaQuery.of(context).size.width * 0.85,
+                    child: NebulaTimerWidget(data: data, isCOC: isCOC),
                   ),
+
                   if (isCOC) ...[const SizedBox(height: 24), const PillWidget()],
                   const SizedBox(height: 32),
 
-                  // SMART ACTION BAR (Для логгирования симптомов в любом режиме)
+                  // SMART ACTION BAR
                   DashboardActionBar(data: data, isCOC: isCOC, provider: provider, l10n: l10n, onOpenLogger: _openLoggerWithHero),
                   const SizedBox(height: 40),
 
-                  // КОНТЕНТ МЕНЯЕТСЯ В ЗАВИСИМОСТИ ОТ РЕЖИМА
                   if (isCOC) ...[
-                    // ПОЛНЫЙ ВИЗУАЛЬНЫЙ БЛИСТЕР В СТЕКЛЕ
+                    // РЕЖИМ КОК
                     const Padding(
                       padding: EdgeInsets.symmetric(horizontal: 24),
                       child: PremiumGlassCard(
@@ -171,10 +156,10 @@ class _BuildUltraModernScreen extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 20),
-                    // КНОПКА СТАРТА ПАЧКИ
                     _COCPackControlCard(provider: provider, l10n: l10n),
-                  ] else ...[
-                    // ОБЫЧНЫЙ РЕЖИМ (Микрокалендарь + Инсайты)
+                  ]
+                  else ...[
+                    // ОБЫЧНЫЙ РЕЖИМ
                     Padding(padding: const EdgeInsets.symmetric(horizontal: 24), child: DashboardMicroCalendar(provider: provider, onOpenLogger: _openLoggerWithHero)),
                     const SizedBox(height: 20),
                     Padding(padding: const EdgeInsets.symmetric(horizontal: 24), child: DashboardInsightCard(data: data, l10n: l10n)),
@@ -329,11 +314,9 @@ class _COCPackControlCard extends StatelessWidget {
 
                   final now = DateTime.now();
 
-                  // 1. Обновляем ядро цикла
                   await provider.setCOCMode(
                       true, currentPillNumber: 1, packStartDate: now);
 
-                  // 2. 🔥 Находим COCProvider и стираем историю таблеток
                   if (context.mounted) {
                     final coc = Provider.of<COCProvider>(
                         context, listen: false);
@@ -349,7 +332,6 @@ class _COCPackControlCard extends StatelessWidget {
   }
 }
 
-// ─── Вспомогательные микро-виджеты ──────────────────────────────────
 class _DashboardDateWidget extends StatelessWidget {
   final AppLocalizations l10n;
   final String userName;
@@ -423,18 +405,6 @@ class _DashboardPremiumBadge extends StatelessWidget {
           ],
         ),
       ),
-    );
-  }
-}
-
-class _DesignButton extends StatelessWidget {
-  const _DesignButton();
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () { HapticFeedback.mediumImpact(); showModalBottomSheet(context: context, backgroundColor: Colors.transparent, isScrollControlled: true, builder: (context) => const DesignSelectorSheet()); },
-      child: PremiumGlassCard(width: 48, height: 48, borderRadius: 24, child: Center(child: Icon(Icons.palette_outlined, size: 22, color: AppColors.textPrimary))),
     );
   }
 }

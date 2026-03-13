@@ -9,7 +9,6 @@ import '../../../core/theme/app_theme.dart';
 import '../../../data/models/cycle_model.dart';
 import '../../../l10n/app_localizations.dart';
 
-// --- КЛАСС ДЛЯ 3D-ЧАСТИЦЫ ---
 class _NanoParticle {
   final double theta;
   final double phi;
@@ -51,7 +50,6 @@ class _NebulaTimerWidgetState extends State<NebulaTimerWidget> with TickerProvid
     super.initState();
     _renderController = AnimationController(vsync: this, duration: const Duration(seconds: 1))..repeat();
 
-    // Если задержка, пульсируем чуть быстрее
     final isLate = widget.data.phase == CyclePhase.late;
     _pulseController = AnimationController(vsync: this, duration: Duration(milliseconds: isLate ? 1200 : 2000))..repeat(reverse: true);
 
@@ -140,124 +138,172 @@ class _NebulaTimerWidgetState extends State<NebulaTimerWidget> with TickerProvid
     final displayDate = today.add(Duration(days: dateOffset));
     final dateString = DateFormat('MMM d').format(displayDate);
 
-    // 🔥 ЛОГИКА ЗАДЕРЖКИ (LATE STATE)
     final bool isLate = displayPhase == CyclePhase.late;
     final int daysLate = displayDay - widget.data.totalCycleLength;
     final String mainNumberText = isLate ? "$daysLate" : "$displayDay";
     final String labelText = isLate ? "DAYS LATE" : "DAY";
 
-    return RepaintBoundary(
-      child: SizedBox(
-        width: 320,
-        height: 320,
-        child: GestureDetector(
-          behavior: HitTestBehavior.translucent,
-          onPanStart: (details) {
-            if (isLate && _selectedDay == null) return; // Блокируем свайп, если задержка, чтобы не сбить фокус
-            setState(() => _isDragging = true);
-            _handlePan(details.localPosition, 320);
-          },
-          onPanUpdate: (details) {
-            if (isLate && _selectedDay == null) return;
-            _handlePan(details.localPosition, 320);
-          },
-          onPanEnd: (details) => setState(() => _isDragging = false),
-          child: Stack(
-            alignment: Alignment.center,
-            children: [
+    // 🔥 АДАПТИВНАЯ ОБЕРТКА
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // Берем максимальную ширину, которую выделил нам экран (например 380px)
+        final double widgetSize = constraints.maxWidth;
+        // Коэффициент масштабирования относительно старого дизайна (320px)
+        final double scale = widgetSize / 320.0;
 
-              // ОРБИТА
-              AnimatedBuilder(
-                animation: _pulseController,
-                builder: (context, child) {
-                  return CustomPaint(
-                    size: const Size(300, 300),
-                    painter: _OrbitTicksPainter(
-                      totalDays: widget.data.totalCycleLength,
-                      currentDay: widget.data.currentDay,
-                      selectedDay: _selectedDay,
-                      phases: phases,
-                      isCOC: widget.isCOC,
-                      pulseValue: _pulseController.value,
-                    ),
-                  );
-                },
-              ),
+        return RepaintBoundary(
+          child: SizedBox(
+            width: widgetSize,
+            height: widgetSize,
+            child: GestureDetector(
+              behavior: HitTestBehavior.translucent,
+              onPanStart: (details) {
+                if (isLate && _selectedDay == null) return;
+                setState(() => _isDragging = true);
+                _handlePan(details.localPosition, widgetSize);
+              },
+              onPanUpdate: (details) {
+                if (isLate && _selectedDay == null) return;
+                _handlePan(details.localPosition, widgetSize);
+              },
+              onPanEnd: (details) => setState(() => _isDragging = false),
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
 
-              // 3D СФЕРА НАНОЧАСТИЦ
-              AnimatedBuilder(
-                animation: Listenable.merge([_renderController, _pulseController]),
-                builder: (context, child) {
-                  return CustomPaint(
-                    size: const Size(270, 270),
-                    painter: _NanoSpherePainter(
-                      startTime: _startTime,
-                      pulseValue: _pulseController.value,
-                      baseColor: displayColor,
-                      accentColor: accentColor,
-                      particles: _particles,
-                    ),
-                  );
-                },
-              ),
+                  // 🔥 ОРБИТА (масштабируется под размер)
+                  AnimatedBuilder(
+                    animation: _pulseController,
+                    builder: (context, child) {
+                      return CustomPaint(
+                        size: Size(widgetSize * 0.9375, widgetSize * 0.9375), // Было 300
+                        painter: _OrbitTicksPainter(
+                          totalDays: widget.data.totalCycleLength,
+                          currentDay: widget.data.currentDay,
+                          selectedDay: _selectedDay,
+                          phases: phases,
+                          isCOC: widget.isCOC,
+                          pulseValue: _pulseController.value,
+                        ),
+                      );
+                    },
+                  ),
 
-              // Центральный матовый круг
-              ClipRRect(
-                borderRadius: BorderRadius.circular(100),
-                child: BackdropFilter(
-                  filter: ui.ImageFilter.blur(sigmaX: 8, sigmaY: 8),
-                  child: Container(
-                    width: 140, height: 140,
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.65),
-                      shape: BoxShape.circle,
-                      border: Border.all(color: Colors.white.withOpacity(0.8), width: 1.5),
+                  // 🔥 3D СФЕРА НАНОЧАСТИЦ (масштабируется под размер)
+                  AnimatedBuilder(
+                    animation: Listenable.merge([_renderController, _pulseController]),
+                    builder: (context, child) {
+                      return CustomPaint(
+                        size: Size(widgetSize * 0.84375, widgetSize * 0.84375), // Было 270
+                        painter: _NanoSpherePainter(
+                          startTime: _startTime,
+                          pulseValue: _pulseController.value,
+                          baseColor: displayColor,
+                          accentColor: accentColor,
+                          particles: _particles,
+                        ),
+                      );
+                    },
+                  ),
+
+                  // 🔥 ЦЕНТРАЛЬНАЯ КНОПКА (масштабируется)
+                  GestureDetector(
+                    onTap: () {
+                      if (_selectedDay != null) {
+                        HapticFeedback.mediumImpact();
+                        setState(() => _selectedDay = null);
+                      } else {
+                        HapticFeedback.selectionClick();
+                      }
+                    },
+                    child: SizedBox(
+                      width: 152 * scale, // Умножаем на коэффициент экрана
+                      height: 152 * scale,
+                      child: Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(1000),
+                            child: BackdropFilter(
+                              filter: ui.ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withOpacity(0.65),
+                                  shape: BoxShape.circle,
+                                  border: Border.all(color: Colors.white.withOpacity(0.8), width: 1.5 * scale),
+                                ),
+                              ),
+                            ),
+                          ),
+
+                          SizedBox(
+                            width: 136 * scale, // Текстовый контейнер тоже растет
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              crossAxisAlignment: CrossAxisAlignment.center,
+                              children: [
+                                Text(
+                                  _selectedDay == null ? labelText : dateString.toUpperCase(),
+                                  style: GoogleFonts.inter(
+                                      color: isLate ? Colors.orangeAccent.shade700 : AppColors.textSecondary,
+                                      fontSize: 10 * scale, // Шрифты растут!
+                                      letterSpacing: 1.5,
+                                      fontWeight: FontWeight.w800
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+
+                                FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  child: Text(
+                                    mainNumberText,
+                                    style: GoogleFonts.inter(
+                                        fontSize: (isLate && daysLate > 9 ? 48 : 60) * scale,
+                                        fontWeight: FontWeight.w200,
+                                        color: isLate ? Colors.orangeAccent.shade700 : AppColors.textPrimary,
+                                        height: 1.1,
+                                        letterSpacing: -2
+                                    ),
+                                  ),
+                                ),
+
+                                SizedBox(height: 2 * scale),
+
+                                FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  child: Container(
+                                    padding: EdgeInsets.symmetric(horizontal: 8 * scale, vertical: 4 * scale),
+                                    decoration: BoxDecoration(
+                                        color: displayColor.withOpacity(0.15),
+                                        borderRadius: BorderRadius.circular(20 * scale)
+                                    ),
+                                    child: Text(
+                                      displayName.toUpperCase(),
+                                      style: GoogleFonts.inter(
+                                          color: displayColor,
+                                          fontSize: 10 * scale,
+                                          fontWeight: FontWeight.w800,
+                                          letterSpacing: 0.5
+                                      ),
+                                      maxLines: 1,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
-                ),
-              ),
 
-              // Текст поверх
-              AnimatedSwitcher(
-                duration: const Duration(milliseconds: 200),
-                child: Column(
-                  key: ValueKey("$displayDay-$isLate"),
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      _selectedDay == null ? labelText : dateString.toUpperCase(),
-                      style: GoogleFonts.inter(
-                          color: isLate ? Colors.orangeAccent.shade700 : AppColors.textSecondary,
-                          fontSize: 10,
-                          letterSpacing: 2.5,
-                          fontWeight: FontWeight.w800
-                      ),
-                    ),
-                    Text(
-                      mainNumberText,
-                      style: GoogleFonts.inter(
-                          fontSize: isLate && daysLate > 9 ? 48 : 64,
-                          fontWeight: FontWeight.w200,
-                          color: isLate ? Colors.orangeAccent.shade700 : AppColors.textPrimary,
-                          height: 1.1,
-                          letterSpacing: -2
-                      ),
-                    ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                      decoration: BoxDecoration(color: displayColor.withOpacity(0.15), borderRadius: BorderRadius.circular(20)),
-                      child: Text(
-                        displayName.toUpperCase(),
-                        style: GoogleFonts.inter(color: displayColor, fontSize: 9, fontWeight: FontWeight.w800, letterSpacing: 1.0),
-                      ),
-                    ),
-                  ],
-                ),
+                ],
               ),
-            ],
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 
@@ -283,7 +329,7 @@ class _NebulaTimerWidgetState extends State<NebulaTimerWidget> with TickerProvid
       case CyclePhase.follicular: return AppColors.follicular;
       case CyclePhase.ovulation: return AppColors.ovulation;
       case CyclePhase.luteal: return AppColors.luteal;
-      case CyclePhase.late: return Colors.orangeAccent.shade700; // Яркий предупреждающий цвет
+      case CyclePhase.late: return Colors.orangeAccent.shade700;
     }
   }
 

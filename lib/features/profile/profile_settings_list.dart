@@ -4,17 +4,19 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:hive_flutter/hive_flutter.dart'; // 🔥 ИМПОРТ ДЛЯ УДАЛЕНИЯ БАЗЫ
 
 import '../../core/services/backup_service.dart';
 import '../../core/services/pdf_service.dart';
+import '../../core/services/secure_storage_service.dart'; // 🔥 ИМПОРТ ДЛЯ ОЧИСТКИ КЛЮЧЕЙ
 import '../../core/theme/app_theme.dart';
 import '../../data/providers/cycle_provider.dart';
 import '../../data/providers/settings_provider.dart';
-import '../../data/providers/coc_provider.dart'; // 🔥 ИМПОРТ COC ПРОВАЙДЕРА
+import '../../data/providers/coc_provider.dart';
 
 import '../../l10n/app_localizations.dart';
 import '../../shared/widgets/premium_glass_card.dart';
-import '../../shared/widgets/pack_selection_dialog.dart'; // 🔥 ИМПОРТ ДИАЛОГА
+import '../../shared/widgets/pack_selection_dialog.dart';
 
 class ProfileSettingsList extends StatelessWidget {
   const ProfileSettingsList({super.key});
@@ -40,7 +42,6 @@ class ProfileSettingsList extends StatelessWidget {
     }
   }
 
-  // 🔥 МЕТОД ВЫЗОВА ВЫБОРА ФОРМАТА ПАЧКИ
   void _showPackSelection(BuildContext context, COCProvider coc, SettingsProvider settings) {
     HapticFeedback.lightImpact();
     showDialog(
@@ -57,8 +58,8 @@ class ProfileSettingsList extends StatelessWidget {
           } else if (selection == 24) {
             activePills = 24; breakDays = 4;
           } else if (selection == 28) {
-            activePills = 21; breakDays = 7; // Физически таблеток 28, но активных 21
-          } else { // selection == 0 (Continuous/Mini-pill)
+            activePills = 21; breakDays = 7;
+          } else {
             activePills = 28; breakDays = 0;
           }
 
@@ -69,11 +70,73 @@ class ProfileSettingsList extends StatelessWidget {
     );
   }
 
+  // 🔥 Apple App Store Guideline 5.1.1 - Удаление аккаунта и данных
+  Future<void> _showDeleteDataDialog(BuildContext context) async {
+    HapticFeedback.heavyImpact();
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(color: Colors.red.withOpacity(0.1), shape: BoxShape.circle),
+              child: const Icon(CupertinoIcons.exclamationmark_triangle_fill, color: Colors.red),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                "Delete All Data?",
+                style: GoogleFonts.inter(fontWeight: FontWeight.w800, fontSize: 18, color: AppColors.textPrimary),
+              ),
+            ),
+          ],
+        ),
+        content: Text(
+          "This action cannot be undone. All your health logs, cycle history, and settings will be permanently deleted from this device.",
+          style: GoogleFonts.inter(fontSize: 14, color: AppColors.textSecondary, height: 1.4),
+        ),
+        actionsPadding: const EdgeInsets.only(bottom: 16, right: 16, left: 16),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text("Cancel", style: GoogleFonts.inter(fontWeight: FontWeight.w600, color: AppColors.textSecondary)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red, elevation: 0,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text("Delete", style: GoogleFonts.inter(fontWeight: FontWeight.w700, color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && context.mounted) {
+      // 1. Очищаем ключи
+      await SecureStorageService().clearAll();
+      // 2. Жестко удаляем файлы баз данных с устройства
+      await Hive.deleteBoxFromDisk('cycles');
+      await Hive.deleteBoxFromDisk('settings');
+      await Hive.deleteBoxFromDisk('symptom_logs');
+      await Hive.deleteBoxFromDisk('coc_settings');
+
+      // 3. Выкидываем пользователя на онбординг (перезапуск приложения)
+      if (context.mounted) {
+        Navigator.of(context).pushNamedAndRemoveUntil('/onboarding', (route) => false);
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final settings = context.watch<SettingsProvider>();
     final cycle = context.watch<CycleProvider>();
-    final coc = context.watch<COCProvider>(); // Смотрим за КОК
+    final coc = context.watch<COCProvider>();
     final l10n = AppLocalizations.of(context)!;
 
     return Column(
@@ -102,17 +165,16 @@ class ProfileSettingsList extends StatelessWidget {
               value: cycle.isCOCEnabled,
               onChanged: (v) => _handleCOCToggle(context, v, cycle, settings),
             ),
-            // 🔥 ЕСЛИ КОК ВКЛЮЧЕН, ПОКАЗЫВАЕМ НАСТРОЙКУ ПАЧКИ
             if (cycle.isCOCEnabled) ...[
               const _Divider(),
               ProfileSettingsTile(
                 icon: CupertinoIcons.capsule_fill,
-                title: l10n.dialogPackTitle, // "Pack Type"
+                title: l10n.dialogPackTitle,
                 trailing: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
-                      "${coc.pillCount} Pills", // Можно заменить на ключи из l10n, если есть
+                      "${coc.pillCount} Pills",
                       style: GoogleFonts.inter(
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
@@ -135,6 +197,17 @@ class ProfileSettingsList extends StatelessWidget {
           const ProfileSectionTitle(title: "CYCLE CONFIGURATION"),
           ProfileSettingsGroup(
             children: [
+              // 🔥 РЕЖИМ ПЛАНИРОВАНИЯ БЕРЕМЕННОСТИ (Показывается только если нет КОК)
+              ProfileSwitchTile(
+                icon: CupertinoIcons.heart_circle,
+                title: "Pregnancy Planning (TTC)",
+                value: cycle.isTTCMode,
+                onChanged: (v) {
+                  HapticFeedback.selectionClick();
+                  cycle.setTTCMode(v);
+                },
+              ),
+              const _Divider(),
               ProfileSliderTile(
                 icon: CupertinoIcons.arrow_2_circlepath,
                 title: "Cycle Length",
@@ -202,6 +275,34 @@ class ProfileSettingsList extends StatelessWidget {
               onTap: () {},
             ),
           ],
+        ),
+
+        const SizedBox(height: 32),
+
+        // 🔥 DANGER ZONE (APPLE REVIEW REQUIREMENT)
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: CupertinoButton(
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            color: Colors.red.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(20),
+            onPressed: () => _showDeleteDataDialog(context),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(CupertinoIcons.trash, color: Colors.red, size: 20),
+                const SizedBox(width: 8),
+                Text(
+                  "Delete All Data",
+                  style: GoogleFonts.inter(
+                    color: Colors.red,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 16,
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
 
         const SizedBox(height: 40),

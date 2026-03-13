@@ -310,7 +310,9 @@ class COCProvider with ChangeNotifier {
   // --- Helpers ---
 
   DateTime _normalizeDate(DateTime d) {
-    return DateTime(d.year, d.month, d.day);
+    // 🔥 ФИКС ЧАСОВЫХ ПОЯСОВ: Сохраняем дату в UTC Полдень.
+    // Перелеты в другие страны больше не сдвинут дни цикла!
+    return DateTime.utc(d.year, d.month, d.day, 12, 0, 0);
   }
 
   bool _isSameDay(DateTime a, DateTime b) {

@@ -7,7 +7,6 @@ import '../../core/services/subscription_service.dart';
 import '../../core/theme/app_theme.dart';
 import '../models/timer_design.dart';
 
-
 class SettingsProvider extends ChangeNotifier {
   final Box _box;
   final SecureStorageService _storageService;
@@ -20,14 +19,12 @@ class SettingsProvider extends ChangeNotifier {
   static const String _keyTheme = 'app_theme_type';
   static const String _keyLanguage = 'language_code';
 
-  // Новые ключи для профиля
   static const String _keyUserName = 'user_name';
   static const String _keyUserAvatar = 'user_avatar';
 
-  // 🔥 Ключи для синхронизации с COCProvider и CycleProvider
   static const String _keyCOCActive = 'coc_active_count';
   static const String _keyCOCBreak = 'coc_break_days';
-  static const String _keyCOCPackStart = 'coc_pack_start_date'; // НОВОЕ: Для умного старта КОК
+  static const String _keyCOCPackStart = 'coc_pack_start_date';
 
   SecureStorageService get storageService => _storageService;
 
@@ -38,7 +35,6 @@ class SettingsProvider extends ChangeNotifier {
   bool _isTTCMode = false;
   bool _dailyLogEnabled = false;
 
-  // 🔥 ТЕПЕРЬ ПО УМОЛЧАНИЮ ЖИВОЕ ОБЛАКО (NEBULA)
   TimerDesign _currentDesign = TimerDesign.nebula;
   bool _isPremium = false;
 
@@ -47,7 +43,6 @@ class SettingsProvider extends ChangeNotifier {
   String _userName = "User";
   String _userAvatar = "👩";
 
-  // --- Геттеры ---
   Locale get locale => _locale;
   bool get notificationsEnabled => _notificationsEnabled;
   bool get biometricsEnabled => _biometricsEnabled;
@@ -60,11 +55,9 @@ class SettingsProvider extends ChangeNotifier {
   String get userName => _userName;
   String get userAvatar => _userAvatar;
 
-  // Геттеры для КОК (чтобы UI настроек мог их читать)
   int get cocActivePills => _box.get(_keyCOCActive, defaultValue: 21);
   int get cocBreakDays => _box.get(_keyCOCBreak, defaultValue: 7);
 
-  // 🔥 НОВОЕ: Геттер даты старта пачки
   DateTime? get cocPackStartDate {
     final ms = _box.get(_keyCOCPackStart);
     if (ms != null && ms is int) {
@@ -73,7 +66,6 @@ class SettingsProvider extends ChangeNotifier {
     return null;
   }
 
-  // ВАЖНО: Проверка, выбрал ли пользователь язык явно
   bool get isLanguageExplicitlySet => _box.containsKey(_keyLanguage);
 
   SettingsProvider(this._box, this._storageService, this._notificationService) {
@@ -98,12 +90,13 @@ class SettingsProvider extends ChangeNotifier {
     final bool appWasReset = !_box.containsKey(_keyOnboarding);
 
     if (appWasReset) {
-      await _storageService.clearAll();
+      // 🔥 КРИТИЧЕСКИЙ ФИКС: Убрали await _storageService.clearAll(),
+      // чтобы провайдер не удалял ключ шифрования БД при первом запуске!
       _isTTCMode = false;
       _notificationsEnabled = false;
       _biometricsEnabled = false;
       _dailyLogEnabled = false;
-      _currentDesign = TimerDesign.nebula; // 🔥 Дефолт для новых пользователей
+      _currentDesign = TimerDesign.nebula;
       _isPremium = false;
       _currentTheme = AppThemeType.oceanic;
       _userName = "User";
@@ -133,7 +126,6 @@ class SettingsProvider extends ChangeNotifier {
       }
     }
 
-    // Загрузка языка
     final savedLang = _box.get(_keyLanguage) as String?;
 
     if (savedLang != null) {
@@ -169,8 +161,6 @@ class SettingsProvider extends ChangeNotifier {
     await _loadSettings();
   }
 
-  // --- ПРОФИЛЬ ---
-
   Future<void> setUserName(String name) async {
     _userName = name;
     await _box.put(_keyUserName, name);
@@ -183,8 +173,6 @@ class SettingsProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  // --- ЛОГИКА ТЕМ ---
-
   Future<void> setTheme(AppThemeType theme) async {
     if (_currentTheme == theme) return;
     _currentTheme = theme;
@@ -192,8 +180,6 @@ class SettingsProvider extends ChangeNotifier {
     await _box.put(_keyTheme, theme.index);
     notifyListeners();
   }
-
-  // --- ЛОГИКА ПОДПИСОК ---
 
   Future<void> _verifyPremiumStatus() async {
     try {
@@ -206,7 +192,7 @@ class SettingsProvider extends ChangeNotifier {
 
         if (!_isPremium && _currentDesign.isPremium) {
           debugPrint("⚠️ SettingsProvider: Premium lost, resetting design to Nebula");
-          _currentDesign = TimerDesign.nebula; // 🔥 Сброс на дефолт
+          _currentDesign = TimerDesign.nebula;
           await _box.put(_keyDesign, TimerDesign.nebula.index);
         }
         notifyListeners();
@@ -219,8 +205,6 @@ class SettingsProvider extends ChangeNotifier {
   Future<void> refreshPremium() async {
     await _verifyPremiumStatus();
   }
-
-  // --- НАСТРОЙКИ ---
 
   Future<void> setLocale(Locale locale) async {
     if (_locale == locale) return;
@@ -255,13 +239,11 @@ class SettingsProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  // 🔥 ОБНОВЛЕНО: Поддержка сохранения даты старта пачки
   Future<void> setCOCSettings(int active, int brk, {DateTime? packStartDate}) async {
     await _box.put(_keyCOCActive, active);
     await _box.put(_keyCOCBreak, brk);
     if (packStartDate != null) {
-      // Обрезаем время для безопасности
-      final normalizedDate = DateTime(packStartDate.year, packStartDate.month, packStartDate.day);
+      final normalizedDate = DateTime.utc(packStartDate.year, packStartDate.month, packStartDate.day, 12, 0, 0);
       await _box.put(_keyCOCPackStart, normalizedDate.millisecondsSinceEpoch);
     }
     notifyListeners();
@@ -291,7 +273,7 @@ class SettingsProvider extends ChangeNotifier {
     await _box.put(_keyPremium, status);
 
     if (!status && _currentDesign.isPremium) {
-      _currentDesign = TimerDesign.nebula; // 🔥 Сброс на дефолт
+      _currentDesign = TimerDesign.nebula;
       await _box.put(_keyDesign, TimerDesign.nebula.index);
     }
 
@@ -312,16 +294,16 @@ class SettingsProvider extends ChangeNotifier {
     }
   }
 
-  // --- СБРОС ---
   Future<void> wipeData() async {
     await _box.clear();
-    await _storageService.clearAll();
+    // Не вызываем _storageService.clearAll() здесь,
+    // так как удаление данных целиком теперь идет через ProfileScreen
 
     _isTTCMode = false;
     _notificationsEnabled = false;
     _biometricsEnabled = false;
     _dailyLogEnabled = false;
-    _currentDesign = TimerDesign.nebula; // 🔥 Сброс на дефолт
+    _currentDesign = TimerDesign.nebula;
     _isPremium = false;
     _userName = "User";
     _userAvatar = "👩";
