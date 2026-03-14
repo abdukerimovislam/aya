@@ -30,7 +30,6 @@ class _SymptomLogScreenState extends State<SymptomLogScreen> {
 
   FlowIntensity _initialFlow = FlowIntensity.none;
   bool _initialLHPeak = false;
-  bool _initialPTPositive = false; // Тест на беременность
 
   @override
   void initState() {
@@ -56,11 +55,10 @@ class _SymptomLogScreenState extends State<SymptomLogScreen> {
     _log = wellness.getLogForDate(widget.date);
     _initialFlow = _log.flow;
     _initialLHPeak = _log.symptoms.contains('LH: Peak');
-    _initialPTPositive = _log.symptoms.contains('PT: Positive');
     setState(() => _isLoaded = true);
   }
 
-  // 🔥 МАТРИЦА ЗАЩИТЫ МУТАЦИЙ
+  // 🔥 МАТРИЦА ЗАЩИТЫ МУТАЦИЙ (ОЧЕРЕДЬ ДИАЛОГОВ)
   Future<void> _handleSaveWithProtection() async {
     HapticFeedback.lightImpact();
 
@@ -81,137 +79,128 @@ class _SymptomLogScreenState extends State<SymptomLogScreen> {
     final bool lhPeakAdded = isNowLHPeak && !_initialLHPeak;
     final bool lhPeakRemoved = !isNowLHPeak && _initialLHPeak;
 
-    final bool isNowPTPositive = _log.symptoms.contains('PT: Positive');
-    final bool ptPositiveAdded = isNowPTPositive && !_initialPTPositive;
+    bool shouldForceStartPeriod = false;
+    bool shouldConfirmOvulation = false;
 
-    // 0. ТЕСТ НА БЕРЕМЕННОСТЬ (Ultimate TTC Goal)
-    if (ptPositiveAdded && cycle.isTTCMode) {
-      _showConfirmationDialog(
-        title: "Positive Test! 🎉",
-        message: "Congratulations! This is a huge milestone. Are you sure you want to log a positive pregnancy test?",
-        icon: CupertinoIcons.heart_fill,
-        color: Colors.pink,
-        confirmText: "Yes, log it!",
-        cancelText: "Wait, cancel",
-        onConfirm: () => _executeSaveAndClose(),
-      );
-      return;
-    }
+    // --- ПРОВЕРКА 1: КРОВЬ ---
+    if (!cycle.isCOCEnabled) {
+      if (flowChangedToBleeding) {
+        final currentStart = cycle.currentData.cycleStartDate;
+        final diff = widget.date.difference(currentStart).inDays;
+        final ovDay = cycle.ovulationDay;
 
-    // 1. СТАРТ НОВЫХ МЕСЯЧНЫХ (умные проверки)
-    if (flowChangedToBleeding && !cycle.isCOCEnabled) {
-      final currentStart = cycle.currentData.cycleStartDate;
-      final diff = widget.date.difference(currentStart).inDays;
-      final ovDay = cycle.ovulationDay;
-
-      if (diff > 0 && diff < 21) {
-        if (diff >= (ovDay - 2) && diff <= (ovDay + 2)) {
-          _showConfirmationDialog(
+        if (diff > 0 && diff < 21) {
+          if (diff >= (ovDay - 2) && diff <= (ovDay + 2)) {
+            final confirm = await _showAsyncDialog(
               title: "Ovulation Bleeding?",
               message: "Light bleeding is common during ovulation. Do you want to start a new cycle, or log this as spotting?",
               icon: CupertinoIcons.sparkles,
               color: Colors.purple,
               confirmText: "New Cycle",
               cancelText: "Just Spotting",
-              onConfirm: () => _executeSaveAndClose(forceStartPeriod: true),
-              onCancel: () {
-                // ИИ сам исправляет ошибку пользователя
-                setState(() {
-                  final s = List<String>.from(_log.symptoms);
-                  if (!s.contains('Spotting')) s.add('Spotting');
-                  _log = _log.copyWith(flow: FlowIntensity.none, symptoms: s);
-                  _isSaving = false;
-                });
-              }
-          );
-          return;
-        } else {
-          _showConfirmationDialog(
+            );
+            if (confirm) {
+              shouldForceStartPeriod = true;
+            } else {
+              _convertToSpotting();
+            }
+          } else {
+            final confirm = await _showAsyncDialog(
               title: "Suspiciously Early?",
               message: "It's been less than 21 days since your last period. Is this a new cycle, or just mid-cycle spotting?",
               icon: CupertinoIcons.exclamationmark_triangle_fill,
               color: Colors.orange,
               confirmText: "New Cycle",
               cancelText: "Just Spotting",
-              onConfirm: () => _executeSaveAndClose(forceStartPeriod: true),
-              onCancel: () {
-                setState(() {
-                  final s = List<String>.from(_log.symptoms);
-                  if (!s.contains('Spotting')) s.add('Spotting');
-                  _log = _log.copyWith(flow: FlowIntensity.none, symptoms: s);
-                  _isSaving = false;
-                });
-              }
-          );
-          return;
+            );
+            if (confirm) {
+              shouldForceStartPeriod = true;
+            } else {
+              _convertToSpotting();
+            }
+          }
+        } else {
+          final currentPhase = cycle.getPhaseForDate(widget.date);
+          if (currentPhase != CyclePhase.menstruation) {
+            final confirm = await _showAsyncDialog(
+              title: "Log New Period?",
+              message: "Logging bleeding today will start a new cycle and reset your predictions. Are you sure?",
+              icon: CupertinoIcons.drop_fill,
+              color: AppColors.menstruation,
+              confirmText: "Yes, start cycle",
+              cancelText: "Cancel",
+            );
+            if (confirm) {
+              shouldForceStartPeriod = true;
+            } else {
+              return;
+            }
+          }
         }
-      } else {
+      }
+      else if (flowRemoved) {
         final currentPhase = cycle.getPhaseForDate(widget.date);
-        if (currentPhase != CyclePhase.menstruation) {
-          _showConfirmationDialog(
-            title: "Log New Period?",
-            message: "Logging bleeding today will start a new cycle and reset your predictions. Are you sure?",
-            icon: CupertinoIcons.drop_fill,
-            color: AppColors.menstruation,
-            confirmText: "Yes, start cycle",
+        if (currentPhase == CyclePhase.menstruation) {
+          final confirm = await _showAsyncDialog(
+            title: "Remove Period Log?",
+            message: "Removing bleeding from a logged period day might alter your cycle history. Are you sure?",
+            icon: CupertinoIcons.drop,
+            color: Colors.orangeAccent,
+            confirmText: "Remove it",
             cancelText: "Cancel",
-            onConfirm: () => _executeSaveAndClose(forceStartPeriod: true),
           );
-          return;
+          if (!confirm) return;
         }
       }
     }
 
-    // 2. ОТМЕНА МЕСЯЧНЫХ
-    if (flowRemoved && !cycle.isCOCEnabled) {
-      final currentPhase = cycle.getPhaseForDate(widget.date);
-      if (currentPhase == CyclePhase.menstruation) {
-        _showConfirmationDialog(
-          title: "Remove Period Log?",
-          message: "Removing bleeding from a logged period day might alter your cycle history. Are you sure?",
-          icon: CupertinoIcons.drop,
+    // --- ПРОВЕРКА 2: ПИК ЛГ (только в TTC) ---
+    if (cycle.isTTCMode) {
+      if (lhPeakAdded) {
+        final confirm = await _showAsyncDialog(
+          title: "Confirm LH Peak?",
+          message: "Logging an LH Peak will adjust your predicted ovulation to tomorrow. Proceed?",
+          icon: CupertinoIcons.sparkles,
+          color: Colors.purple,
+          confirmText: "Confirm",
+          cancelText: "Cancel",
+        );
+        if (confirm) {
+          shouldConfirmOvulation = true;
+        } else {
+          setState(() {
+            final s = List<String>.from(_log.symptoms);
+            s.remove('LH: Peak');
+            _log = _log.copyWith(symptoms: s);
+          });
+        }
+      } else if (lhPeakRemoved) {
+        final confirm = await _showAsyncDialog(
+          title: "Remove LH Peak?",
+          message: "Removing the LH Peak will revert your ovulation prediction back to standard AI calculations. Are you sure?",
+          icon: CupertinoIcons.xmark_circle_fill,
           color: Colors.orangeAccent,
           confirmText: "Remove it",
           cancelText: "Cancel",
-          onConfirm: () => _executeSaveAndClose(),
         );
-        return;
+        if (!confirm) return;
       }
     }
 
-    // 3. ДОБАВЛЕНИЕ ПИКА ЛГ
-    if (lhPeakAdded && cycle.isTTCMode) {
-      _showConfirmationDialog(
-        title: "Confirm LH Peak?",
-        message: "Logging an LH Peak will adjust your predicted ovulation to tomorrow. Proceed?",
-        icon: CupertinoIcons.sparkles,
-        color: Colors.purple,
-        confirmText: "Confirm",
-        cancelText: "Cancel",
-        onConfirm: () => _executeSaveAndClose(confirmOvulation: true),
-      );
-      return;
-    }
-
-    // 4. ОТМЕНА ПИКА ЛГ
-    if (lhPeakRemoved && cycle.isTTCMode) {
-      _showConfirmationDialog(
-        title: "Remove LH Peak?",
-        message: "Removing the LH Peak will revert your ovulation prediction back to standard AI calculations. Are you sure?",
-        icon: CupertinoIcons.xmark_circle_fill,
-        color: Colors.orangeAccent,
-        confirmText: "Remove it",
-        cancelText: "Cancel",
-        onConfirm: () => _executeSaveAndClose(),
-      );
-      return;
-    }
-
-    // Если опасных мутаций нет, просто сохраняем
-    await _executeSaveAndClose();
+    await _executeSaveAndClose(
+        forceStartPeriod: shouldForceStartPeriod,
+        confirmOvulation: shouldConfirmOvulation
+    );
   }
 
-  // 🔥 МЕТОД ФАКТИЧЕСКОГО ИСПОЛНЕНИЯ И СВЯЗИ С ЯДРОМ
+  void _convertToSpotting() {
+    setState(() {
+      final s = List<String>.from(_log.symptoms);
+      if (!s.contains('Spotting')) s.add('Spotting');
+      _log = _log.copyWith(flow: FlowIntensity.none, symptoms: s);
+    });
+  }
+
   Future<void> _executeSaveAndClose({bool forceStartPeriod = false, bool confirmOvulation = false}) async {
     setState(() => _isSaving = true);
 
@@ -220,7 +209,6 @@ class _SymptomLogScreenState extends State<SymptomLogScreen> {
 
     await wellness.saveLog(_log);
 
-    // Сдвиг овуляции
     if (cycle.isTTCMode) {
       if (confirmOvulation || _log.symptoms.contains('LH: Peak')) {
         await cycle.confirmOvulation(widget.date.add(const Duration(days: 1)), source: 'lh');
@@ -229,7 +217,6 @@ class _SymptomLogScreenState extends State<SymptomLogScreen> {
       }
     }
 
-    // Обработка циклов крови
     if (!cycle.isCOCEnabled) {
       if (forceStartPeriod) {
         await cycle.logActionStartPeriod(widget.date, isConfirmed: true);
@@ -239,10 +226,10 @@ class _SymptomLogScreenState extends State<SymptomLogScreen> {
         final isNowMenstruation = _log.flow != FlowIntensity.none;
 
         if (!isNowMenstruation && isCurrentlyPeriodDay) {
-          await cycle.togglePeriodDay(widget.date); // Снимаем кровь
+          await cycle.togglePeriodDay(widget.date);
         } else if (isNowMenstruation && isCurrentlyPeriodDay) {
           await cycle.togglePeriodDay(widget.date);
-          await cycle.togglePeriodDay(widget.date); // Хак для обновления интерфейса без сдвига дат
+          await cycle.togglePeriodDay(widget.date);
         }
       }
     }
@@ -250,19 +237,16 @@ class _SymptomLogScreenState extends State<SymptomLogScreen> {
     if (mounted) Navigator.of(context).pop();
   }
 
-  // Умный конструктор диалогов с поддержкой кастомной логики отмены
-  void _showConfirmationDialog({
+  Future<bool> _showAsyncDialog({
     required String title,
     required String message,
     required IconData icon,
     required Color color,
     required String confirmText,
     required String cancelText,
-    required VoidCallback onConfirm,
-    VoidCallback? onCancel,
-  }) {
+  }) async {
     HapticFeedback.heavyImpact();
-    showDialog(
+    return await showDialog<bool>(
       context: context,
       barrierDismissible: false,
       builder: (ctx) => AlertDialog(
@@ -286,13 +270,8 @@ class _SymptomLogScreenState extends State<SymptomLogScreen> {
         actions: [
           TextButton(
             onPressed: () {
-              Navigator.pop(ctx);
               HapticFeedback.lightImpact();
-              if (onCancel != null) {
-                onCancel();
-              } else {
-                setState(() => _isSaving = false);
-              }
+              Navigator.pop(ctx, false);
             },
             child: Text(cancelText, style: GoogleFonts.inter(fontWeight: FontWeight.w600, color: AppColors.textSecondary)),
           ),
@@ -302,12 +281,25 @@ class _SymptomLogScreenState extends State<SymptomLogScreen> {
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             ),
             onPressed: () {
-              Navigator.pop(ctx);
-              onConfirm();
+              HapticFeedback.selectionClick();
+              Navigator.pop(ctx, true);
             },
             child: Text(confirmText, style: GoogleFonts.inter(fontWeight: FontWeight.w700, color: Colors.white)),
           ),
         ],
+      ),
+    ) ?? false;
+  }
+
+  void _showConflictWarning(String message) {
+    ScaffoldMessenger.of(context).clearSnackBars();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message, style: GoogleFonts.inter(fontWeight: FontWeight.bold)),
+        backgroundColor: Colors.orange.shade800,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        duration: const Duration(seconds: 4),
       ),
     );
   }
@@ -325,7 +317,6 @@ class _SymptomLogScreenState extends State<SymptomLogScreen> {
 
     final List<String> mucusOptions = ['Dry Mucus', 'Sticky Mucus', 'Creamy Mucus', 'Egg-white Mucus'];
     final List<String> lhTestOptions = ['LH: Negative', 'LH: High', 'LH: Peak'];
-    final List<String> ptTestOptions = ['PT: Negative', 'PT: Positive']; // 🔥 Тесты на беременность
     final List<String> sexOptions = ['Unprotected Sex', 'Protected Sex', 'High Libido'];
 
     return Container(
@@ -409,10 +400,9 @@ class _SymptomLogScreenState extends State<SymptomLogScreen> {
                   ],
 
                   _buildSectionTitle("Bleeding & Flow"), const SizedBox(height: 12), _buildFlowSelector(), const SizedBox(height: 32),
+                  _buildSectionTitle("Basal Body Temp (BBT)"), const SizedBox(height: 12), _buildBBTInput(), const SizedBox(height: 32),
 
                   if (isTTC) ...[
-                    _buildSectionTitle("Basal Body Temp (BBT)"), const SizedBox(height: 12), _buildBBTInput(), const SizedBox(height: 32),
-                    _buildSectionTitle("Pregnancy Tests (HPT)"), const SizedBox(height: 12), _buildSymptomGrid(ptTestOptions, false, isTTC: true, customColor: Colors.pink), const SizedBox(height: 32),
                     _buildSectionTitle("Ovulation Tests (OPK)"), const SizedBox(height: 12), _buildSymptomGrid(lhTestOptions, false, isTTC: true, customColor: Colors.purple), const SizedBox(height: 32),
                     _buildSectionTitle("Cervical Mucus"), const SizedBox(height: 12), _buildSymptomGrid(mucusOptions, false, isTTC: true, customColor: Colors.teal), const SizedBox(height: 32),
                     _buildSectionTitle("Intercourse & Libido"), const SizedBox(height: 12), _buildSymptomGrid(sexOptions, false, isTTC: true, customColor: Colors.pinkAccent), const SizedBox(height: 32),
@@ -439,6 +429,7 @@ class _SymptomLogScreenState extends State<SymptomLogScreen> {
 
   Widget _buildSectionTitle(String title) { return Text(title, style: GoogleFonts.outfit(fontSize: 18, fontWeight: FontWeight.w700, color: AppColors.textPrimary)); }
 
+  // 🔥 ОБНОВЛЕНО: Выбор крови отменяет и Пик ЛГ, и Слизь
   Widget _buildFlowSelector() {
     final flows = [{'val': FlowIntensity.none, 'icon': CupertinoIcons.drop, 'label': 'None'}, {'val': FlowIntensity.light, 'icon': CupertinoIcons.drop_fill, 'label': 'Light'}, {'val': FlowIntensity.medium, 'icon': CupertinoIcons.drop_fill, 'label': 'Medium'}, {'val': FlowIntensity.heavy, 'icon': CupertinoIcons.drop_fill, 'label': 'Heavy'}];
     return SingleChildScrollView(
@@ -446,7 +437,32 @@ class _SymptomLogScreenState extends State<SymptomLogScreen> {
       child: Row(children: flows.map((f) {
         final isSelected = _log.flow == f['val'];
         return GestureDetector(
-          onTap: () { HapticFeedback.selectionClick(); setState(() => _log = _log.copyWith(flow: f['val'] as FlowIntensity)); },
+          onTap: () {
+            HapticFeedback.selectionClick();
+            setState(() {
+              _log = _log.copyWith(flow: f['val'] as FlowIntensity);
+
+              if (_log.flow != FlowIntensity.none) {
+                final s = List<String>.from(_log.symptoms);
+                bool hasConflict = false;
+
+                if (s.contains('LH: Peak')) {
+                  s.remove('LH: Peak');
+                  hasConflict = true;
+                }
+
+                if (s.any((e) => e.contains('Mucus'))) {
+                  s.removeWhere((e) => e.contains('Mucus'));
+                  hasConflict = true;
+                }
+
+                if (hasConflict) {
+                  _log = _log.copyWith(symptoms: s);
+                  _showConflictWarning("Menstruation logged. Incompatible symptoms (LH Peak / Mucus) removed.");
+                }
+              }
+            });
+          },
           child: AnimatedContainer(duration: const Duration(milliseconds: 200), margin: const EdgeInsets.only(right: 12), padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12), decoration: BoxDecoration(color: isSelected ? AppColors.menstruation : AppColors.background, border: Border.all(color: isSelected ? AppColors.menstruation : AppColors.textSecondary.withOpacity(0.2)), borderRadius: BorderRadius.circular(20), boxShadow: isSelected ? [BoxShadow(color: AppColors.menstruation.withOpacity(0.3), blurRadius: 8, offset: const Offset(0, 4))] : []), child: Row(children: [Icon(f['icon'] as IconData, size: 16, color: isSelected ? Colors.white : AppColors.textSecondary), const SizedBox(width: 8), Text(f['label'] as String, style: GoogleFonts.inter(fontSize: 14, fontWeight: isSelected ? FontWeight.bold : FontWeight.w500, color: isSelected ? Colors.white : AppColors.textPrimary))])),
         );
       }).toList()),
@@ -488,6 +504,7 @@ class _SymptomLogScreenState extends State<SymptomLogScreen> {
     );
   }
 
+  // 🔥 ОБНОВЛЕНО: Выбор Слизи или Пика ЛГ отменяет кровь
   Widget _buildSymptomGrid(List<String> options, bool isPain, {required bool isTTC, Color? customColor}) {
     final selectedList = isPain ? _log.painSymptoms : _log.symptoms;
     final activeColor = customColor ?? (isTTC ? Colors.purple : AppColors.primary);
@@ -500,12 +517,22 @@ class _SymptomLogScreenState extends State<SymptomLogScreen> {
             HapticFeedback.lightImpact();
             setState(() {
               final list = List<String>.from(selectedList);
-              if (isSelected) list.remove(symptom);
-              else {
+              if (isSelected) {
+                list.remove(symptom);
+              } else {
                 if (symptom.startsWith("LH:")) list.removeWhere((e) => e.startsWith("LH:"));
-                if (symptom.startsWith("PT:")) list.removeWhere((e) => e.startsWith("PT:"));
                 if (symptom.contains("Mucus")) list.removeWhere((e) => e.contains("Mucus"));
                 list.add(symptom);
+
+                if (symptom == 'LH: Peak' && _log.flow != FlowIntensity.none) {
+                  _log = _log.copyWith(flow: FlowIntensity.none);
+                  _showConflictWarning("Bleeding removed. Menstruation and ovulation cannot co-occur.");
+                }
+
+                if (symptom.contains('Mucus') && _log.flow != FlowIntensity.none) {
+                  _log = _log.copyWith(flow: FlowIntensity.none);
+                  _showConflictWarning("Bleeding removed. Cervical mucus is not tracked during menstruation.");
+                }
               }
               if (isPain) _log = _log.copyWith(painSymptoms: list);
               else _log = _log.copyWith(symptoms: list);
