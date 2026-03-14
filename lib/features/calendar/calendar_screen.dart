@@ -12,6 +12,7 @@ import '../../data/models/cycle_model.dart';
 import '../../data/providers/cycle_provider.dart';
 import '../../data/providers/wellness_provider.dart';
 import '../../shared/widgets/premium_glass_card.dart';
+import '../../l10n/app_localizations.dart'; // 🔥 Вернули локализацию
 import '../logger/symptom_log_screen.dart';
 
 enum CalendarViewMode { month, cycle }
@@ -32,7 +33,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
   Widget build(BuildContext context) {
     final cycleProvider = context.watch<CycleProvider>();
     final wellnessProvider = context.watch<WellnessProvider>();
-    // final l10n = AppLocalizations.of(context)!; // Для локализации в будущем
+    final l10n = AppLocalizations.of(context)!;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -45,22 +46,18 @@ class _CalendarScreenState extends State<CalendarScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            // ВЕРХНЯЯ ПАНЕЛЬ: Статус дня
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-              child: _buildStatusPanel(cycleProvider),
+              child: _buildStatusPanel(cycleProvider, l10n),
             ),
-
             const SizedBox(height: 12),
-
-            // ОСНОВНАЯ ЧАСТЬ: Календарь или Линейка
             Expanded(
               child: AnimatedSwitcher(
                 duration: const Duration(milliseconds: 400),
                 switchInCurve: Curves.easeOutCubic,
                 switchOutCurve: Curves.easeInCubic,
                 child: _viewMode == CalendarViewMode.month
-                    ? _buildMonthCalendar(cycleProvider, wellnessProvider)
+                    ? _buildMonthCalendar(cycleProvider, wellnessProvider, l10n)
                     : _buildLinearCycleView(cycleProvider),
               ),
             ),
@@ -70,7 +67,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
     );
   }
 
-  // ─── ПЕРЕКЛЮЧАТЕЛЬ РЕЖИМОВ ──────────────────────────────────────────────────
   Widget _buildViewToggle() {
     return Container(
       decoration: BoxDecoration(
@@ -115,12 +111,11 @@ class _CalendarScreenState extends State<CalendarScreen> {
     );
   }
 
-  // ─── ВЕРХНЯЯ ПАНЕЛЬ СТАТУСА ──────────────────────────────────────────────────
-  Widget _buildStatusPanel(CycleProvider cycle) {
+  Widget _buildStatusPanel(CycleProvider cycle, AppLocalizations l10n) {
     bool hasData = cycle.history.isNotEmpty || cycle.isCOCEnabled;
 
     String title = cycle.isCOCEnabled ? "Pill Day ${cycle.currentData.dayOfCycle}" : "Day ${cycle.currentData.dayOfCycle}";
-    String phaseName = _getPhaseName(cycle.currentData.phase, cycle.isCOCEnabled);
+    String phaseName = _getPhaseName(cycle.currentData.phase, cycle.isCOCEnabled, l10n);
 
     String forecast = cycle.isCOCEnabled
         ? "~${cycle.currentData.daysToNextPeriod} days to break"
@@ -159,31 +154,24 @@ class _CalendarScreenState extends State<CalendarScreen> {
     );
   }
 
-  String _getPhaseName(CyclePhase phase, bool isCOC) {
+  String _getPhaseName(CyclePhase phase, bool isCOC, AppLocalizations l10n) {
     if (isCOC) {
-      switch (phase) {
-        case CyclePhase.menstruation: return "Pill-free Break";
-        case CyclePhase.follicular: return "Active Pill Days";
-        default: return "Active Pill Days";
-      }
+      return phase == CyclePhase.menstruation ? l10n.cocBreakPhase : l10n.cocActivePhase;
     }
     switch (phase) {
-      case CyclePhase.menstruation: return "Menstrual Phase";
-      case CyclePhase.follicular: return "Follicular Phase";
-      case CyclePhase.ovulation: return "Ovulation Window";
-      case CyclePhase.luteal: return "Luteal Phase";
-      case CyclePhase.late: return "Cycle Delayed";
+      case CyclePhase.menstruation: return l10n.phaseMenstruation;
+      case CyclePhase.follicular: return l10n.phaseFollicular;
+      case CyclePhase.ovulation: return l10n.phaseOvulation;
+      case CyclePhase.luteal: return l10n.phaseLuteal;
+      case CyclePhase.late: return l10n.phaseLate;
     }
   }
 
-  // ─── СЕТКА МЕСЯЦА И КАРТОЧКА ДНЯ ───────────────────────────────────────────
-  // 🔥 ИСПРАВЛЕНИЕ 1: ИСПОЛЬЗУЕМ LISTVIEW ДЛЯ ЗАЩИТЫ ОТ OVERFLOW
-  Widget _buildMonthCalendar(CycleProvider cycle, WellnessProvider wellness) {
+  Widget _buildMonthCalendar(CycleProvider cycle, WellnessProvider wellness, AppLocalizations l10n) {
     return ListView(
       physics: const BouncingScrollPhysics(),
-      padding: const EdgeInsets.only(bottom: 40), // Безопасный отступ снизу
+      padding: const EdgeInsets.only(bottom: 40),
       children: [
-        // 1. Календарь
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
           child: PremiumGlassCard(
@@ -231,18 +219,17 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
         const SizedBox(height: 16),
 
-        // 2. Легенда
         _buildLegend(cycle.isCOCEnabled),
 
-        const SizedBox(height: 24), // 🔥 ЗАМЕНИЛ Spacer() НА SizedBox
+        const SizedBox(height: 24),
 
-        // 3. Карточка выбранного дня
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
           child: _DaySummaryCard(
             date: _selectedDate,
             cycleProvider: cycle,
             wellnessProvider: wellness,
+            l10n: l10n,
           ),
         ),
       ],
@@ -258,7 +245,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
         child: Row(
           mainAxisAlignment: isCOC ? MainAxisAlignment.center : MainAxisAlignment.spaceBetween,
           children: [
-            _buildLegendItem(isCOC ? "Withdrawal Bleed" : "Period", Colors.redAccent.withOpacity(0.8)),
+            _buildLegendItem(isCOC ? "Break" : "Period", Colors.redAccent.withOpacity(0.8)),
             if (!isCOC) ...[
               _buildLegendItem("Fertile", AppColors.primary.withOpacity(0.15)),
               _buildLegendItem("Ovulation", AppColors.primary.withOpacity(0.25), dotColor: AppColors.primary),
@@ -284,7 +271,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
     );
   }
 
-  // 🔥 ИСПРАВЛЕНИЕ 2: МАТЕМАТИЧЕСКАЯ ФУНКЦИЯ ПРОГНОЗА ДЛЯ БУДУЩИХ ЦИКЛОВ
   DayType _getCorrectDayType(DateTime date, CycleProvider cycle) {
     final normDate = DateTime(date.year, date.month, date.day);
     final start = DateTime(
@@ -297,15 +283,12 @@ class _CalendarScreenState extends State<CalendarScreen> {
     int length = cycle.cycleLength;
     if (length <= 0) length = 28;
 
-    // Если дата в прошлом или в текущем цикле, используем точную логику провайдера
     if (diff < length) {
       return cycle.getDayType(date);
     }
 
-    // Если дата в БУДУЩЕМ цикле (следующий месяц и далее), зацикливаем расчеты
     int dayOfCycle = (diff % length) + 1;
 
-    // Для КОК предсказываем только дни отмены (перерыва)
     if (cycle.isCOCEnabled) {
       final active = 21;
       final total = 28;
@@ -313,7 +296,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
       return DayType.none;
     }
 
-    // Обычный режим
     if (dayOfCycle <= cycle.periodDuration) return DayType.period;
 
     int ovDay = cycle.ovulationDay;
@@ -323,9 +305,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
     return DayType.none;
   }
 
-  // 🔥 ЯЧЕЙКА КАЛЕНДАРЯ
   Widget _buildDayCell(DateTime day, CycleProvider cycle, WellnessProvider wellness, {bool isSelected = false, bool isToday = false}) {
-    // Используем нашу новую математическую функцию предсказания!
     final dayType = _getCorrectDayType(day, cycle);
     final hasLogs = wellness.hasLogForDate(day);
     final isFuture = day.isAfter(DateTime.now());
@@ -376,7 +356,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
     );
   }
 
-  // ─── ЛИНЕЙНЫЙ РЕЖИМ (CYCLE VIEW) ───────────────────────────────────────────
   Widget _buildLinearCycleView(CycleProvider cycle) {
     if (cycle.history.isEmpty && !cycle.isCOCEnabled) {
       return Center(child: Text("Need data to build cycle view", style: GoogleFonts.inter(color: AppColors.textSecondary)));
@@ -399,16 +378,17 @@ class _CalendarScreenState extends State<CalendarScreen> {
   }
 }
 
-// ─── ПЛАВАЮЩАЯ КАРТОЧКА ВЫБРАННОГО ДНЯ ──────────────────────────────────────
 class _DaySummaryCard extends StatelessWidget {
   final DateTime date;
   final CycleProvider cycleProvider;
   final WellnessProvider wellnessProvider;
+  final AppLocalizations l10n;
 
   const _DaySummaryCard({
     required this.date,
     required this.cycleProvider,
     required this.wellnessProvider,
+    required this.l10n,
   });
 
   @override
@@ -422,15 +402,15 @@ class _DaySummaryCard extends StatelessWidget {
 
     if (phase != null) {
       if (cycleProvider.isCOCEnabled) {
-        phaseText = phase == CyclePhase.menstruation ? "Pill-free Break" : "Active Pill";
+        phaseText = phase == CyclePhase.menstruation ? l10n.cocBreakPhase : l10n.cocActivePhase;
         phaseColor = phase == CyclePhase.menstruation ? AppColors.menstruation : AppColors.follicular;
       } else {
         switch (phase) {
-          case CyclePhase.menstruation: phaseText = "Menstrual Phase"; phaseColor = AppColors.menstruation; break;
-          case CyclePhase.follicular: phaseText = "Follicular Phase"; phaseColor = AppColors.follicular; break;
-          case CyclePhase.ovulation: phaseText = "Ovulation Window"; phaseColor = AppColors.ovulation; break;
-          case CyclePhase.luteal: phaseText = "Luteal Phase"; phaseColor = AppColors.luteal; break;
-          case CyclePhase.late: phaseText = "Cycle Delayed"; phaseColor = Colors.orangeAccent; break;
+          case CyclePhase.menstruation: phaseText = l10n.phaseMenstruation; phaseColor = AppColors.menstruation; break;
+          case CyclePhase.follicular: phaseText = l10n.phaseFollicular; phaseColor = AppColors.follicular; break;
+          case CyclePhase.ovulation: phaseText = l10n.phaseOvulation; phaseColor = AppColors.ovulation; break;
+          case CyclePhase.luteal: phaseText = l10n.phaseLuteal; phaseColor = AppColors.luteal; break;
+          case CyclePhase.late: phaseText = l10n.phaseLate; phaseColor = Colors.orangeAccent; break;
         }
       }
     }
@@ -445,7 +425,7 @@ class _DaySummaryCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  DateFormat('EEEE, MMM d').format(date).toUpperCase(),
+                  DateFormat('EEEE, MMM d', l10n.localeName).format(date).toUpperCase(),
                   style: GoogleFonts.inter(
                     fontWeight: FontWeight.w700,
                     fontSize: 11,
@@ -461,13 +441,17 @@ class _DaySummaryCard extends StatelessWidget {
                       decoration: BoxDecoration(color: phaseColor, shape: BoxShape.circle),
                     ),
                     const SizedBox(width: 8),
-                    Text(
-                      phaseText,
-                      style: GoogleFonts.outfit(
-                          fontWeight: FontWeight.w800,
-                          fontSize: 18,
-                          color: AppColors.textPrimary,
-                          letterSpacing: -0.5
+                    Flexible( // 🔥 Защита от длинных текстов на маленьких экранах
+                      child: Text(
+                        phaseText,
+                        style: GoogleFonts.outfit(
+                            fontWeight: FontWeight.w800,
+                            fontSize: 18,
+                            color: AppColors.textPrimary,
+                            letterSpacing: -0.5
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                   ],
@@ -497,7 +481,7 @@ class _DaySummaryCard extends StatelessWidget {
                   builder: (_) => ClipRRect(
                     borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
                     child: SizedBox(
-                      height: MediaQuery.of(context).size.height * 0.9,
+                      height: MediaQuery.of(context).size.height * 0.92,
                       child: SymptomLogScreen(date: date),
                     ),
                   ),

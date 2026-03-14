@@ -47,7 +47,7 @@ class ProfileScreen extends StatelessWidget with ProfileLogicMixin {
     );
   }
 
-  // 🔥 ИСПРАВЛЕННЫЙ ДИАЛОГ ВЫБОРА ЦЕЛИ (БЕЗ SHADOWING)
+  // 🔥 ИСПРАВЛЕННЫЙ ДИАЛОГ ВЫБОРА ЦЕЛИ (С АНИМАЦИЕЙ ДЛЯ ВСЕХ РЕЖИМОВ)
   void _showGoalSelector(BuildContext context) {
     final cycle = context.read<CycleProvider>();
     final currentMode = cycle.appMode;
@@ -55,7 +55,6 @@ class ProfileScreen extends StatelessWidget with ProfileLogicMixin {
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
-      // 🔥 Меняем имя переменной на sheetContext, чтобы не убить основной context
       builder: (sheetContext) => Container(
         decoration: const BoxDecoration(
           color: Colors.white,
@@ -73,6 +72,8 @@ class ProfileScreen extends StatelessWidget with ProfileLogicMixin {
                 style: GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
               ),
               const SizedBox(height: 20),
+
+              // 1. СТАНДАРТНЫЙ ТРЕКИНГ
               _GoalOption(
                 title: "Track my cycle",
                 subtitle: "Standard period and ovulation tracking",
@@ -81,9 +82,21 @@ class ProfileScreen extends StatelessWidget with ProfileLogicMixin {
                 isSelected: currentMode == AppMode.standard,
                 onTap: () {
                   Navigator.pop(sheetContext);
-                  cycle.setAppMode(AppMode.standard);
+                  if (currentMode != AppMode.standard) {
+                    ModeTransitionOverlay.show(
+                        context,
+                        TransitionMode.tracking,
+                        "Setting up cycle tracking...",
+                        onComplete: () {
+                          cycle.setAppMode(AppMode.standard);
+                          if (context.mounted) goToHome(context);
+                        }
+                    );
+                  }
                 },
               ),
+
+              // 2. КОК
               _GoalOption(
                 title: "Prevent pregnancy",
                 subtitle: "Track my birth control pill",
@@ -91,10 +104,14 @@ class ProfileScreen extends StatelessWidget with ProfileLogicMixin {
                 color: Colors.teal,
                 isSelected: currentMode == AppMode.coc,
                 onTap: () {
-                  Navigator.pop(sheetContext); // Закрываем BottomSheet
-                  showCOCStartDialog(context); // 🔥 Передаем живой context экрана!
+                  Navigator.pop(sheetContext);
+                  if (currentMode != AppMode.coc) {
+                    showCOCStartDialog(context);
+                  }
                 },
               ),
+
+              // 3. TTC (ПЛАНИРОВАНИЕ)
               _GoalOption(
                 title: "Try to conceive",
                 subtitle: "Maximized fertility predictions & BBT",
@@ -103,7 +120,17 @@ class ProfileScreen extends StatelessWidget with ProfileLogicMixin {
                 isSelected: currentMode == AppMode.ttc,
                 onTap: () {
                   Navigator.pop(sheetContext);
-                  cycle.setAppMode(AppMode.ttc);
+                  if (currentMode != AppMode.ttc) {
+                    ModeTransitionOverlay.show(
+                        context,
+                        TransitionMode.ttc,
+                        "Setting up pregnancy planning...",
+                        onComplete: () {
+                          cycle.setAppMode(AppMode.ttc);
+                          if (context.mounted) goToHome(context);
+                        }
+                    );
+                  }
                 },
               ),
               const SizedBox(height: 24),

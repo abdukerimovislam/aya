@@ -6,7 +6,7 @@ class SymptomInsight {
   final String title;
   final String description;
   final bool isWarning;
-  final int priority; // 🔥 Уровень важности: 100 (Критично), 50 (Синдром), 10 (Обычный)
+  final int priority;
 
   SymptomInsight({
     required this.title,
@@ -18,8 +18,13 @@ class SymptomInsight {
 
 class SymptomIntelligence {
 
-  /// Главный метод: Анализирует симптомы как врач (Expert System)
-  static SymptomInsight? getInsight(BuildContext context, List<String> selectedSymptoms, CyclePhase phase) {
+  /// 🔥 ГЛАВНЫЙ МЕТОД АНАЛИЗА
+  static SymptomInsight? getInsight(
+      BuildContext context,
+      List<String> selectedSymptoms,
+      CyclePhase phase,
+      {bool isTTCMode = false}
+      ) {
     if (selectedSymptoms.isEmpty) return null;
 
     final l10n = AppLocalizations.of(context)!;
@@ -28,13 +33,71 @@ class SymptomIntelligence {
     List<SymptomInsight> possibleInsights = [];
 
     // =========================================================================
-    // УРОВЕНЬ 1: КРАСНЫЕ ФЛАГИ (PRIORITY: 100) - Высший приоритет
+    // 👶 ВЕТКА TTC (ПЛАНИРОВАНИЕ БЕРЕМЕННОСТИ) - ПРЕМИУМ
+    // =========================================================================
+    if (isTTCMode) {
+
+      // 1. ПИК ОВУЛЯЦИИ (ЛГ-тест)
+      if (_has(symptoms, ['lh: peak'])) {
+        possibleInsights.add(SymptomInsight(
+          title: "Peak Fertility Detected! 🎯",
+          description: "Your LH surge indicates ovulation will likely occur within 24-36 hours. Today and tomorrow are your best days to try to conceive.",
+          priority: 100, // Максимальный приоритет
+        ));
+      } else if (_has(symptoms, ['lh: high'])) {
+        possibleInsights.add(SymptomInsight(
+          title: "Fertile Window Opening",
+          description: "LH levels are rising. Start having intercourse every 1-2 days to maximize your chances as ovulation approaches.",
+          priority: 80,
+        ));
+      }
+
+      // 2. ЦЕРВИКАЛЬНАЯ СЛИЗЬ (Яичный белок)
+      if (_has(symptoms, ['egg-white mucus'])) {
+        possibleInsights.add(SymptomInsight(
+          title: "Highly Fertile Mucus",
+          description: "Egg-white cervical mucus creates the perfect environment for sperm to survive and swim. This is a primary sign of high fertility.",
+          priority: 90,
+        ));
+      } else if (_has(symptoms, ['creamy mucus', 'sticky mucus'])) {
+        possibleInsights.add(SymptomInsight(
+          title: "Building Up Fertility",
+          description: "Your cervical mucus is transitioning. As you get closer to ovulation, it will become clearer and more stretchy.",
+          priority: 40,
+        ));
+      }
+
+      // 3. БЛИЗОСТЬ
+      if (_has(symptoms, ['unprotected sex'])) {
+        if (phase == CyclePhase.ovulation) {
+          possibleInsights.add(SymptomInsight(
+            title: "Perfect Timing! ✨",
+            description: "You've logged unprotected sex during your ovulation phase. You've maximized your chances for this cycle. Now, time for the Two Week Wait (TWW).",
+            priority: 85,
+          ));
+        } else if (phase == CyclePhase.luteal) {
+          possibleInsights.add(SymptomInsight(
+            title: "The Two Week Wait",
+            description: "The egg only survives 24h after ovulation. Intercourse in the luteal phase usually doesn't lead to conception, but it's great for connection!",
+            priority: 30,
+          ));
+        }
+      }
+
+      // Если нашли инсайты планирования — отдаем их первыми
+      if (possibleInsights.isNotEmpty) {
+        possibleInsights.sort((a, b) => b.priority.compareTo(a.priority));
+        return possibleInsights.first;
+      }
+    }
+
+
+    // =========================================================================
+    // УРОВЕНЬ 1: КРАСНЫЕ ФЛАГИ ГИНЕКОЛОГИИ (PRIORITY: 100)
     // =========================================================================
 
-    // 🚩 Аномальное кровотечение (Spotting вне месячных)
     if (_has(symptoms, ['spotting', 'bleed', 'мазня']) && phase != CyclePhase.menstruation) {
-      // Если еще и болит - это повод обратиться к врачу
-      if (_has(symptoms, ['pain', 'cramp', 'боль', 'спазм'])) {
+      if (_has(symptoms, ['pain', 'cramp', 'боль', 'спазм', 'severe cramps'])) {
         possibleInsights.add(SymptomInsight(
           title: "Medical Alert: Pain & Spotting",
           description: "Spotting accompanied by pain outside your period can indicate cysts, polyps, or hormonal issues. Consider consulting a doctor.",
@@ -52,10 +115,9 @@ class SymptomIntelligence {
     }
 
     // =========================================================================
-    // УРОВЕНЬ 2: СИНДРОМЫ И ПАТТЕРНЫ (PRIORITY: 50-80) - Комбинации симптомов
+    // УРОВЕНЬ 2: СИНДРОМЫ И ПАТТЕРНЫ (PRIORITY: 50-80)
     // =========================================================================
 
-    // 🔴 Дисменорея (Тяжелая менструация)
     if (phase == CyclePhase.menstruation) {
       if (_hasAllGroups(symptoms, [
         ['cramp', 'pain', 'болит', 'спазм'],
@@ -70,11 +132,10 @@ class SymptomIntelligence {
       }
     }
 
-    // 🟡 ПМДР (Предменструальное дисфорическое расстройство) - Сильный ПМС
     if (phase == CyclePhase.luteal) {
       if (_hasAllGroups(symptoms, [
-        ['sad', 'cry', 'depress', 'грусть', 'слезы'],
-        ['anxiety', 'panic', 'stress', 'тревога', 'нервы']
+        ['sad', 'cry', 'crying spells', 'грусть', 'слезы'],
+        ['anxious', 'anxiety', 'panic', 'stress', 'тревога']
       ])) {
         possibleInsights.add(SymptomInsight(
           title: "Severe PMS / PMDD Indicator",
@@ -85,10 +146,9 @@ class SymptomIntelligence {
       }
     }
 
-    // 🟢 Пик Фертильности (Супер-комбо овуляции)
     if (phase == CyclePhase.ovulation) {
       if (_hasAllGroups(symptoms, [
-        ['libido', 'sexy', 'horn', 'либидо'],
+        ['high libido', 'sexy', 'horn', 'либидо'],
         ['energy', 'active', 'энергия', 'happy']
       ])) {
         possibleInsights.add(SymptomInsight(
@@ -100,7 +160,7 @@ class SymptomIntelligence {
     }
 
     // =========================================================================
-    // УРОВЕНЬ 3: БАЗОВЫЕ ИНСАЙТЫ (PRIORITY: 10-40) - Одиночные симптомы
+    // УРОВЕНЬ 3: БАЗОВЫЕ ИНСАЙТЫ (PRIORITY: 10-40)
     // =========================================================================
 
     if (phase == CyclePhase.menstruation) {
@@ -142,22 +202,11 @@ class SymptomIntelligence {
       }
     }
 
-    // =========================================================================
-    // ФИНАЛИЗАЦИЯ: Выбираем самый важный инсайт
-    // =========================================================================
-
     if (possibleInsights.isEmpty) return null;
-
-    // Сортируем по приоритету (от большего к меньшему)
     possibleInsights.sort((a, b) => b.priority.compareTo(a.priority));
-
-    // Возвращаем самый релевантный и важный медицинский вывод на сегодня
     return possibleInsights.first;
   }
 
-  // --- Вспомогательные методы (AI Helpers) ---
-
-  /// Проверяет, есть ли хотя бы одно совпадение из списка ключей
   static bool _has(List<String> userSymptoms, List<String> keywords) {
     for (var s in userSymptoms) {
       for (var k in keywords) {
@@ -167,14 +216,12 @@ class SymptomIntelligence {
     return false;
   }
 
-  /// Продвинутый метод: Проверяет наличие комбинации симптомов (Синдромы)
-  /// Например: Должна быть (Боль ИЛИ Спазм) ПЛЮС (Тошнота ИЛИ Головокружение)
   static bool _hasAllGroups(List<String> userSymptoms, List<List<String>> keywordGroups) {
     for (var group in keywordGroups) {
       if (!_has(userSymptoms, group)) {
-        return false; // Если хотя бы одной группы симптомов нет - паттерн не совпал
+        return false;
       }
     }
-    return true; // Нашли все требуемые группы симптомов!
+    return true;
   }
 }

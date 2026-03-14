@@ -13,7 +13,6 @@ import '../../data/providers/settings_provider.dart';
 
 // Общие виджеты
 import '../../l10n/app_localizations.dart';
-// 🔥 ИМПОРТИРУЕМ НАПРЯМУЮ ЕДИНСТВЕННЫЙ ТАЙМЕР
 import '../../shared/widgets/timers/nebula_timer_widget.dart';
 import '../../shared/widgets/pill_widget.dart';
 import '../../shared/widgets/premium_glass_card.dart';
@@ -94,6 +93,7 @@ class _BuildUltraModernScreen extends StatelessWidget {
 
     final data = context.select<CycleProvider, CycleData>((p) => p.currentData);
     final bool isCOC = context.select<CycleProvider, bool>((p) => p.isCOCEnabled);
+    final bool isTTC = context.select<CycleProvider, bool>((p) => p.isTTCMode); // 🔥 ДОБАВЛЕНО: Слушаем режим TTC
 
     final String userName = context.select<SettingsProvider, String>((p) => p.userName);
     final bool isPremium = context.select<SettingsProvider, bool>((p) => p.isPremium);
@@ -132,11 +132,15 @@ class _BuildUltraModernScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 40),
 
-                  // 🔥 CENTER TIMER (Напрямую используем Nebula, без Stack и Selector)
+                  // 🔥 CENTER TIMER (Передаем все режимы)
                   SizedBox(
                     width: MediaQuery.of(context).size.width * 0.85,
                     height: MediaQuery.of(context).size.width * 0.85,
-                    child: NebulaTimerWidget(data: data, isCOC: isCOC),
+                    child: NebulaTimerWidget(
+                      data: data,
+                      isCOC: isCOC,
+                      isTTC: isTTC, // 🔥 ДОБАВЛЕНО: Передаем в виджет таймера
+                    ),
                   ),
 
                   if (isCOC) ...[const SizedBox(height: 24), const PillWidget()],
@@ -159,7 +163,7 @@ class _BuildUltraModernScreen extends StatelessWidget {
                     _COCPackControlCard(provider: provider, l10n: l10n),
                   ]
                   else ...[
-                    // ОБЫЧНЫЙ РЕЖИМ
+                    // ОБЫЧНЫЙ РЕЖИМ И TTC
                     Padding(padding: const EdgeInsets.symmetric(horizontal: 24), child: DashboardMicroCalendar(provider: provider, onOpenLogger: _openLoggerWithHero)),
                     const SizedBox(height: 20),
                     Padding(padding: const EdgeInsets.symmetric(horizontal: 24), child: DashboardInsightCard(data: data, l10n: l10n)),

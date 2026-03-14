@@ -3,16 +3,17 @@ import 'package:flutter/services.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:hive_flutter/hive_flutter.dart';
-import 'package:provider/provider.dart'; // 🔥 ДОБАВЛЕНО ДЛЯ ЛОКАЛЬНЫХ ДАННЫХ
-import 'package:intl/intl.dart'; // 🔥 ДОБАВЛЕНО ДЛЯ ДАТЫ
+import 'package:provider/provider.dart';
+import 'package:intl/intl.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../data/models/cycle_model.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../shared/widgets/premium_glass_card.dart';
 import '../../../core/services/ai_oracle_service.dart';
-import '../../../data/providers/wellness_provider.dart'; // 🔥 ДОБАВЛЕНО ДЛЯ СИМПТОМОВ
-import '../../../data/logic/symptom_intelligence.dart'; // 🔥 ДОБАВЛЕНО ДЛЯ ЛОКАЛЬНОГО ИИ
+import '../../../data/providers/cycle_provider.dart'; // 🔥 ДОБАВЛЕНО ЯДРО ЦИКЛА
+import '../../../data/providers/wellness_provider.dart';
+import '../../../data/logic/symptom_intelligence.dart';
 
 class DashboardInsightCard extends StatefulWidget {
   final CycleData data;
@@ -46,6 +47,8 @@ class _DashboardInsightCardState extends State<DashboardInsightCard> {
   Widget build(BuildContext context) {
     // 🛡 1. ГЕНЕРАЦИЯ ЛОКАЛЬНОГО ИНСАЙТА (НА СЛУЧАЙ ОФЛАЙНА ИЛИ ОШИБКИ)
     final wellness = context.watch<WellnessProvider>();
+    final cycle = context.watch<CycleProvider>(); // 🔥 ДОБАВЛЕНО ДЛЯ РЕЖИМА
+
     List<String> todaySymptoms = [];
     try {
       final log = wellness.getLogForDate(DateTime.now());
@@ -56,19 +59,24 @@ class _DashboardInsightCardState extends State<DashboardInsightCard> {
     String localSubtitle = "";
     String localType = "neutral";
 
-    // Ищем совпадения симптомов и фазы через локальный движок
-    final symptomInsight = SymptomIntelligence.getInsight(context, todaySymptoms, widget.data.phase);
+    // 🔥 ПРОКИДЫВАЕМ РЕЖИМ ПЛАНИРОВАНИЯ В НАШ ЭКСПЕРТНЫЙ ИИ
+    final symptomInsight = SymptomIntelligence.getInsight(
+      context,
+      todaySymptoms,
+      widget.data.phase,
+      isTTCMode: cycle.appMode == AppMode.ttc,
+    );
 
     if (symptomInsight != null) {
       localTitle = symptomInsight.title;
       localSubtitle = symptomInsight.description;
-      localType = symptomInsight.isWarning ? "warning" : "neutral";
+      localType = symptomInsight.isWarning ? "warning" : "positive"; // TTC инсайты позитивные!
     } else {
       // Дефолтные фразы по фазам, если симптомов сегодня нет
       switch (widget.data.phase) {
         case CyclePhase.menstruation: localTitle = "Rest & Reset"; localSubtitle = "Your hormones are at their lowest. Focus on hydration."; localType = "warning"; break;
         case CyclePhase.follicular: localTitle = "Energy Rising"; localSubtitle = "Estrogen is climbing. Great time for complex tasks."; localType = "positive"; break;
-        case CyclePhase.ovulation: localTitle = "Peak Vitality"; localSubtitle = "You are glowing. Best time for high-intensity workouts."; localType = "positive"; break;
+        case CyclePhase.ovulation: localTitle = cycle.isTTCMode ? "Fertility Peak" : "Peak Vitality"; localSubtitle = cycle.isTTCMode ? "This is your optimal window for conception." : "You are glowing. Best time for high-intensity workouts."; localType = "positive"; break;
         case CyclePhase.luteal: localTitle = "Wind Down"; localSubtitle = "Progesterone is high. Cravings and mood swings are normal."; localType = "neutral"; break;
         case CyclePhase.late: localTitle = "Cycle Delayed"; localSubtitle = "Your period is late. Stress could be a factor."; localType = "warning"; break;
       }
@@ -134,7 +142,7 @@ class _DashboardInsightCardState extends State<DashboardInsightCard> {
                     padding: const EdgeInsets.all(20), borderRadius: 32,
                     child: Row(
                       children: [
-                        // 🔥 Живая сфера энергии (становится нейтральной во время загрузки)
+                        // 🔥 Живая сфера энергии
                         _EnergyOrb(phase: widget.data.phase, alertType: displayType),
                         const SizedBox(width: 16),
                         Expanded(

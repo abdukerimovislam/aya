@@ -9,25 +9,38 @@ import '../../../core/theme/app_theme.dart';
 import '../../../data/models/cycle_model.dart';
 import '../../../l10n/app_localizations.dart';
 
+// 🔥 3 основные формы для режимов
+enum TimerShape { sphere, dna, infinity }
+
 class _NanoParticle {
-  final double theta;
-  final double phi;
+  final double u;
+  final double v;
   final double speed;
   final double size;
+  final double rand1;
+  final double rand2;
 
   _NanoParticle({
-    required this.theta,
-    required this.phi,
+    required this.u,
+    required this.v,
     required this.speed,
     required this.size,
+    required this.rand1,
+    required this.rand2,
   });
 }
 
 class NebulaTimerWidget extends StatefulWidget {
   final CycleData data;
   final bool isCOC;
+  final bool isTTC; // 🔥 Добавили параметр для режима планирования
 
-  const NebulaTimerWidget({super.key, required this.data, this.isCOC = false});
+  const NebulaTimerWidget({
+    super.key,
+    required this.data,
+    this.isCOC = false,
+    this.isTTC = false,
+  });
 
   @override
   State<NebulaTimerWidget> createState() => _NebulaTimerWidgetState();
@@ -45,6 +58,13 @@ class _NebulaTimerWidgetState extends State<NebulaTimerWidget> with TickerProvid
 
   final int _startTime = DateTime.now().millisecondsSinceEpoch;
 
+  // 🔥 АВТОМАТИЧЕСКИЙ ВЫБОР ФОРМЫ НА ОСНОВЕ РЕЖИМА
+  TimerShape get _currentShape {
+    if (widget.isCOC) return TimerShape.infinity;
+    if (widget.isTTC) return TimerShape.dna;
+    return TimerShape.sphere;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -53,23 +73,19 @@ class _NebulaTimerWidgetState extends State<NebulaTimerWidget> with TickerProvid
     final isLate = widget.data.phase == CyclePhase.late;
     _pulseController = AnimationController(vsync: this, duration: Duration(milliseconds: isLate ? 1200 : 2000))..repeat(reverse: true);
 
-    _generate3DSphere();
+    _generateParticles();
   }
 
-  void _generate3DSphere() {
+  void _generateParticles() {
     final random = math.Random();
     for (int i = 0; i < _particleCount; i++) {
-      double u = random.nextDouble();
-      double v = random.nextDouble();
-
-      double theta = 2 * math.pi * u;
-      double phi = math.acos(2 * v - 1);
-
       _particles.add(_NanoParticle(
-        theta: theta,
-        phi: phi,
+        u: random.nextDouble(),
+        v: random.nextDouble(),
         speed: 0.8 + (random.nextDouble() * 0.4),
         size: 0.6 + (random.nextDouble() * 1.2),
+        rand1: random.nextDouble(),
+        rand2: random.nextDouble(),
       ));
     }
   }
@@ -77,7 +93,9 @@ class _NebulaTimerWidgetState extends State<NebulaTimerWidget> with TickerProvid
   @override
   void didUpdateWidget(covariant NebulaTimerWidget oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.data.cycleStartDate != widget.data.cycleStartDate || oldWidget.isCOC != widget.isCOC) {
+    if (oldWidget.data.cycleStartDate != widget.data.cycleStartDate ||
+        oldWidget.isCOC != widget.isCOC ||
+        oldWidget.isTTC != widget.isTTC) {
       setState(() { _selectedDay = null; _isDragging = false; });
     }
 
@@ -143,12 +161,9 @@ class _NebulaTimerWidgetState extends State<NebulaTimerWidget> with TickerProvid
     final String mainNumberText = isLate ? "$daysLate" : "$displayDay";
     final String labelText = isLate ? "DAYS LATE" : "DAY";
 
-    // 🔥 АДАПТИВНАЯ ОБЕРТКА
     return LayoutBuilder(
       builder: (context, constraints) {
-        // Берем максимальную ширину, которую выделил нам экран (например 380px)
         final double widgetSize = constraints.maxWidth;
-        // Коэффициент масштабирования относительно старого дизайна (320px)
         final double scale = widgetSize / 320.0;
 
         return RepaintBoundary(
@@ -171,12 +186,12 @@ class _NebulaTimerWidgetState extends State<NebulaTimerWidget> with TickerProvid
                 alignment: Alignment.center,
                 children: [
 
-                  // 🔥 ОРБИТА (масштабируется под размер)
+                  // 1. ОРБИТА
                   AnimatedBuilder(
                     animation: _pulseController,
                     builder: (context, child) {
                       return CustomPaint(
-                        size: Size(widgetSize * 0.9375, widgetSize * 0.9375), // Было 300
+                        size: Size(widgetSize * 0.9375, widgetSize * 0.9375),
                         painter: _OrbitTicksPainter(
                           totalDays: widget.data.totalCycleLength,
                           currentDay: widget.data.currentDay,
@@ -189,24 +204,26 @@ class _NebulaTimerWidgetState extends State<NebulaTimerWidget> with TickerProvid
                     },
                   ),
 
-                  // 🔥 3D СФЕРА НАНОЧАСТИЦ (масштабируется под размер)
+                  // 2. ЗАДНИЕ ЧАСТИЦЫ
                   AnimatedBuilder(
                     animation: Listenable.merge([_renderController, _pulseController]),
                     builder: (context, child) {
                       return CustomPaint(
-                        size: Size(widgetSize * 0.84375, widgetSize * 0.84375), // Было 270
-                        painter: _NanoSpherePainter(
+                        size: Size(widgetSize * 0.84375, widgetSize * 0.84375),
+                        painter: _NanoParticlePainter(
                           startTime: _startTime,
                           pulseValue: _pulseController.value,
                           baseColor: displayColor,
                           accentColor: accentColor,
                           particles: _particles,
+                          shape: _currentShape, // Берет форму из свойства
+                          isFrontLayer: false,
                         ),
                       );
                     },
                   ),
 
-                  // 🔥 ЦЕНТРАЛЬНАЯ КНОПКА (масштабируется)
+                  // 3. ЦЕНТРАЛЬНАЯ КНОПКА
                   GestureDetector(
                     onTap: () {
                       if (_selectedDay != null) {
@@ -217,7 +234,7 @@ class _NebulaTimerWidgetState extends State<NebulaTimerWidget> with TickerProvid
                       }
                     },
                     child: SizedBox(
-                      width: 152 * scale, // Умножаем на коэффициент экрана
+                      width: 152 * scale,
                       height: 152 * scale,
                       child: Stack(
                         alignment: Alignment.center,
@@ -237,7 +254,7 @@ class _NebulaTimerWidgetState extends State<NebulaTimerWidget> with TickerProvid
                           ),
 
                           SizedBox(
-                            width: 136 * scale, // Текстовый контейнер тоже растет
+                            width: 136 * scale,
                             child: Column(
                               mainAxisAlignment: MainAxisAlignment.center,
                               crossAxisAlignment: CrossAxisAlignment.center,
@@ -246,7 +263,7 @@ class _NebulaTimerWidgetState extends State<NebulaTimerWidget> with TickerProvid
                                   _selectedDay == null ? labelText : dateString.toUpperCase(),
                                   style: GoogleFonts.inter(
                                       color: isLate ? Colors.orangeAccent.shade700 : AppColors.textSecondary,
-                                      fontSize: 10 * scale, // Шрифты растут!
+                                      fontSize: 10 * scale,
                                       letterSpacing: 1.5,
                                       fontWeight: FontWeight.w800
                                   ),
@@ -295,6 +312,27 @@ class _NebulaTimerWidgetState extends State<NebulaTimerWidget> with TickerProvid
                           ),
                         ],
                       ),
+                    ),
+                  ),
+
+                  // 4. ПЕРЕДНИЕ ЧАСТИЦЫ
+                  IgnorePointer(
+                    child: AnimatedBuilder(
+                      animation: Listenable.merge([_renderController, _pulseController]),
+                      builder: (context, child) {
+                        return CustomPaint(
+                          size: Size(widgetSize * 0.84375, widgetSize * 0.84375),
+                          painter: _NanoParticlePainter(
+                            startTime: _startTime,
+                            pulseValue: _pulseController.value,
+                            baseColor: displayColor,
+                            accentColor: accentColor,
+                            particles: _particles,
+                            shape: _currentShape,
+                            isFrontLayer: true,
+                          ),
+                        );
+                      },
                     ),
                   ),
 
@@ -454,19 +492,23 @@ class _OrbitTicksPainter extends CustomPainter {
           oldDelegate.pulseValue != pulseValue;
 }
 
-class _NanoSpherePainter extends CustomPainter {
+class _NanoParticlePainter extends CustomPainter {
   final int startTime;
   final double pulseValue;
   final Color baseColor;
   final Color accentColor;
   final List<_NanoParticle> particles;
+  final TimerShape shape;
+  final bool isFrontLayer;
 
-  _NanoSpherePainter({
+  _NanoParticlePainter({
     required this.startTime,
     required this.pulseValue,
     required this.baseColor,
     required this.accentColor,
     required this.particles,
+    required this.shape,
+    required this.isFrontLayer,
   });
 
   @override
@@ -491,22 +533,81 @@ class _NanoSpherePainter extends CustomPainter {
     for (int i = 0; i < particles.length; i++) {
       final p = particles[i];
 
-      double rotTheta = p.theta + (time * p.speed);
-      double rotPhi = p.phi + math.sin(time * 3 + p.theta) * 0.05;
+      double x3d = 0;
+      double y3d = 0;
+      double z3d = 0;
+      double r = radius;
 
-      double x3d = radius * math.sin(rotPhi) * math.cos(rotTheta);
-      double y3d = radius * math.sin(rotPhi) * math.sin(rotTheta);
-      double z3d = radius * math.cos(rotPhi);
+      switch (shape) {
+        case TimerShape.sphere:
+          double rotTheta = (p.u * 2 * math.pi) + (time * p.speed);
+          double rotPhi = math.acos(2 * p.v - 1) + math.sin(time * 3 + p.u) * 0.05;
+          x3d = r * math.sin(rotPhi) * math.cos(rotTheta);
+          y3d = r * math.sin(rotPhi) * math.sin(rotTheta);
+          z3d = r * math.cos(rotPhi);
+          break;
+
+        case TimerShape.dna:
+          double globalTime = time * 1.2;
+          double zRaw = (p.u - 0.5) * 2.0;
+          double twist = math.pi * 3.0;
+          double currentR = r * 0.6;
+
+          if (p.rand1 < 0.75) {
+            double strandOffset = p.rand1 < 0.375 ? 0.0 : math.pi;
+            double theta = zRaw * twist - globalTime;
+
+            double thickness = 3.0;
+            double tubeX = math.cos(p.v * math.pi * 2) * thickness;
+            double tubeZ = math.sin(p.v * math.pi * 2) * thickness;
+
+            x3d = currentR * math.cos(theta + strandOffset) + tubeX;
+            y3d = zRaw * r * 0.95 + (p.rand2 - 0.5) * thickness;
+            z3d = currentR * math.sin(theta + strandOffset) + tubeZ;
+          } else {
+            int rungs = 15;
+            double step = (p.u * (rungs - 1)).round() / (rungs - 1);
+            double zRung = (step - 0.5) * 2.0;
+            double theta = zRung * twist - globalTime;
+
+            double bridgeT = (p.v - 0.5) * 2.0;
+
+            x3d = currentR * bridgeT * math.cos(theta);
+            y3d = zRung * r * 0.95;
+            z3d = currentR * bridgeT * math.sin(theta);
+          }
+          break;
+
+        case TimerShape.infinity:
+          double t = p.u * 2 * math.pi + (time * p.speed * 0.5);
+          double rInf = r * 0.85;
+          num denom = 1 + math.pow(math.sin(t), 2);
+
+          double xBase = rInf * math.cos(t) / denom;
+          double yBase = rInf * math.sin(t) * math.cos(t) / denom;
+          double zBase = rInf * math.sin(t) * 0.5;
+
+          x3d = xBase + (p.rand1 - 0.5) * 30;
+          y3d = yBase + (p.rand2 - 0.5) * 30;
+          z3d = zBase + (p.v - 0.5) * 30;
+          break;
+      }
 
       double y = y3d * cosTilt - z3d * sinTilt;
       double z = y3d * sinTilt + z3d * cosTilt;
       double x = x3d;
 
-      double depth = (z + radius) / (2 * radius);
-      double drawSize = (p.size * 0.4) + (p.size * 1.2 * depth);
-      double opacity = 0.1 + (0.9 * depth);
+      if (isFrontLayer && z < 0) continue;
+      if (!isFrontLayer && z >= 0) continue;
 
-      double colorMix = (math.sin(time * 2 + p.theta * 2) + 1) / 2;
+      double depth = ((z + radius) / (2 * radius)).clamp(0.0, 1.0);
+      double drawSize = (p.size * 0.4) + (p.size * 1.2 * depth);
+
+      double textProtection = isFrontLayer ? 0.5 : 1.0;
+      double opacity = ((0.1 + (0.9 * depth)) * textProtection).clamp(0.0, 1.0);
+
+      double rotTheta = (p.u * 2 * math.pi) + (time * p.speed);
+      double colorMix = ((math.sin(time * 2 + rotTheta * 2) + 1) / 2).clamp(0.0, 1.0);
 
       int colorIndex = (colorMix * 99).round().clamp(0, 99);
       Color finalColor = colorPalette[colorIndex];
@@ -517,12 +618,12 @@ class _NanoSpherePainter extends CustomPainter {
       canvas.drawCircle(screenPos, drawSize, particlePaint);
 
       if (depth > 0.85) {
-        glowPaint.color = finalColor.withOpacity(opacity * 0.15);
+        glowPaint.color = finalColor.withOpacity((opacity * 0.15).clamp(0.0, 1.0));
         canvas.drawCircle(screenPos, drawSize * 2.5, glowPaint);
       }
     }
   }
 
   @override
-  bool shouldRepaint(covariant _NanoSpherePainter oldDelegate) => true;
+  bool shouldRepaint(covariant _NanoParticlePainter oldDelegate) => true;
 }

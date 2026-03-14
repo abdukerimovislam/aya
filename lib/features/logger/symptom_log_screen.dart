@@ -56,7 +56,6 @@ class _SymptomLogScreenState extends State<SymptomLogScreen> {
     setState(() => _isLoaded = true);
   }
 
-  // 🔥 Умное сохранение: Отделяем мазню от настоящих месячных
   Future<void> _saveAndClose() async {
     HapticFeedback.lightImpact();
 
@@ -76,23 +75,19 @@ class _SymptomLogScreenState extends State<SymptomLogScreen> {
       final currentPhase = cycle.getPhaseForDate(widget.date);
       final isCurrentlyPeriodDay = currentPhase == CyclePhase.menstruation;
 
-      // Медицинское правило: Только эти статусы начинают менструацию
       final isNowMenstruation = _log.flow == FlowIntensity.light ||
           _log.flow == FlowIntensity.medium ||
           _log.flow == FlowIntensity.heavy;
 
-      // Сценарий 1: Юзер поставил полноценные месячные, а в ядре это не отмечено
       if (isNowMenstruation && !isCurrentlyPeriodDay) {
         final result = await cycle.logActionStartPeriod(widget.date);
 
-        // 🧠 MEDICAL INTERCEPTOR: Защита от аномалий
         if (result == CycleLogResult.suspiciouslyEarly || result == CycleLogResult.ovulationBleeding) {
           setState(() => _isSaving = false);
           if (mounted) _showMedicalInterceptorDialog(context, widget.date, result, cycle);
-          return; // Оставляем экран открытым, ждем решения юзера
+          return;
         }
       }
-      // Сценарий 2: Юзер убрал месячные (поставил None), а в ядре день отмечен как месячные
       else if (!isNowMenstruation && isCurrentlyPeriodDay) {
         await cycle.togglePeriodDay(widget.date);
       }
@@ -146,8 +141,6 @@ class _SymptomLogScreenState extends State<SymptomLogScreen> {
               Navigator.pop(ctx);
               HapticFeedback.lightImpact();
 
-              // 🔥 РЕШЕНИЕ БЕЗ ИЗМЕНЕНИЯ БАЗЫ ДАННЫХ:
-              // Возвращаем FlowIntensity в None, но добавляем "Spotting" в симптомы!
               final wellness = context.read<WellnessProvider>();
               final updatedSymptoms = List<String>.from(_log.symptoms);
               if (!updatedSymptoms.contains('Spotting')) {
@@ -159,7 +152,7 @@ class _SymptomLogScreenState extends State<SymptomLogScreen> {
                 symptoms: updatedSymptoms,
               ));
 
-              if (mounted) Navigator.pop(context); // Закрываем логгер
+              if (mounted) Navigator.pop(context);
             },
             child: Text("Just Spotting", style: GoogleFonts.inter(fontWeight: FontWeight.w600, color: AppColors.textSecondary)),
           ),
@@ -171,7 +164,7 @@ class _SymptomLogScreenState extends State<SymptomLogScreen> {
             onPressed: () async {
               Navigator.pop(ctx);
               HapticFeedback.mediumImpact();
-              await provider.logActionStartPeriod(date, isConfirmed: true); // Принудительный старт цикла
+              await provider.logActionStartPeriod(date, isConfirmed: true);
               if (mounted) Navigator.pop(context);
             },
             child: Text("New Period", style: GoogleFonts.inter(fontWeight: FontWeight.w700, color: Colors.white)),
@@ -184,7 +177,18 @@ class _SymptomLogScreenState extends State<SymptomLogScreen> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
+    final cycle = context.watch<CycleProvider>();
+    final bool isTTC = cycle.appMode == AppMode.ttc;
     final dateStr = DateFormat('MMMM d, yyyy').format(widget.date);
+
+    final List<String> physicalOptions = ['Cramps', 'Headache', 'Bloating', 'Acne', 'Tender Breasts', 'Backache', 'Nausea', 'Fatigue'];
+    final List<String> mentalOptions = ['Anxious', 'Irritable', 'Crying Spells', 'Brain Fog', 'Happy', 'Focused', 'Calm'];
+    final List<String> otherOptions = ['Spotting', 'Alcohol', 'Travel', 'High Stress', 'Sick', 'Exercise', 'Poor Diet'];
+
+    // TTC Specific Options
+    final List<String> mucusOptions = ['Dry Mucus', 'Sticky Mucus', 'Creamy Mucus', 'Egg-white Mucus'];
+    final List<String> lhTestOptions = ['LH: Negative', 'LH: High', 'LH: Peak'];
+    final List<String> sexOptions = ['Unprotected Sex', 'Protected Sex', 'High Libido'];
 
     return Container(
       decoration: BoxDecoration(
@@ -231,7 +235,7 @@ class _SymptomLogScreenState extends State<SymptomLogScreen> {
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                     decoration: BoxDecoration(
-                      color: AppColors.primary,
+                      color: isTTC ? Colors.purple : AppColors.primary, // Premium TTC Color
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: Text(
@@ -246,7 +250,6 @@ class _SymptomLogScreenState extends State<SymptomLogScreen> {
           const SizedBox(height: 16),
           Divider(height: 1, color: AppColors.textSecondary.withOpacity(0.1)),
 
-          // ─── FUTURE DATE STATE ───
           if (_isFutureDate)
             Expanded(
               child: Center(
@@ -279,49 +282,94 @@ class _SymptomLogScreenState extends State<SymptomLogScreen> {
                 ),
               ),
             )
-
-          // ─── NORMAL LOGGER STATE ───
           else if (_isLoaded)
             Expanded(
               child: ListView(
                 physics: const BouncingScrollPhysics(),
                 padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
                 children: [
+
+                  // 🔥 PREMIUM TTC BANNER
+                  if (isTTC) ...[
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(colors: [Colors.purple.shade50, Colors.pink.shade50]),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: Colors.purple.withOpacity(0.3)),
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
+                            child: const Icon(CupertinoIcons.heart_circle_fill, color: Colors.purple),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text("TTC AI Intelligence", style: GoogleFonts.outfit(fontWeight: FontWeight.bold, color: Colors.purple.shade900)),
+                                Text("Log BBT and LH tests below to maximize conception chances.", style: GoogleFonts.inter(fontSize: 12, color: Colors.purple.shade900, height: 1.3)),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 32),
+                  ],
+
+                  // Месячные
                   _buildSectionTitle("Bleeding & Flow"),
                   const SizedBox(height: 12),
                   _buildFlowSelector(),
                   const SizedBox(height: 32),
 
+                  // 🔥 СПЕЦИАЛЬНЫЕ TTC ИНСТРУМЕНТЫ
+                  if (isTTC) ...[
+                    _buildSectionTitle("Basal Body Temp (BBT)"),
+                    const SizedBox(height: 12),
+                    _buildBBTInput(),
+                    const SizedBox(height: 32),
+
+                    _buildSectionTitle("Ovulation Tests (OPK)"),
+                    const SizedBox(height: 12),
+                    _buildSymptomGrid(lhTestOptions, false, isTTC: true, customColor: Colors.purple),
+                    const SizedBox(height: 32),
+
+                    _buildSectionTitle("Cervical Mucus"),
+                    const SizedBox(height: 12),
+                    _buildSymptomGrid(mucusOptions, false, isTTC: true, customColor: Colors.teal),
+                    const SizedBox(height: 32),
+
+                    _buildSectionTitle("Intercourse & Libido"),
+                    const SizedBox(height: 12),
+                    _buildSymptomGrid(sexOptions, false, isTTC: true, customColor: Colors.pinkAccent),
+                    const SizedBox(height: 32),
+                  ],
+
                   _buildSectionTitle("Vitals"),
                   const SizedBox(height: 12),
-                  _buildVitalSlider("Mood", _log.mood, (v) => setState(() => _log = _log.copyWith(mood: v.toInt())), CupertinoIcons.smiley),
-                  _buildVitalSlider("Energy", _log.energy, (v) => setState(() => _log = _log.copyWith(energy: v.toInt())), CupertinoIcons.bolt_fill),
-                  _buildVitalSlider("Sleep", _log.sleep, (v) => setState(() => _log = _log.copyWith(sleep: v.toInt())), CupertinoIcons.moon_stars_fill),
+                  _buildVitalSlider("Mood", _log.mood, (v) => setState(() => _log = _log.copyWith(mood: v.toInt())), CupertinoIcons.smiley, isTTC),
+                  _buildVitalSlider("Energy", _log.energy, (v) => setState(() => _log = _log.copyWith(energy: v.toInt())), CupertinoIcons.bolt_fill, isTTC),
+                  _buildVitalSlider("Sleep", _log.sleep, (v) => setState(() => _log = _log.copyWith(sleep: v.toInt())), CupertinoIcons.moon_stars_fill, isTTC),
                   const SizedBox(height: 32),
 
                   _buildSectionTitle("Physical Symptoms"),
                   const SizedBox(height: 12),
-                  _buildSymptomGrid(
-                    ['Cramps', 'Headache', 'Bloating', 'Acne', 'Tender Breasts', 'Backache', 'Nausea', 'Fatigue'],
-                    true, // isPain = true
-                  ),
+                  _buildSymptomGrid(physicalOptions, true, isTTC: false),
                   const SizedBox(height: 32),
 
                   _buildSectionTitle("Mental & Emotional"),
                   const SizedBox(height: 12),
-                  _buildSymptomGrid(
-                    ['Anxious', 'Irritable', 'Crying Spells', 'Brain Fog', 'Happy', 'Focused', 'Calm'],
-                    false, // isPain = false
-                  ),
+                  _buildSymptomGrid(mentalOptions, false, isTTC: false),
                   const SizedBox(height: 32),
 
-                  _buildSectionTitle("Other Factors & Issues"),
+                  _buildSectionTitle("Other Factors"),
                   const SizedBox(height: 12),
-                  _buildSymptomGrid(
-                    // 🔥 Добавили Spotting сюда, чтобы юзер мог выбрать его руками
-                    ['Spotting', 'Alcohol', 'Travel', 'High Stress', 'Sick', 'Exercise', 'Poor Diet'],
-                    false, // isPain = false (сохранится в symptoms)
-                  ),
+                  _buildSymptomGrid(otherOptions, false, isTTC: false),
 
                   const SizedBox(height: 60),
                 ],
@@ -344,7 +392,6 @@ class _SymptomLogScreenState extends State<SymptomLogScreen> {
   }
 
   Widget _buildFlowSelector() {
-    // 🔥 Оставили только валидные значения базы данных
     final flows = [
       {'val': FlowIntensity.none, 'icon': CupertinoIcons.drop, 'label': 'None'},
       {'val': FlowIntensity.light, 'icon': CupertinoIcons.drop_fill, 'label': 'Light'},
@@ -394,7 +441,66 @@ class _SymptomLogScreenState extends State<SymptomLogScreen> {
     );
   }
 
-  Widget _buildVitalSlider(String label, int value, Function(double) onChanged, IconData icon) {
+  // 🔥 КОМПОНЕНТ ВВОДА БАЗАЛЬНОЙ ТЕМПЕРАТУРЫ
+  Widget _buildBBTInput() {
+    double currentTemp = _log.temperature ?? 36.60;
+    if (currentTemp == 0.0) currentTemp = 36.60;
+
+    return PremiumGlassCard(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+      borderRadius: 20,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(color: Colors.redAccent.withOpacity(0.1), shape: BoxShape.circle),
+                child: const Icon(CupertinoIcons.thermometer, color: Colors.redAccent, size: 24),
+              ),
+              const SizedBox(width: 16),
+              Text(
+                "${currentTemp.toStringAsFixed(2)} °C",
+                style: GoogleFonts.outfit(fontSize: 28, fontWeight: FontWeight.w600, color: AppColors.textPrimary, letterSpacing: -1),
+              ),
+            ],
+          ),
+          Row(
+            children: [
+              GestureDetector(
+                onTap: () {
+                  HapticFeedback.selectionClick();
+                  setState(() => _log = _log.copyWith(temperature: (currentTemp - 0.05).clamp(35.0, 40.0)));
+                },
+                child: Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(color: AppColors.background, borderRadius: BorderRadius.circular(16), border: Border.all(color: Colors.black12)),
+                  child: Icon(CupertinoIcons.minus, size: 20, color: AppColors.textSecondary),
+                ),
+              ),
+              const SizedBox(width: 12),
+              GestureDetector(
+                onTap: () {
+                  HapticFeedback.selectionClick();
+                  setState(() => _log = _log.copyWith(temperature: (currentTemp + 0.05).clamp(35.0, 40.0)));
+                },
+                child: Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(color: Colors.purple.withOpacity(0.1), borderRadius: BorderRadius.circular(16), border: Border.all(color: Colors.purple.withOpacity(0.2))),
+                  child: const Icon(CupertinoIcons.add, size: 20, color: Colors.purple),
+                ),
+              ),
+            ],
+          )
+        ],
+      ),
+    );
+  }
+
+  Widget _buildVitalSlider(String label, int value, Function(double) onChanged, IconData icon, bool isTTC) {
+    final activeColor = isTTC ? Colors.purple : AppColors.primary;
+
     return Padding(
       padding: const EdgeInsets.only(bottom: 16.0),
       child: PremiumGlassCard(
@@ -404,8 +510,8 @@ class _SymptomLogScreenState extends State<SymptomLogScreen> {
           children: [
             Container(
               padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(color: AppColors.primary.withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
-              child: Icon(icon, color: AppColors.primary, size: 20),
+              decoration: BoxDecoration(color: activeColor.withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
+              child: Icon(icon, color: activeColor, size: 20),
             ),
             const SizedBox(width: 16),
             Expanded(
@@ -416,16 +522,16 @@ class _SymptomLogScreenState extends State<SymptomLogScreen> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(label, style: GoogleFonts.inter(fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
-                      Text("$value/5", style: GoogleFonts.inter(fontWeight: FontWeight.bold, color: AppColors.primary, fontSize: 12)),
+                      Text("$value/5", style: GoogleFonts.inter(fontWeight: FontWeight.bold, color: activeColor, fontSize: 12)),
                     ],
                   ),
                   SliderTheme(
                     data: SliderThemeData(
                       trackHeight: 4,
-                      activeTrackColor: AppColors.primary,
+                      activeTrackColor: activeColor,
                       inactiveTrackColor: AppColors.textSecondary.withOpacity(0.1),
-                      thumbColor: AppColors.primary,
-                      overlayColor: AppColors.primary.withOpacity(0.2),
+                      thumbColor: activeColor,
+                      overlayColor: activeColor.withOpacity(0.2),
                       thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 10),
                     ),
                     child: Slider(
@@ -446,14 +552,16 @@ class _SymptomLogScreenState extends State<SymptomLogScreen> {
     );
   }
 
-  Widget _buildSymptomGrid(List<String> options, bool isPain) {
+  Widget _buildSymptomGrid(List<String> options, bool isPain, {required bool isTTC, Color? customColor}) {
     final selectedList = isPain ? _log.painSymptoms : _log.symptoms;
+    final activeColor = customColor ?? (isTTC ? Colors.purple : AppColors.primary);
 
     return Wrap(
       spacing: 10,
       runSpacing: 10,
       children: options.map((symptom) {
         final isSelected = selectedList.contains(symptom);
+
         return GestureDetector(
           onTap: () {
             HapticFeedback.lightImpact();
@@ -462,6 +570,13 @@ class _SymptomLogScreenState extends State<SymptomLogScreen> {
               if (isSelected) {
                 list.remove(symptom);
               } else {
+                // Эксклюзивный выбор для специфичных групп TTC (чтобы нельзя было выбрать "Peak" и "Negative" одновременно)
+                if (symptom.startsWith("LH:")) {
+                  list.removeWhere((e) => e.startsWith("LH:"));
+                }
+                if (symptom.contains("Mucus")) {
+                  list.removeWhere((e) => e.contains("Mucus"));
+                }
                 list.add(symptom);
               }
 
@@ -476,9 +591,9 @@ class _SymptomLogScreenState extends State<SymptomLogScreen> {
             duration: const Duration(milliseconds: 200),
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
             decoration: BoxDecoration(
-              color: isSelected ? AppColors.primary : Colors.transparent,
+              color: isSelected ? activeColor : Colors.transparent,
               borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: isSelected ? AppColors.primary : AppColors.textSecondary.withOpacity(0.2)),
+              border: Border.all(color: isSelected ? activeColor : AppColors.textSecondary.withOpacity(0.2)),
             ),
             child: Text(
               symptom,
