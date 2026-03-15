@@ -69,7 +69,6 @@ class _DashboardInsightCardState extends State<DashboardInsightCard> {
       localSubtitle = symptomInsight.description;
       localType = symptomInsight.isWarning ? "warning" : "positive";
     } else {
-      // 🔥 УМНЫЕ МЕДИЦИНСКИЕ ТЕКСТЫ ДЛЯ РАЗНЫХ РЕЖИМОВ
       if (cycle.isTTCMode) {
         switch (widget.data.phase) {
           case CyclePhase.menstruation:
@@ -109,7 +108,6 @@ class _DashboardInsightCardState extends State<DashboardInsightCard> {
       }
     }
 
-    // 🔥 ЛОГИКА ОТОБРАЖЕНИЯ ШАНСА ЗАЧАТИЯ
     String chanceText = "";
     Color chanceColor = AppColors.primary;
     if (cycle.isTTCMode) {
@@ -184,7 +182,6 @@ class _DashboardInsightCardState extends State<DashboardInsightCard> {
                     padding: const EdgeInsets.all(20), borderRadius: 32,
                     child: Row(
                       children: [
-                        // 🔥 Сфера теперь знает про TTC и Шанс зачатия
                         _EnergyOrb(
                             phase: widget.data.phase,
                             alertType: displayType,
@@ -196,25 +193,36 @@ class _DashboardInsightCardState extends State<DashboardInsightCard> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
+                              // 🔥 ИСПРАВЛЕНО: УМНАЯ СТРОКА С БЕЙДЖАМИ (ЗАЩИТА ОТ OVERFLOW)
                               Row(
                                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                 children: [
-                                  Text(
+                                  Flexible(
+                                    flex: 1,
+                                    child: Text(
                                       displayBadge,
-                                      style: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.w900, letterSpacing: 1.5, color: badgeColor)
+                                      style: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.w900, letterSpacing: 1.5, color: badgeColor),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
                                   ),
-                                  // 🔥 TTC БЕЙДЖ
+                                  if (cycle.isTTCMode) const SizedBox(width: 8),
                                   if (cycle.isTTCMode)
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                                      decoration: BoxDecoration(
-                                        color: chanceColor.withOpacity(0.1),
-                                        borderRadius: BorderRadius.circular(8),
-                                        border: Border.all(color: chanceColor.withOpacity(0.3)),
-                                      ),
-                                      child: Text(
-                                        cycle.currentDPO != null ? "${cycle.currentDPO} DPO • $chanceText" : chanceText,
-                                        style: GoogleFonts.inter(fontSize: 9, fontWeight: FontWeight.bold, color: chanceColor, letterSpacing: 0.5),
+                                    Flexible(
+                                      flex: 2,
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                        decoration: BoxDecoration(
+                                          color: chanceColor.withOpacity(0.1),
+                                          borderRadius: BorderRadius.circular(8),
+                                          border: Border.all(color: chanceColor.withOpacity(0.3)),
+                                        ),
+                                        child: Text(
+                                          cycle.currentDPO != null ? "${cycle.currentDPO} DPO • $chanceText" : chanceText,
+                                          style: GoogleFonts.inter(fontSize: 9, fontWeight: FontWeight.bold, color: chanceColor, letterSpacing: 0.5),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
                                       ),
                                     ),
                                 ],
@@ -259,7 +267,6 @@ class _DashboardInsightCardState extends State<DashboardInsightCard> {
   }
 }
 
-// 🔥 ЖИВОЙ ОРБ ЭНЕРГИИ (С ПОДДЕРЖКОЙ ФЕРТИЛЬНОСТИ)
 class _EnergyOrb extends StatefulWidget {
   final CyclePhase phase;
   final String alertType;
@@ -307,14 +314,13 @@ class _EnergyOrbState extends State<_EnergyOrb> with SingleTickerProviderStateMi
   Widget build(BuildContext context) {
     List<Color> orbColors = const [Color(0xFF8A2387), Color(0xFFE94057), Color(0xFFF27121)];
 
-    // 🔥 Если режим TTC, сфера отражает статус зачатия
     if (widget.isTTC) {
       if (widget.chance == FertilityChance.peak) {
-        orbColors = const [Color(0xFF9D50BB), Color(0xFF6E48AA), Color(0xFF4776E6)]; // Магический фиолетовый
+        orbColors = const [Color(0xFF9D50BB), Color(0xFF6E48AA), Color(0xFF4776E6)];
       } else if (widget.chance == FertilityChance.high) {
-        orbColors = const [Color(0xFFFF758C), Color(0xFFFF7EB3), Color(0xFFF78CA0)]; // Фертильный розовый
+        orbColors = const [Color(0xFFFF758C), Color(0xFFFF7EB3), Color(0xFFF78CA0)];
       } else {
-        orbColors = const [Color(0xFF89F7FE), Color(0xFF66A6FF), Color(0xFF89F7FE)]; // Спокойный голубой (TWW / Низкий шанс)
+        orbColors = const [Color(0xFF89F7FE), Color(0xFF66A6FF), Color(0xFF89F7FE)];
       }
     } else {
       if (widget.alertType == 'warning') {
