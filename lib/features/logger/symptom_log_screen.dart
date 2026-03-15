@@ -31,39 +31,94 @@ class _SymptomLogScreenState extends State<SymptomLogScreen> {
   FlowIntensity _initialFlow = FlowIntensity.none;
   bool _initialLHPeak = false;
 
+  late DateTime _selectedDate;
+  late ScrollController _scrollController;
+
   @override
   void initState() {
     super.initState();
-    _checkFutureDate();
-    if (!_isFutureDate) {
-      _loadLog();
-    }
+
+    // Инициализация выбранной даты (обрезаем время для точности)
+    _selectedDate = DateTime(widget.date.year, widget.date.month, widget.date.day);
+
+    // Вычисляем смещение для рулетки
+    final today = DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day);
+    int initialDiff = today.difference(_selectedDate).inDays;
+    if (initialDiff < 0) initialDiff = 0; // Будущие даты фокусируем на "Сегодня"
+
+    // Ширина карточки = 52, отступ = 12. Итого шаг 64.
+    _scrollController = ScrollController(initialScrollOffset: initialDiff * 64.0);
+
+    _loadLog(_selectedDate);
   }
 
-  void _checkFutureDate() {
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    final target = DateTime(widget.date.year, widget.date.month, widget.date.day);
-
-    if (target.isAfter(today)) {
-      _isFutureDate = true;
-    }
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
   }
 
-  void _loadLog() {
+  void _loadLog(DateTime d) {
+    final today = DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day);
+    final target = DateTime(d.year, d.month, d.day);
+    _isFutureDate = target.isAfter(today);
+
+    if (_isFutureDate) {
+      setState(() {
+        _selectedDate = target;
+        _isLoaded = true;
+      });
+      return;
+    }
+
     final wellness = context.read<WellnessProvider>();
-    _log = wellness.getLogForDate(widget.date);
+    _log = wellness.getLogForDate(target);
     _initialFlow = _log.flow;
     _initialLHPeak = _log.symptoms.contains('LH: Peak');
-    setState(() => _isLoaded = true);
+
+    // 🔥 РЕШЕНИЕ "АМНЕЗИИ ГРАДУСНИКА": Ищем последнюю известную температуру
+    if (_log.temperature == null || _log.temperature == 0.0) {
+      double? lastKnownTemp;
+      for (int i = 1; i <= 7; i++) {
+        final pastLog = wellness.getLogForDate(target.subtract(Duration(days: i)));
+        if (pastLog.temperature != null && pastLog.temperature! > 0.0) {
+          lastKnownTemp = pastLog.temperature;
+          break;
+        }
+      }
+      if (lastKnownTemp != null) {
+        _log = _log.copyWith(temperature: lastKnownTemp);
+      }
+    }
+
+    setState(() {
+      _selectedDate = target;
+      _isLoaded = true;
+    });
   }
 
-  // 🔥 МАТРИЦА ЗАЩИТЫ МУТАЦИЙ (ОЧЕРЕДЬ ДИАЛОГОВ)
-  Future<void> _handleSaveWithProtection() async {
+  // Смена даты через Рулетку
+  void _handleDateChange(DateTime newDate) {
+    if (newDate.year == _selectedDate.year &&
+        newDate.month == _selectedDate.month &&
+        newDate.day == _selectedDate.day) {
+      return;
+    }
+
+    // Сохраняем текущий день (с проверкой) перед переходом к следующему
+    _handleSaveWithProtection(onSuccess: () {
+      setState(() => _isSaving = false);
+      _loadLog(newDate);
+    });
+  }
+
+  // 🔥 МАТРИЦА ЗАЩИТЫ МУТАЦИЙ С ПОДДЕРЖКОЙ CALLBACK'ОВ
+  Future<void> _handleSaveWithProtection({VoidCallback? onSuccess}) async {
     HapticFeedback.lightImpact();
 
     if (_isFutureDate) {
-      Navigator.of(context).pop();
+      if (onSuccess != null) onSuccess();
+      else Navigator.of(context).pop();
       return;
     }
 
@@ -86,17 +141,17 @@ class _SymptomLogScreenState extends State<SymptomLogScreen> {
     if (!cycle.isCOCEnabled) {
       if (flowChangedToBleeding) {
         final currentStart = cycle.currentData.cycleStartDate;
-        final diff = widget.date.difference(currentStart).inDays;
+        final diff = _selectedDate.difference(currentStart).inDays;
         final ovDay = cycle.ovulationDay;
 
         if (diff > 0 && diff < 21) {
           if (diff >= (ovDay - 2) && diff <= (ovDay + 2)) {
             final confirm = await _showAsyncDialog(
-              title: "Ovulation Bleeding?",
-              message: "Light bleeding is common during ovulation. Do you want to start a new cycle, or log this as spotting?",
-              icon: CupertinoIcons.sparkles,
+              title: "Cycle Update Warning",
+              message: "Light bleeding is common during ovulation. Logging this as a New Period will reset your entire cycle predictions. Do you want to start a new cycle, or log this as spotting?",
+              icon: CupertinoIcons.exclamationmark_triangle_fill,
               color: Colors.purple,
-              confirmText: "New Cycle",
+              confirmText: "Reset & Start New Cycle",
               cancelText: "Just Spotting",
             );
             if (confirm) {
@@ -106,11 +161,11 @@ class _SymptomLogScreenState extends State<SymptomLogScreen> {
             }
           } else {
             final confirm = await _showAsyncDialog(
-              title: "Suspiciously Early?",
-              message: "It's been less than 21 days since your last period. Is this a new cycle, or just mid-cycle spotting?",
+              title: "Cycle Update Warning",
+              message: "It's been less than 21 days since your last period. Logging this as a New Period will dramatically alter your cycle averages and predictions. Are you sure?",
               icon: CupertinoIcons.exclamationmark_triangle_fill,
               color: Colors.orange,
-              confirmText: "New Cycle",
+              confirmText: "Reset & Start New Cycle",
               cancelText: "Just Spotting",
             );
             if (confirm) {
@@ -120,14 +175,14 @@ class _SymptomLogScreenState extends State<SymptomLogScreen> {
             }
           }
         } else {
-          final currentPhase = cycle.getPhaseForDate(widget.date);
+          final currentPhase = cycle.getPhaseForDate(_selectedDate);
           if (currentPhase != CyclePhase.menstruation) {
             final confirm = await _showAsyncDialog(
-              title: "Log New Period?",
-              message: "Logging bleeding today will start a new cycle and reset your predictions. Are you sure?",
+              title: "Cycle Update Warning",
+              message: "This input will end your current cycle and generate new predictions for your next phases. Are you sure you want to log a New Period today?",
               icon: CupertinoIcons.drop_fill,
               color: AppColors.menstruation,
-              confirmText: "Yes, start cycle",
+              confirmText: "Yes, start new cycle",
               cancelText: "Cancel",
             );
             if (confirm) {
@@ -139,11 +194,11 @@ class _SymptomLogScreenState extends State<SymptomLogScreen> {
         }
       }
       else if (flowRemoved) {
-        final currentPhase = cycle.getPhaseForDate(widget.date);
+        final currentPhase = cycle.getPhaseForDate(_selectedDate);
         if (currentPhase == CyclePhase.menstruation) {
           final confirm = await _showAsyncDialog(
-            title: "Remove Period Log?",
-            message: "Removing bleeding from a logged period day might alter your cycle history. Are you sure?",
+            title: "Cycle Update Warning",
+            message: "Removing bleeding from a logged period day will recalculate your cycle history and future predictions. Are you sure?",
             icon: CupertinoIcons.drop,
             color: Colors.orangeAccent,
             confirmText: "Remove it",
@@ -158,11 +213,11 @@ class _SymptomLogScreenState extends State<SymptomLogScreen> {
     if (cycle.isTTCMode) {
       if (lhPeakAdded) {
         final confirm = await _showAsyncDialog(
-          title: "Confirm LH Peak?",
-          message: "Logging an LH Peak will adjust your predicted ovulation to tomorrow. Proceed?",
+          title: "Cycle Update Warning",
+          message: "Logging an LH Peak will immediately shift your predicted ovulation day and adjust your fertile window. Proceed?",
           icon: CupertinoIcons.sparkles,
           color: Colors.purple,
-          confirmText: "Confirm",
+          confirmText: "Confirm Shift",
           cancelText: "Cancel",
         );
         if (confirm) {
@@ -176,8 +231,8 @@ class _SymptomLogScreenState extends State<SymptomLogScreen> {
         }
       } else if (lhPeakRemoved) {
         final confirm = await _showAsyncDialog(
-          title: "Remove LH Peak?",
-          message: "Removing the LH Peak will revert your ovulation prediction back to standard AI calculations. Are you sure?",
+          title: "Cycle Update Warning",
+          message: "Removing the LH Peak will revert your ovulation predictions back to standard AI calculations. Are you sure?",
           icon: CupertinoIcons.xmark_circle_fill,
           color: Colors.orangeAccent,
           confirmText: "Remove it",
@@ -189,7 +244,8 @@ class _SymptomLogScreenState extends State<SymptomLogScreen> {
 
     await _executeSaveAndClose(
         forceStartPeriod: shouldForceStartPeriod,
-        confirmOvulation: shouldConfirmOvulation
+        confirmOvulation: shouldConfirmOvulation,
+        onSuccess: onSuccess
     );
   }
 
@@ -201,7 +257,7 @@ class _SymptomLogScreenState extends State<SymptomLogScreen> {
     });
   }
 
-  Future<void> _executeSaveAndClose({bool forceStartPeriod = false, bool confirmOvulation = false}) async {
+  Future<void> _executeSaveAndClose({bool forceStartPeriod = false, bool confirmOvulation = false, VoidCallback? onSuccess}) async {
     setState(() => _isSaving = true);
 
     final wellness = context.read<WellnessProvider>();
@@ -211,30 +267,44 @@ class _SymptomLogScreenState extends State<SymptomLogScreen> {
 
     if (cycle.isTTCMode) {
       if (confirmOvulation || _log.symptoms.contains('LH: Peak')) {
-        await cycle.confirmOvulation(widget.date.add(const Duration(days: 1)), source: 'lh');
+        await cycle.confirmOvulation(_selectedDate.add(const Duration(days: 1)), source: 'lh');
       } else if (!_log.symptoms.contains('LH: Peak') && _initialLHPeak) {
-        await cycle.clearOvulationIfMatchesLHTestDate(widget.date);
+        await cycle.clearOvulationIfMatchesLHTestDate(_selectedDate);
+      }
+
+      if (_log.temperature != null && _log.temperature! > 0.0) {
+        final allLogs = wellness.getLogHistory();
+        final tempHistory = allLogs
+            .where((l) => l.temperature != null && l.temperature! > 0)
+            .map((l) => MapEntry(l.date, l.temperature!))
+            .toList();
+
+        await cycle.tryAutoConfirmOvulationFromBBT(tempHistory);
       }
     }
 
     if (!cycle.isCOCEnabled) {
       if (forceStartPeriod) {
-        await cycle.logActionStartPeriod(widget.date, isConfirmed: true);
+        await cycle.logActionStartPeriod(_selectedDate, isConfirmed: true);
       } else if (_log.flow != _initialFlow) {
-        final currentPhase = cycle.getPhaseForDate(widget.date);
+        final currentPhase = cycle.getPhaseForDate(_selectedDate);
         final isCurrentlyPeriodDay = currentPhase == CyclePhase.menstruation;
         final isNowMenstruation = _log.flow != FlowIntensity.none;
 
         if (!isNowMenstruation && isCurrentlyPeriodDay) {
-          await cycle.togglePeriodDay(widget.date);
+          await cycle.togglePeriodDay(_selectedDate);
         } else if (isNowMenstruation && isCurrentlyPeriodDay) {
-          await cycle.togglePeriodDay(widget.date);
-          await cycle.togglePeriodDay(widget.date);
+          await cycle.togglePeriodDay(_selectedDate);
+          await cycle.togglePeriodDay(_selectedDate);
         }
       }
     }
 
-    if (mounted) Navigator.of(context).pop();
+    if (onSuccess != null) {
+      onSuccess();
+    } else {
+      if (mounted) Navigator.of(context).pop();
+    }
   }
 
   Future<bool> _showAsyncDialog({
@@ -304,12 +374,71 @@ class _SymptomLogScreenState extends State<SymptomLogScreen> {
     );
   }
 
+  // 🔥 ГОРИЗОНТАЛЬНАЯ РУЛЕТКА ДАТ
+  Widget _buildDateRoulette(bool isTTC, AppLocalizations? l10n) {
+    final activeColor = isTTC ? Colors.purple : AppColors.primary;
+    final today = DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day);
+
+    return SizedBox(
+      height: 76,
+      child: ListView.builder(
+        controller: _scrollController,
+        reverse: true, // Сегодня будет справа
+        scrollDirection: Axis.horizontal,
+        physics: const BouncingScrollPhysics(),
+        itemCount: 365, // Позволяем листать на год назад
+        padding: const EdgeInsets.symmetric(horizontal: 24),
+        itemBuilder: (context, index) {
+          final date = today.subtract(Duration(days: index));
+          final isSelected = date.year == _selectedDate.year && date.month == _selectedDate.month && date.day == _selectedDate.day;
+
+          return GestureDetector(
+            onTap: () => _handleDateChange(date),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              width: 52,
+              margin: const EdgeInsets.only(right: 12),
+              decoration: BoxDecoration(
+                color: isSelected ? activeColor : AppColors.background,
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(color: isSelected ? activeColor : AppColors.textSecondary.withOpacity(0.15)),
+                boxShadow: isSelected ? [BoxShadow(color: activeColor.withOpacity(0.3), blurRadius: 8, offset: const Offset(0, 4))] : [],
+              ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    DateFormat('E', l10n?.localeName).format(date).toUpperCase(),
+                    style: GoogleFonts.inter(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      color: isSelected ? Colors.white.withOpacity(0.9) : AppColors.textSecondary,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    "${date.day}",
+                    style: GoogleFonts.outfit(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w800,
+                      color: isSelected ? Colors.white : AppColors.textPrimary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final cycle = context.watch<CycleProvider>();
     final bool isTTC = cycle.appMode == AppMode.ttc;
-    final dateStr = DateFormat('MMMM d, yyyy').format(widget.date);
+    final dateStr = DateFormat('MMMM d, yyyy').format(_selectedDate);
 
     final List<String> physicalOptions = ['Cramps', 'Headache', 'Bloating', 'Acne', 'Tender Breasts', 'Backache', 'Nausea', 'Fatigue'];
     final List<String> mentalOptions = ['Anxious', 'Irritable', 'Crying Spells', 'Brain Fog', 'Happy', 'Focused', 'Calm'];
@@ -347,7 +476,7 @@ class _SymptomLogScreenState extends State<SymptomLogScreen> {
                     ? const Padding(padding: EdgeInsets.only(right: 16), child: CupertinoActivityIndicator())
                     : CupertinoButton(
                   padding: EdgeInsets.zero,
-                  onPressed: _handleSaveWithProtection,
+                  onPressed: () => _handleSaveWithProtection(),
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                     decoration: BoxDecoration(color: isTTC ? Colors.purple : AppColors.primary, borderRadius: BorderRadius.circular(20)),
@@ -357,7 +486,11 @@ class _SymptomLogScreenState extends State<SymptomLogScreen> {
               ],
             ),
           ),
+
+          const SizedBox(height: 20),
+          _buildDateRoulette(isTTC, l10n),
           const SizedBox(height: 16),
+
           Divider(height: 1, color: AppColors.textSecondary.withOpacity(0.1)),
 
           if (_isFutureDate)
@@ -372,7 +505,7 @@ class _SymptomLogScreenState extends State<SymptomLogScreen> {
                       const SizedBox(height: 24),
                       Text("The Future is Bright", style: GoogleFonts.outfit(fontSize: 20, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
                       const SizedBox(height: 12),
-                      Text("You cannot log symptoms for future dates. Check your calendar to see predictions for your upcoming phases.", textAlign: TextAlign.center, style: GoogleFonts.inter(fontSize: 15, color: AppColors.textSecondary, height: 1.5)),
+                      Text("You cannot log symptoms for future dates. Select a past date to enter records.", textAlign: TextAlign.center, style: GoogleFonts.inter(fontSize: 15, color: AppColors.textSecondary, height: 1.5)),
                     ],
                   ),
                 ),
@@ -429,7 +562,6 @@ class _SymptomLogScreenState extends State<SymptomLogScreen> {
 
   Widget _buildSectionTitle(String title) { return Text(title, style: GoogleFonts.outfit(fontSize: 18, fontWeight: FontWeight.w700, color: AppColors.textPrimary)); }
 
-  // 🔥 ОБНОВЛЕНО: Выбор крови отменяет и Пик ЛГ, и Слизь
   Widget _buildFlowSelector() {
     final flows = [{'val': FlowIntensity.none, 'icon': CupertinoIcons.drop, 'label': 'None'}, {'val': FlowIntensity.light, 'icon': CupertinoIcons.drop_fill, 'label': 'Light'}, {'val': FlowIntensity.medium, 'icon': CupertinoIcons.drop_fill, 'label': 'Medium'}, {'val': FlowIntensity.heavy, 'icon': CupertinoIcons.drop_fill, 'label': 'Heavy'}];
     return SingleChildScrollView(
@@ -504,7 +636,6 @@ class _SymptomLogScreenState extends State<SymptomLogScreen> {
     );
   }
 
-  // 🔥 ОБНОВЛЕНО: Выбор Слизи или Пика ЛГ отменяет кровь
   Widget _buildSymptomGrid(List<String> options, bool isPain, {required bool isTTC, Color? customColor}) {
     final selectedList = isPain ? _log.painSymptoms : _log.symptoms;
     final activeColor = customColor ?? (isTTC ? Colors.purple : AppColors.primary);

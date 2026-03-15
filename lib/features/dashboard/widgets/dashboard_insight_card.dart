@@ -11,7 +11,7 @@ import '../../../data/models/cycle_model.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../shared/widgets/premium_glass_card.dart';
 import '../../../core/services/ai_oracle_service.dart';
-import '../../../data/providers/cycle_provider.dart'; // 🔥 ДОБАВЛЕНО ЯДРО ЦИКЛА
+import '../../../data/providers/cycle_provider.dart';
 import '../../../data/providers/wellness_provider.dart';
 import '../../../data/logic/symptom_intelligence.dart';
 
@@ -29,12 +29,11 @@ class _DashboardInsightCardState extends State<DashboardInsightCard> {
   bool _isRefreshing = false;
 
   Future<void> _refreshInsight() async {
-    if (_isRefreshing) return; // Защита от двойного клика
+    if (_isRefreshing) return;
 
     HapticFeedback.mediumImpact();
     setState(() => _isRefreshing = true);
 
-    // Вызов нашего облачного ИИ-сервиса (через Cloudflare Proxy)
     await AiOracleService.fetchDailyInsight(isManual: true);
 
     if (mounted) {
@@ -45,9 +44,8 @@ class _DashboardInsightCardState extends State<DashboardInsightCard> {
 
   @override
   Widget build(BuildContext context) {
-    // 🛡 1. ГЕНЕРАЦИЯ ЛОКАЛЬНОГО ИНСАЙТА (НА СЛУЧАЙ ОФЛАЙНА ИЛИ ОШИБКИ)
     final wellness = context.watch<WellnessProvider>();
-    final cycle = context.watch<CycleProvider>(); // 🔥 ДОБАВЛЕНО ДЛЯ РЕЖИМА
+    final cycle = context.watch<CycleProvider>();
 
     List<String> todaySymptoms = [];
     try {
@@ -59,7 +57,6 @@ class _DashboardInsightCardState extends State<DashboardInsightCard> {
     String localSubtitle = "";
     String localType = "neutral";
 
-    // 🔥 ПРОКИДЫВАЕМ РЕЖИМ ПЛАНИРОВАНИЯ В НАШ ЭКСПЕРТНЫЙ ИИ
     final symptomInsight = SymptomIntelligence.getInsight(
       context,
       todaySymptoms,
@@ -70,19 +67,68 @@ class _DashboardInsightCardState extends State<DashboardInsightCard> {
     if (symptomInsight != null) {
       localTitle = symptomInsight.title;
       localSubtitle = symptomInsight.description;
-      localType = symptomInsight.isWarning ? "warning" : "positive"; // TTC инсайты позитивные!
+      localType = symptomInsight.isWarning ? "warning" : "positive";
     } else {
-      // Дефолтные фразы по фазам, если симптомов сегодня нет
-      switch (widget.data.phase) {
-        case CyclePhase.menstruation: localTitle = "Rest & Reset"; localSubtitle = "Your hormones are at their lowest. Focus on hydration."; localType = "warning"; break;
-        case CyclePhase.follicular: localTitle = "Energy Rising"; localSubtitle = "Estrogen is climbing. Great time for complex tasks."; localType = "positive"; break;
-        case CyclePhase.ovulation: localTitle = cycle.isTTCMode ? "Fertility Peak" : "Peak Vitality"; localSubtitle = cycle.isTTCMode ? "This is your optimal window for conception." : "You are glowing. Best time for high-intensity workouts."; localType = "positive"; break;
-        case CyclePhase.luteal: localTitle = "Wind Down"; localSubtitle = "Progesterone is high. Cravings and mood swings are normal."; localType = "neutral"; break;
-        case CyclePhase.late: localTitle = "Cycle Delayed"; localSubtitle = "Your period is late. Stress could be a factor."; localType = "warning"; break;
+      // 🔥 УМНЫЕ МЕДИЦИНСКИЕ ТЕКСТЫ ДЛЯ РАЗНЫХ РЕЖИМОВ
+      if (cycle.isTTCMode) {
+        switch (widget.data.phase) {
+          case CyclePhase.menstruation:
+            localTitle = "Cycle Reset";
+            localSubtitle = "Start fresh. Remember to take your daily folic acid or prenatal vitamins.";
+            localType = "neutral";
+            break;
+          case CyclePhase.follicular:
+            localTitle = "Preparing for Ovulation";
+            localSubtitle = "Your body is getting ready. Keep tracking BBT and watch for cervical mucus changes.";
+            localType = "positive";
+            break;
+          case CyclePhase.ovulation:
+            localTitle = "Peak Fertility!";
+            localSubtitle = "This is your optimal window for conception. Log your intercourse and LH tests.";
+            localType = "positive";
+            break;
+          case CyclePhase.luteal:
+            localTitle = "Two Week Wait (TWW)";
+            localSubtitle = "Progesterone is rising. Stay relaxed, avoid hot tubs, and keep tracking BBT.";
+            localType = "neutral";
+            break;
+          case CyclePhase.late:
+            localTitle = "Test Day! 🤞";
+            localSubtitle = "Your period is late. It's a great time to take a pregnancy test!";
+            localType = "positive";
+            break;
+        }
+      } else {
+        switch (widget.data.phase) {
+          case CyclePhase.menstruation: localTitle = "Rest & Reset"; localSubtitle = "Your hormones are at their lowest. Focus on hydration."; localType = "warning"; break;
+          case CyclePhase.follicular: localTitle = "Energy Rising"; localSubtitle = "Estrogen is climbing. Great time for complex tasks."; localType = "positive"; break;
+          case CyclePhase.ovulation: localTitle = "Peak Vitality"; localSubtitle = "You are glowing. Best time for high-intensity workouts."; localType = "positive"; break;
+          case CyclePhase.luteal: localTitle = "Wind Down"; localSubtitle = "Progesterone is high. Cravings and mood swings are normal."; localType = "neutral"; break;
+          case CyclePhase.late: localTitle = "Cycle Delayed"; localSubtitle = "Your period is late. Stress could be a factor."; localType = "warning"; break;
+        }
       }
     }
 
-    // Безопасно открываем бокс ИИ
+    // 🔥 ЛОГИКА ОТОБРАЖЕНИЯ ШАНСА ЗАЧАТИЯ
+    String chanceText = "";
+    Color chanceColor = AppColors.primary;
+    if (cycle.isTTCMode) {
+      switch (cycle.conceptionChance) {
+        case FertilityChance.low:
+          chanceText = "Low Chance";
+          chanceColor = Colors.blueGrey;
+          break;
+        case FertilityChance.high:
+          chanceText = "High Chance";
+          chanceColor = Colors.pinkAccent;
+          break;
+        case FertilityChance.peak:
+          chanceText = "Peak Fertility";
+          chanceColor = Colors.purple;
+          break;
+      }
+    }
+
     return FutureBuilder<Box>(
         future: Hive.openBox('ai_insights'),
         builder: (context, snapshot) {
@@ -94,15 +140,12 @@ class _DashboardInsightCardState extends State<DashboardInsightCard> {
               valueListenable: aiBox.listenable(),
               builder: (context, box, _) {
 
-                // 🛡 2. ПРОВЕРКА: ИСПОЛЬЗОВАТЬ ОБЛАКО ИЛИ ЛОКАЛЬНЫЙ ИНСАЙТ?
                 final isOffline = box.get('is_offline', defaultValue: false) as bool;
                 final todayStr = DateFormat('yyyy-MM-dd').format(DateTime.now());
                 final lastUpdate = box.get('last_update_date', defaultValue: '') as String;
 
-                // Используем локальные данные, если была ошибка сети или облако сегодня еще не обновлялось
                 final bool useLocalFallback = isOffline || lastUpdate != todayStr;
 
-                // 🚀 ДИНАМИЧЕСКИЙ UI ДЛЯ СОСТОЯНИЯ ЗАГРУЗКИ (ОЖИДАНИЯ ИИ)
                 final String displayBadge = _isRefreshing
                     ? "⏳ ANALYZING..."
                     : (useLocalFallback ? "⚡ LOCAL INSIGHT" : "✨ DAILY AI");
@@ -124,7 +167,6 @@ class _DashboardInsightCardState extends State<DashboardInsightCard> {
                     : (useLocalFallback ? AppColors.textSecondary : AppColors.primary);
 
                 return GestureDetector(
-                  // Блокируем нажатие на карточку, пока ИИ думает
                   onTap: _isRefreshing ? null : () {
                     HapticFeedback.lightImpact();
                     SystemSound.play(SystemSoundType.click);
@@ -142,22 +184,42 @@ class _DashboardInsightCardState extends State<DashboardInsightCard> {
                     padding: const EdgeInsets.all(20), borderRadius: 32,
                     child: Row(
                       children: [
-                        // 🔥 Живая сфера энергии
-                        _EnergyOrb(phase: widget.data.phase, alertType: displayType),
+                        // 🔥 Сфера теперь знает про TTC и Шанс зачатия
+                        _EnergyOrb(
+                            phase: widget.data.phase,
+                            alertType: displayType,
+                            isTTC: cycle.isTTCMode,
+                            chance: cycle.conceptionChance
+                        ),
                         const SizedBox(width: 16),
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                 children: [
                                   Text(
                                       displayBadge,
                                       style: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.w900, letterSpacing: 1.5, color: badgeColor)
                                   ),
+                                  // 🔥 TTC БЕЙДЖ
+                                  if (cycle.isTTCMode)
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                      decoration: BoxDecoration(
+                                        color: chanceColor.withOpacity(0.1),
+                                        borderRadius: BorderRadius.circular(8),
+                                        border: Border.all(color: chanceColor.withOpacity(0.3)),
+                                      ),
+                                      child: Text(
+                                        cycle.currentDPO != null ? "${cycle.currentDPO} DPO • $chanceText" : chanceText,
+                                        style: GoogleFonts.inter(fontSize: 9, fontWeight: FontWeight.bold, color: chanceColor, letterSpacing: 0.5),
+                                      ),
+                                    ),
                                 ],
                               ),
-                              const SizedBox(height: 4),
+                              const SizedBox(height: 6),
                               Text(
                                   displayTitle,
                                   style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w800, color: AppColors.textPrimary, letterSpacing: -0.5)
@@ -173,7 +235,6 @@ class _DashboardInsightCardState extends State<DashboardInsightCard> {
                           ),
                         ),
                         const SizedBox(width: 12),
-                        // 🔥 Кнопка ручного обновления ИИ
                         _isRefreshing
                             ? const CupertinoActivityIndicator(radius: 12)
                             : GestureDetector(
@@ -198,12 +259,19 @@ class _DashboardInsightCardState extends State<DashboardInsightCard> {
   }
 }
 
-// 🔥 ЖИВОЙ ОРБ ЭНЕРГИИ
+// 🔥 ЖИВОЙ ОРБ ЭНЕРГИИ (С ПОДДЕРЖКОЙ ФЕРТИЛЬНОСТИ)
 class _EnergyOrb extends StatefulWidget {
   final CyclePhase phase;
-  final String alertType; // neutral, warning, positive
+  final String alertType;
+  final bool isTTC;
+  final FertilityChance chance;
 
-  const _EnergyOrb({required this.phase, required this.alertType});
+  const _EnergyOrb({
+    required this.phase,
+    required this.alertType,
+    this.isTTC = false,
+    this.chance = FertilityChance.low
+  });
 
   @override
   State<_EnergyOrb> createState() => _EnergyOrbState();
@@ -222,7 +290,7 @@ class _EnergyOrbState extends State<_EnergyOrb> with SingleTickerProviderStateMi
   @override
   void didUpdateWidget(covariant _EnergyOrb oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.phase != widget.phase) {
+    if (oldWidget.phase != widget.phase || oldWidget.chance != widget.chance) {
       int durationMs = widget.phase == CyclePhase.ovulation ? 1500 : (widget.phase == CyclePhase.menstruation ? 4000 : 2500);
       _controller.duration = Duration(milliseconds: durationMs);
       _controller.repeat(reverse: true);
@@ -237,12 +305,23 @@ class _EnergyOrbState extends State<_EnergyOrb> with SingleTickerProviderStateMi
 
   @override
   Widget build(BuildContext context) {
-    // Меняем градиент сферы в зависимости от того, что сказал ИИ
-    List<Color> orbColors = const [Color(0xFF8A2387), Color(0xFFE94057), Color(0xFFF27121)]; // Default / Neutral
-    if (widget.alertType == 'warning') {
-      orbColors = const [Color(0xFF8B0000), Color(0xFFE94057), Color(0xFFFF4500)]; // Красно-оранжевый
-    } else if (widget.alertType == 'positive') {
-      orbColors = const [Color(0xFF00C6FF), Color(0xFF0072FF), Color(0xFF00B4DB)]; // Энергичный голубой
+    List<Color> orbColors = const [Color(0xFF8A2387), Color(0xFFE94057), Color(0xFFF27121)];
+
+    // 🔥 Если режим TTC, сфера отражает статус зачатия
+    if (widget.isTTC) {
+      if (widget.chance == FertilityChance.peak) {
+        orbColors = const [Color(0xFF9D50BB), Color(0xFF6E48AA), Color(0xFF4776E6)]; // Магический фиолетовый
+      } else if (widget.chance == FertilityChance.high) {
+        orbColors = const [Color(0xFFFF758C), Color(0xFFFF7EB3), Color(0xFFF78CA0)]; // Фертильный розовый
+      } else {
+        orbColors = const [Color(0xFF89F7FE), Color(0xFF66A6FF), Color(0xFF89F7FE)]; // Спокойный голубой (TWW / Низкий шанс)
+      }
+    } else {
+      if (widget.alertType == 'warning') {
+        orbColors = const [Color(0xFF8B0000), Color(0xFFE94057), Color(0xFFFF4500)];
+      } else if (widget.alertType == 'positive') {
+        orbColors = const [Color(0xFF00C6FF), Color(0xFF0072FF), Color(0xFF00B4DB)];
+      }
     }
 
     return AnimatedBuilder(
@@ -305,13 +384,11 @@ class _ExpandedInsightDialog extends StatelessWidget {
                     Text(aiTitle, textAlign: TextAlign.center, style: GoogleFonts.inter(fontSize: 22, fontWeight: FontWeight.w900, color: AppColors.textPrimary)),
                     const SizedBox(height: 8),
 
-                    // Показываем подпись, если инсайт сгенерирован без интернета
                     if (isLocal)
                       Text("Generated offline using your recent symptoms.", textAlign: TextAlign.center, style: GoogleFonts.inter(fontSize: 12, color: AppColors.textSecondary)),
 
                     const SizedBox(height: 24),
 
-                    // Вывод анализа
                     _buildInsightSection(isLocal ? "Local Analysis" : "Today's Analytics", aiBody, CupertinoIcons.waveform_path),
 
                     const SizedBox(height: 32),

@@ -47,7 +47,7 @@ class ProfileScreen extends StatelessWidget with ProfileLogicMixin {
     );
   }
 
-  // 🔥 ИСПРАВЛЕННЫЙ ДИАЛОГ ВЫБОРА ЦЕЛИ (С АНИМАЦИЕЙ ДЛЯ ВСЕХ РЕЖИМОВ)
+  // 🔥 ОБНОВЛЕННЫЙ ДИАЛОГ ВЫБОРА ЦЕЛИ (С ПОДДЕРЖКОЙ ДЛЯ ВСЕХ)
   void _showGoalSelector(BuildContext context) {
     final cycle = context.read<CycleProvider>();
     final currentMode = cycle.appMode;
@@ -120,17 +120,64 @@ class ProfileScreen extends StatelessWidget with ProfileLogicMixin {
                 isSelected: currentMode == AppMode.ttc,
                 onTap: () {
                   Navigator.pop(sheetContext);
-                  if (currentMode != AppMode.ttc) {
-                    ModeTransitionOverlay.show(
-                        context,
-                        TransitionMode.ttc,
-                        "Setting up pregnancy planning...",
-                        onComplete: () {
-                          cycle.setAppMode(AppMode.ttc);
-                          if (context.mounted) goToHome(context);
-                        }
-                    );
-                  }
+                  if (currentMode == AppMode.ttc) return;
+
+                  HapticFeedback.heavyImpact();
+
+                  // Умный текст в зависимости от предыдущего режима
+                  String message = currentMode == AppMode.coc
+                      ? "Congratulations on this beautiful decision!\n\nSwitching from birth control to pregnancy planning means your natural hormones will restart. We will clear your pill history and begin a completely fresh cycle starting today. Are you ready?"
+                      : "Congratulations on this beautiful decision!\n\nWe will now optimize your AI predictions to pinpoint your exact fertile window and activate advanced tools like Basal Body Temperature tracking. Are you ready?";
+
+                  showDialog(
+                    context: context,
+                    builder: (ctx) => AlertDialog(
+                      backgroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+                      title: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(color: Colors.purple.withOpacity(0.1), shape: BoxShape.circle),
+                            child: const Icon(CupertinoIcons.sparkles, color: Colors.purple),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(child: Text("Exciting Journey! 🎉", style: GoogleFonts.outfit(fontWeight: FontWeight.w800, fontSize: 18, color: AppColors.textPrimary))),
+                        ],
+                      ),
+                      content: Text(
+                        message,
+                        style: GoogleFonts.inter(fontSize: 14, color: AppColors.textSecondary, height: 1.4),
+                      ),
+                      actionsPadding: const EdgeInsets.only(bottom: 16, right: 16, left: 16),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(ctx),
+                          child: Text("Cancel", style: GoogleFonts.inter(color: AppColors.textSecondary, fontWeight: FontWeight.w600)),
+                        ),
+                        ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.purple,
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          ),
+                          onPressed: () {
+                            Navigator.pop(ctx);
+                            ModeTransitionOverlay.show(
+                                context,
+                                TransitionMode.ttc,
+                                "Setting up pregnancy planning...",
+                                onComplete: () {
+                                  cycle.setAppMode(AppMode.ttc);
+                                  if (context.mounted) goToHome(context);
+                                }
+                            );
+                          },
+                          child: Text("Yes, I'm ready", style: GoogleFonts.inter(fontWeight: FontWeight.w700, color: Colors.white)),
+                        ),
+                      ],
+                    ),
+                  );
                 },
               ),
               const SizedBox(height: 24),

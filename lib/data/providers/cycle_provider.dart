@@ -9,7 +9,6 @@ import '../../l10n/app_localizations.dart';
 import '../models/cycle_model.dart';
 import '../logic/cycle_ai_engine.dart';
 
-// 🔥 ГЛОБАЛЬНАЯ МАШИНА СОСТОЯНИЙ (STATE MACHINE)
 enum AppMode { standard, coc, ttc }
 
 enum FertilityChance { low, high, peak }
@@ -195,34 +194,37 @@ class CycleProvider with ChangeNotifier {
     }
   }
 
-  // 🔥 ИСПРАВЛЕННЫЙ МЕТОД СМЕНЫ РЕЖИМА
+  // 🔥 ОБНОВЛЕННЫЙ МЕТОД: Защита "Post-Pill Awakening"
   Future<void> setAppMode(AppMode newMode, {DateTime? packStartDate}) async {
     await _ensureBoxOpen();
 
     final bool isSameMode = _appMode == newMode;
-
-    // Если мы остаемся в том же режиме И не передали новую дату старта (для КОК), то выходим
     if (isSameMode && packStartDate == null) return;
+
+    final bool wasCOC = _appMode == AppMode.coc;
 
     _appMode = newMode;
     await _settingsBox.put('app_mode', _appMode.index);
 
-    // Очищаем овуляцию только если режим реально изменился
     if (!isSameMode) {
       await _clearOvulationOverride();
       _aiConfidence = null;
     }
 
     if (newMode == AppMode.coc) {
-      // Берем переданную дату, либо (если ее нет) текущую дату, либо сегодняшний день
       DateTime effectiveStart = packStartDate ?? (isSameMode ? _currentData.cycleStartDate : _normalizeDate(DateTime.now()));
       final active = _settingsBox.get('coc_active_count', defaultValue: 21);
       final brk = _settingsBox.get('coc_break_days', defaultValue: 7);
       _updateCurrentData(effectiveStart, active + brk, brk);
     } else {
-      // Пересчитываем цикл только если мы сменили режим
       if (!isSameMode) {
-        await _recalculateEngine();
+        if (wasCOC) {
+          // Искусственно начинаем новый цикл сегодня, чтобы избежать "Бага 200-го дня".
+          // Старые естественные циклы до КОК уже не релевантны для гормонального фона.
+          await logActionStartPeriod(DateTime.now(), isConfirmed: true);
+        } else {
+          await _recalculateEngine();
+        }
       }
     }
 
@@ -240,7 +242,6 @@ class CycleProvider with ChangeNotifier {
   }
 
   Future<void> setTTCMode(bool enabled) async {
-    if (enabled && isCOCEnabled) return;
     await setAppMode(enabled ? AppMode.ttc : AppMode.standard);
   }
 
@@ -755,7 +756,13 @@ class CycleProvider with ChangeNotifier {
   Future<void> confirmOvulation(DateTime date, {String source = 'manual'}) async {
     await _ensureBoxOpen();
     final normDate = _normalizeDate(date);
+
     if (normDate.isBefore(_currentData.cycleStartDate)) return;
+
+    if (_ovulationOverride != null && _ovulationOverrideSource == 'lh' && source == 'lh') {
+      final diff = normDate.difference(_ovulationOverride!).inDays.abs();
+      if (diff <= 2) return;
+    }
 
     _ovulationOverride = normDate;
     _ovulationOverrideSource = source;

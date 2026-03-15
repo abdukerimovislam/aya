@@ -2,12 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:provider/provider.dart'; // 🔥 Подключаем Provider
 
 import '../../../core/theme/app_theme.dart';
 import '../../../data/models/cycle_model.dart';
 import '../../../data/providers/cycle_provider.dart';
+import '../../../data/providers/wellness_provider.dart'; // 🔥 Подключаем логи
 import '../../../l10n/app_localizations.dart';
 import '../../../shared/widgets/animated_edge_button.dart';
+import '../../../shared/widgets/premium_glass_card.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // CONSTANTS
@@ -47,6 +50,57 @@ class DashboardActionBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // 🔥 ДОСТАЕМ ЛОГИ ЗА СЕГОДНЯ, ЧТОБЫ ЗНАТЬ, ЧТО УЖЕ ВВЕДЕНО
+    final wellness = context.watch<WellnessProvider>();
+    final todayLog = wellness.getLogForDate(DateTime.now());
+
+    final bool isBbtLogged = todayLog.temperature != null && todayLog.temperature! > 0.0;
+    final bool isTestLogged = todayLog.symptoms.any((s) => s.startsWith('LH:') || s.startsWith('PT:'));
+    final bool isSexLogged = todayLog.symptoms.any((s) => s.contains('Sex'));
+
+    // 🔥 TTC РЕЖИМ: Показываем строку быстрых действий
+    if (provider.isTTCMode) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 24),
+        child: PremiumGlassCard(
+          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+          borderRadius: 24,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              _buildTTCQuickAction(
+                context: context,
+                icon: CupertinoIcons.thermometer,
+                label: "Log BBT",
+                color: Colors.purple,
+                isLogged: isBbtLogged, // Передаем статус
+                onTap: () => onOpenLogger(context, DateTime.now(), 'log_bbt'),
+              ),
+              _buildTTCVerticalDivider(),
+              _buildTTCQuickAction(
+                context: context,
+                icon: CupertinoIcons.sparkles,
+                label: "Test",
+                color: Colors.pinkAccent,
+                isLogged: isTestLogged, // Передаем статус
+                onTap: () => onOpenLogger(context, DateTime.now(), 'log_test'),
+              ),
+              _buildTTCVerticalDivider(),
+              _buildTTCQuickAction(
+                context: context,
+                icon: CupertinoIcons.heart_fill,
+                label: "Sex",
+                color: Colors.redAccent,
+                isLogged: isSexLogged, // Передаем статус
+                onTap: () => onOpenLogger(context, DateTime.now(), 'log_sex'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    // СТАНДАРТНЫЙ ИЛИ КОК РЕЖИМ (Остается без изменений)
     final _ActionConfig config = _resolveActionConfig(context);
 
     return AnimatedEdgeButton(
@@ -59,36 +113,86 @@ class DashboardActionBar extends StatelessWidget {
     );
   }
 
-  // ─── ACTION CONFIG RESOLVER ─────────────────────────────────────────────────
+  // 🔥 УМНЫЕ КОМПОНЕНТЫ ДЛЯ TTC ПАНЕЛИ С ВИЗУАЛЬНЫМ ПОДКРЕПЛЕНИЕМ
+  Widget _buildTTCQuickAction({
+    required BuildContext context,
+    required IconData icon,
+    required String label,
+    required Color color,
+    required bool isLogged,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: () {
+        HapticFeedback.lightImpact();
+        onTap();
+      },
+      behavior: HitTestBehavior.opaque,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 300),
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: isLogged ? color : color.withOpacity(0.15),
+              shape: BoxShape.circle,
+              boxShadow: isLogged
+                  ? [BoxShadow(color: color.withOpacity(0.4), blurRadius: 8, offset: const Offset(0, 4))]
+                  : [],
+            ),
+            child: Icon(
+                isLogged ? CupertinoIcons.check_mark : icon, // Меняем иконку на галочку
+                color: isLogged ? Colors.white : color, // Меняем цвет на белый
+                size: 24
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            isLogged ? "Logged" : label, // Если введено, пишем "Logged"
+            style: GoogleFonts.inter(
+              fontSize: 12,
+              fontWeight: isLogged ? FontWeight.w800 : FontWeight.bold,
+              color: isLogged ? color : AppColors.textPrimary,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
-  // ─── ACTION CONFIG RESOLVER ─────────────────────────────────────────────────
+  Widget _buildTTCVerticalDivider() {
+    return Container(
+      height: 40,
+      width: 1,
+      color: Colors.black.withOpacity(0.05),
+    );
+  }
+
+  // ─── ACTION CONFIG RESOLVER (Для не-TTC режимов) ──────────────────────────
 
   _ActionConfig _resolveActionConfig(BuildContext context) {
-    // 🔥 ИСПРАВЛЕНИЕ: В режиме КОК у нас уже есть нижняя карточка управления пачкой.
-    // Поэтому здесь (в главном экшн-баре) мы предлагаем просто логировать симптомы.
     if (isCOC) {
       return _ActionConfig(
-        text: l10n.logSymptomsTitle, // Будет "Log Symptoms"
+        text: l10n.logSymptomsTitle,
         icon: CupertinoIcons.add,
         textColor: Colors.white,
         bgColor: AppColors.primary,
         isPulsing: false,
         onTap: () {
           HapticFeedback.lightImpact();
-          // Открываем логгер на сегодняшний день
           onOpenLogger(context, DateTime.now(), 'log_sheet');
         },
       );
     }
 
     if (data.phase == CyclePhase.menstruation) {
-      // 🔥 УМНЫЙ UX: Если юзер уже нажал "Закончить", даем фидбек текстом и цветом!
       if (provider.isPeriodEnded) {
         return _ActionConfig(
-          text: "Ending today", // TODO: Добавить в .arb (например, l10n.periodEndingToday)
+          text: "Ending today",
           icon: CupertinoIcons.check_mark_circled_solid,
           textColor: Colors.white,
-          bgColor: AppColors.menstruation.withOpacity(0.7), // Делаем цвет слегка приглушенным
+          bgColor: AppColors.menstruation.withOpacity(0.7),
           isPulsing: false,
           onTap: () => _showActivePeriodSheet(context),
         );
@@ -292,8 +396,8 @@ class DashboardActionBar extends StatelessWidget {
       isScrollControlled: true,
       builder: (ctx) => _ActivePeriodSheet(
         l10n: l10n,
-        isPeriodEnded: provider.isPeriodEnded, // 🔥 Передаем текущий статус окончания
-        isDayOne: data.currentDay == 1,        // 🔥 Передаем флаг первого дня
+        isPeriodEnded: provider.isPeriodEnded,
+        isDayOne: data.currentDay == 1,
         onLogTap: () {
           Navigator.pop(ctx);
           onOpenLogger(context, DateTime.now(), 'log_sheet');
@@ -317,7 +421,7 @@ class DashboardActionBar extends StatelessWidget {
           HapticFeedback.heavyImpact();
           Navigator.pop(ctx);
           await provider.undoPeriodStart();
-          if (context.mounted) _showSuccessSnackbar(context, "Period start removed"); // TODO: Вынести в l10n
+          if (context.mounted) _showSuccessSnackbar(context, "Period start removed");
         },
       ),
     );
@@ -470,11 +574,10 @@ class _ActivePeriodSheet extends StatelessWidget {
         ),
         const SizedBox(height: 12),
 
-        // 🔥 Умная логика завершения/возобновления
         if (isPeriodEnded)
           _SheetOption(
             icon: CupertinoIcons.play_circle_fill,
-            title: "Resume period", // TODO: Добавить в L10n
+            title: "Resume period",
             subtitle: "Still bleeding? Continue current period",
             color: Colors.orange.shade700,
             onTap: onResumeTap,
@@ -488,12 +591,11 @@ class _ActivePeriodSheet extends StatelessWidget {
             onTap: onEndTap,
           ),
 
-        // 🔥 Опция "Я ошиблась", если это 1-й день цикла!
         if (isDayOne) ...[
           const SizedBox(height: 12),
           _SheetOption(
             icon: CupertinoIcons.trash_circle_fill,
-            title: "I made a mistake", // TODO: Добавить в L10n
+            title: "I made a mistake",
             subtitle: "Remove period start",
             color: Colors.redAccent,
             onTap: onUndoTap,

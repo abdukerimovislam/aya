@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'package:intl/intl.dart';
 
 import '../../l10n/app_localizations.dart';
 import '../../core/theme/app_theme.dart';
@@ -12,8 +13,8 @@ import '../../data/providers/cycle_provider.dart';
 import '../../data/providers/wellness_provider.dart';
 import '../../shared/widgets/premium_glass_card.dart';
 import '../../core/services/pdf_service.dart';
+import '../../shared/widgets/live_phase_background.dart';
 
-// 🔥 Подключаем логику ИИ и модели
 import '../../data/logic/symptom_intelligence.dart';
 import '../../data/models/cycle_model.dart';
 
@@ -24,27 +25,29 @@ class InsightsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final cycleProvider = context.watch<CycleProvider>();
     final wellnessProvider = context.watch<WellnessProvider>();
-    // final l10n = AppLocalizations.of(context)!;
+
+    final bool isTTC = cycleProvider.isTTCMode;
+    final currentPhase = cycleProvider.currentData.phase;
 
     bool hasEnoughData = cycleProvider.history.length >= 2;
     List<MapEntry<String, int>> topSymptoms = _getTopSymptoms(wellnessProvider);
 
-    // Получаем ИИ-инсайт на сегодня
     final todayInsight = _getTodayIntelligence(context, wellnessProvider, cycleProvider);
 
     return Scaffold(
       backgroundColor: AppColors.background,
+      extendBodyBehindAppBar: true,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
         centerTitle: true,
         title: Text(
-          "I N S I G H T S",
+          isTTC ? "F E R T I L I T Y   H U B" : "I N S I G H T S",
           style: GoogleFonts.inter(
             fontWeight: FontWeight.w800,
             letterSpacing: 2.0,
             fontSize: 14,
-            color: AppColors.textPrimary,
+            color: isTTC ? Colors.purple : AppColors.textPrimary,
           ),
         ),
         actions: [
@@ -57,108 +60,126 @@ class InsightsScreen extends StatelessWidget {
           )
         ],
       ),
-      body: SafeArea(
-        child: ListView(
-          physics: const BouncingScrollPhysics(),
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-          children: [
+      body: Stack(
+        children: [
+          Positioned.fill(
+            child: LivePhaseBackground(
+              phase: currentPhase,
+              isCOC: cycleProvider.isCOCEnabled,
+            ),
+          ),
 
-            // ─── БЛОК 1: ГЛОБАЛЬНЫЙ AI-АНАЛИЗ ЦИКЛА ───
-            _buildSectionTitle("Health Analysis"),
-            const SizedBox(height: 12),
-            _buildAIAnalysisCard(cycleProvider),
-            const SizedBox(height: 24),
-
-            // ─── БЛОК 2: УМНЫЙ ИНСАЙТ НА СЕГОДНЯ (Из SymptomIntelligence) ───
-            if (todayInsight != null) ...[
-              _buildSectionTitle("Today's Body Pattern"),
-              const SizedBox(height: 12),
-              _buildSymptomInsightCard(todayInsight),
-              const SizedBox(height: 24),
-            ],
-
-            // ─── БЛОК 3: КЛЮЧЕВЫЕ МЕТРИКИ ───
-            _buildSectionTitle("Cycle Vitals"),
-            const SizedBox(height: 12),
-            Row(
+          SafeArea(
+            child: ListView(
+              physics: const BouncingScrollPhysics(),
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
               children: [
-                Expanded(child: _buildVitalCard(
-                  title: "Cycle Length",
-                  value: cycleProvider.cycleLength.toString(),
-                  unit: "days",
-                  subtitle: "Normal: 21-35d",
-                  isAnomalous: cycleProvider.cycleLength < 21 || cycleProvider.cycleLength > 35,
-                  icon: CupertinoIcons.arrow_2_circlepath,
-                  color: AppColors.follicular,
-                )),
-                const SizedBox(width: 16),
-                Expanded(child: _buildVitalCard(
-                  title: "Period Duration",
-                  value: cycleProvider.avgPeriodDuration.toString(),
-                  unit: "days",
-                  subtitle: "Normal: 3-7d",
-                  isAnomalous: cycleProvider.hasProlongedBleeding,
-                  icon: CupertinoIcons.drop_fill,
-                  color: AppColors.menstruation,
-                )),
+
+                _buildSectionTitle(isTTC ? "Fertility Status" : "Health Analysis"),
+                const SizedBox(height: 12),
+                _buildAIAnalysisCard(cycleProvider),
+                const SizedBox(height: 24),
+
+                if (todayInsight != null) ...[
+                  _buildSectionTitle("Today's Body Pattern"),
+                  const SizedBox(height: 12),
+                  _buildSymptomInsightCard(todayInsight, isTTC),
+                  const SizedBox(height: 24),
+                ],
+
+                if (isTTC) ...[
+                  _buildSectionTitle("Basal Body Temp (BBT)"),
+                  const SizedBox(height: 16),
+                  PremiumGlassCard(
+                    padding: const EdgeInsets.all(20),
+                    borderRadius: 24,
+                    child: SizedBox(
+                      height: 260,
+                      child: _buildBBTChart(context, cycleProvider, wellnessProvider),
+                    ),
+                  ),
+                  const SizedBox(height: 32),
+                ] else ...[
+                  _buildSectionTitle("Cycle Vitals"),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(child: _buildVitalCard(
+                        title: "Cycle Length",
+                        value: cycleProvider.cycleLength.toString(),
+                        unit: "days",
+                        subtitle: "Normal: 21-35d",
+                        isAnomalous: cycleProvider.cycleLength < 21 || cycleProvider.cycleLength > 35,
+                        icon: CupertinoIcons.arrow_2_circlepath,
+                        color: AppColors.follicular,
+                      )),
+                      const SizedBox(width: 16),
+                      Expanded(child: _buildVitalCard(
+                        title: "Period Duration",
+                        value: cycleProvider.avgPeriodDuration.toString(),
+                        unit: "days",
+                        subtitle: "Normal: 3-7d",
+                        isAnomalous: cycleProvider.hasProlongedBleeding,
+                        icon: CupertinoIcons.drop_fill,
+                        color: AppColors.menstruation,
+                      )),
+                    ],
+                  ),
+                  const SizedBox(height: 32),
+
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      _buildSectionTitle("Cycle History"),
+                      if (hasEnoughData)
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: AppColors.primary.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            "Avg: ${cycleProvider.cycleLength}d",
+                            style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.primary),
+                          ),
+                        )
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  PremiumGlassCard(
+                    padding: const EdgeInsets.all(20),
+                    borderRadius: 24,
+                    child: SizedBox(
+                      height: 240,
+                      child: hasEnoughData
+                          ? _buildCycleBarChart(cycleProvider)
+                          : _buildEmptyState("Log at least 2 complete cycles to see your history graph.", CupertinoIcons.chart_bar_alt_fill),
+                    ),
+                  ),
+                  const SizedBox(height: 32),
+                ],
+
+                _buildSectionTitle("Frequent Symptoms"),
+                const SizedBox(height: 12),
+                topSymptoms.isEmpty
+                    ? PremiumGlassCard(
+                    borderRadius: 24,
+                    padding: const EdgeInsets.all(24),
+                    child: _buildEmptyState("Log your daily symptoms to uncover your body's unique patterns.", CupertinoIcons.sparkles)
+                )
+                    : Column(
+                  children: topSymptoms.map((entry) => _buildSymptomCard(entry.key, entry.value, isTTC)).toList(),
+                ),
+
+                const SizedBox(height: 80),
               ],
             ),
-            const SizedBox(height: 32),
-
-            // ─── БЛОК 4: ПРЕМИАЛЬНЫЙ ГРАФИК ЦИКЛОВ ───
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                _buildSectionTitle("Cycle History"),
-                if (hasEnoughData)
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: AppColors.primary.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text(
-                      "Avg: ${cycleProvider.cycleLength}d",
-                      style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.primary),
-                    ),
-                  )
-              ],
-            ),
-            const SizedBox(height: 16),
-            PremiumGlassCard(
-              padding: const EdgeInsets.all(20),
-              borderRadius: 24,
-              child: SizedBox(
-                height: 240, // Чуть увеличили высоту для красоты
-                child: hasEnoughData
-                    ? _buildCycleBarChart(cycleProvider)
-                    : _buildEmptyState("Log at least 2 complete cycles to see your history graph.", CupertinoIcons.chart_bar_alt_fill),
-              ),
-            ),
-            const SizedBox(height: 32),
-
-            // ─── БЛОК 5: ПАТТЕРНЫ ОРГАНИЗМА ───
-            _buildSectionTitle("Frequent Symptoms"),
-            const SizedBox(height: 12),
-            topSymptoms.isEmpty
-                ? PremiumGlassCard(
-                borderRadius: 24,
-                padding: const EdgeInsets.all(24),
-                child: _buildEmptyState("Log your daily symptoms to uncover your body's unique patterns.", CupertinoIcons.sparkles)
-            )
-                : Column(
-              children: topSymptoms.map((entry) => _buildSymptomCard(entry.key, entry.value)).toList(),
-            ),
-
-            const SizedBox(height: 60),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
-
-  // ─── ЛОГИКА ИНТЕГРАЦИИ С SYMPTOM INTELLIGENCE ─────────────────────────────
 
   SymptomInsight? _getTodayIntelligence(BuildContext context, WellnessProvider wellness, CycleProvider cycle) {
     try {
@@ -167,16 +188,12 @@ class InsightsScreen extends StatelessWidget {
 
       if (allTodaySymptoms.isEmpty) return null;
 
-      // 🔥 ИСПРАВЛЕНО: Берем фазу из currentData
       final currentPhase = cycle.currentData.phase;
-
-      return SymptomIntelligence.getInsight(context, allTodaySymptoms, currentPhase);
+      return SymptomIntelligence.getInsight(context, allTodaySymptoms, currentPhase, isTTCMode: cycle.isTTCMode);
     } catch (e) {
       return null;
     }
   }
-
-  // ─── КОМПОНЕНТЫ UI ──────────────────────────────────────────────────────────
 
   Widget _buildSectionTitle(String title) {
     return Text(
@@ -195,7 +212,7 @@ class InsightsScreen extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(icon, size: 48, color: AppColors.primary.withOpacity(0.3)),
+          Icon(icon, size: 48, color: AppColors.textSecondary.withOpacity(0.3)),
           const SizedBox(height: 16),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 24.0),
@@ -216,30 +233,49 @@ class InsightsScreen extends StatelessWidget {
     Color iconColor = AppColors.primary;
     IconData icon = CupertinoIcons.sparkles;
 
-    if (cycle.isCOCEnabled) {
-      title = "Contraceptive Mode";
-      message = "Your cycles are currently managed by oral contraceptives. Keep taking your pills on time.";
-      iconColor = AppColors.follicular;
-      icon = CupertinoIcons.shield_fill;
-    } else if (cycle.isAmenorrhea) {
-      title = "Action Required";
-      message = "Your cycle is delayed by over 60 days. If you've been sexually active, consider taking a pregnancy test or consulting a doctor.";
-      iconColor = Colors.orangeAccent;
-      icon = CupertinoIcons.exclamationmark_triangle_fill;
-    } else if (cycle.hasProlongedBleeding) {
-      title = "Irregular Bleeding";
-      message = "We noticed your recent period lasted longer than 8 days. Keep monitoring this, and consult a doctor if it persists.";
-      iconColor = Colors.redAccent;
-      icon = CupertinoIcons.drop_triangle_fill;
-    } else if (cycle.history.length >= 3) {
-      title = "Stable Rhythm";
-      message = "Great news! Your hormonal rhythm is highly stable. Your body is following a predictable pattern.";
-      iconColor = Colors.green;
-      icon = CupertinoIcons.checkmark_seal_fill;
-    } else if (cycle.history.isNotEmpty) {
-      title = "Learning your rhythm";
-      message = "We are currently learning your unique hormonal patterns. Keep logging!";
-      iconColor = AppColors.primary;
+    if (cycle.isTTCMode) {
+      if (cycle.isOvulationConfirmed) {
+        title = "Ovulation Confirmed!";
+        message = "Your ovulation has been detected. You are now in the Two Week Wait (TWW). Take care of yourself!";
+        iconColor = Colors.purple;
+        icon = CupertinoIcons.check_mark_circled_solid;
+      } else if (cycle.conceptionChance == FertilityChance.peak || cycle.conceptionChance == FertilityChance.high) {
+        title = "Fertile Window Open";
+        message = "Your chances of conception are currently high. Log your BBT and OPK tests daily.";
+        iconColor = Colors.pinkAccent;
+        icon = CupertinoIcons.heart_circle_fill;
+      } else {
+        title = "Tracking Phase";
+        message = "We are monitoring your daily inputs to predict your exact ovulation day. Keep logging BBT!";
+        iconColor = Colors.teal;
+        icon = CupertinoIcons.chart_pie_fill;
+      }
+    } else {
+      if (cycle.isCOCEnabled) {
+        title = "Contraceptive Mode";
+        message = "Your cycles are currently managed by oral contraceptives. Keep taking your pills on time.";
+        iconColor = AppColors.follicular;
+        icon = CupertinoIcons.shield_fill;
+      } else if (cycle.isAmenorrhea) {
+        title = "Action Required";
+        message = "Your cycle is delayed by over 60 days. If you've been sexually active, consider taking a pregnancy test or consulting a doctor.";
+        iconColor = Colors.orangeAccent;
+        icon = CupertinoIcons.exclamationmark_triangle_fill;
+      } else if (cycle.hasProlongedBleeding) {
+        title = "Irregular Bleeding";
+        message = "We noticed your recent period lasted longer than 8 days. Keep monitoring this, and consult a doctor if it persists.";
+        iconColor = Colors.redAccent;
+        icon = CupertinoIcons.drop_triangle_fill;
+      } else if (cycle.history.length >= 3) {
+        title = "Stable Rhythm";
+        message = "Great news! Your hormonal rhythm is highly stable. Your body is following a predictable pattern.";
+        iconColor = Colors.green;
+        icon = CupertinoIcons.checkmark_seal_fill;
+      } else if (cycle.history.isNotEmpty) {
+        title = "Learning your rhythm";
+        message = "We are currently learning your unique hormonal patterns. Keep logging!";
+        iconColor = AppColors.primary;
+      }
     }
 
     return PremiumGlassCard(
@@ -269,9 +305,8 @@ class InsightsScreen extends StatelessWidget {
     );
   }
 
-  // Новый виджет для вывода инсайтов из SymptomIntelligence
-  Widget _buildSymptomInsightCard(SymptomInsight insight) {
-    final Color alertColor = insight.isWarning ? Colors.orangeAccent : AppColors.luteal;
+  Widget _buildSymptomInsightCard(SymptomInsight insight, bool isTTC) {
+    Color alertColor = insight.isWarning ? Colors.orangeAccent : (isTTC ? Colors.purple : AppColors.luteal);
     final IconData alertIcon = insight.isWarning ? CupertinoIcons.exclamationmark_circle_fill : CupertinoIcons.lightbulb_fill;
 
     return PremiumGlassCard(
@@ -290,11 +325,11 @@ class InsightsScreen extends StatelessWidget {
                   style: GoogleFonts.outfit(fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
                 ),
               ),
-              if (insight.priority >= 80) // Высший приоритет
+              if (insight.priority >= 80)
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(color: Colors.redAccent.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
-                  child: Text("High Priority", style: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.redAccent)),
+                  child: Text("Important", style: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.redAccent)),
                 )
             ],
           ),
@@ -302,6 +337,153 @@ class InsightsScreen extends StatelessWidget {
           Text(
             insight.description,
             style: GoogleFonts.inter(fontSize: 13, color: AppColors.textSecondary, height: 1.5, fontWeight: FontWeight.w500),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // 🔥 ЭКСКЛЮЗИВ ДЛЯ РЕЖИМА TTC: ЛИНЕЙНЫЙ ГРАФИК БАЗАЛЬНОЙ ТЕМПЕРАТУРЫ (BBT)
+  Widget _buildBBTChart(BuildContext context, CycleProvider cycle, WellnessProvider wellness) {
+    final cycleStart = cycle.currentData.cycleStartDate;
+    final totalDays = cycle.currentData.totalCycleLength;
+
+    List<FlSpot> spots = [];
+    double minTemp = 36.2;
+    double maxTemp = 37.2;
+
+    final today = DateTime.now();
+    // 🔥 ФИКС БАГА С ЧАСОВЫМИ ПОЯСАМИ: Очищаем время от "сегодня", чтобы сравнение шло только по дате
+    final todayClean = DateTime(today.year, today.month, today.day);
+
+    for (int i = 0; i < totalDays; i++) {
+      final date = cycleStart.add(Duration(days: i));
+
+      // 🔥 Очищаем дату из цикла, чтобы не было конфликтов с 12:00 UTC
+      final cleanDate = DateTime(date.year, date.month, date.day);
+
+      // Не ищем данные в будущем
+      if (cleanDate.isAfter(todayClean)) break;
+
+      try {
+        final log = wellness.getLogForDate(cleanDate); // Ищем по чистой дате
+        if (log.temperature != null && log.temperature! > 0) {
+          spots.add(FlSpot(i.toDouble() + 1, log.temperature!));
+          if (log.temperature! < minTemp) minTemp = log.temperature! - 0.2;
+          if (log.temperature! > maxTemp) maxTemp = log.temperature! + 0.2;
+        }
+      } catch (_) {}
+    }
+
+    if (spots.isEmpty) {
+      return _buildEmptyState("Log your morning temperature (BBT) to see your thermal shift.", CupertinoIcons.thermometer);
+    }
+
+    final double ovDay = cycle.ovulationDay.toDouble();
+
+    return LineChart(
+      LineChartData(
+        minY: minTemp,
+        maxY: maxTemp,
+        minX: 1,
+        maxX: totalDays.toDouble(),
+        lineTouchData: LineTouchData(
+          enabled: true,
+          handleBuiltInTouches: true,
+          touchTooltipData: LineTouchTooltipData(
+            tooltipBgColor: Colors.purple.withOpacity(0.8),
+            tooltipRoundedRadius: 8,
+            getTooltipItems: (touchedSpots) {
+              return touchedSpots.map((spot) {
+                return LineTooltipItem(
+                  "${spot.y.toStringAsFixed(2)}°\nDay ${spot.x.toInt()}",
+                  GoogleFonts.inter(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
+                );
+              }).toList();
+            },
+          ),
+        ),
+        gridData: FlGridData(
+          show: true,
+          drawVerticalLine: false,
+          getDrawingHorizontalLine: (value) => FlLine(color: AppColors.textSecondary.withOpacity(0.1), strokeWidth: 1, dashArray: [5, 5]),
+        ),
+        titlesData: FlTitlesData(
+          show: true,
+          bottomTitles: AxisTitles(
+            sideTitles: SideTitles(
+              showTitles: true,
+              reservedSize: 30,
+              interval: 5,
+              getTitlesWidget: (value, meta) => Padding(
+                padding: const EdgeInsets.only(top: 8.0),
+                child: Text("${value.toInt()}", style: GoogleFonts.inter(fontSize: 10, color: AppColors.textSecondary, fontWeight: FontWeight.bold)),
+              ),
+            ),
+          ),
+          leftTitles: AxisTitles(
+            sideTitles: SideTitles(
+              showTitles: true,
+              reservedSize: 40,
+              interval: 0.2,
+              getTitlesWidget: (value, meta) => Padding(
+                padding: const EdgeInsets.only(right: 8.0),
+                child: Text(value.toStringAsFixed(1), style: GoogleFonts.inter(fontSize: 10, color: AppColors.textSecondary, fontWeight: FontWeight.bold)),
+              ),
+            ),
+          ),
+          topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+        ),
+        borderData: FlBorderData(show: false),
+
+        // Вертикальная линия овуляции
+        extraLinesData: ExtraLinesData(
+          verticalLines: [
+            if (cycle.isOvulationConfirmed)
+              VerticalLine(
+                x: ovDay,
+                color: Colors.purple,
+                strokeWidth: 2,
+                dashArray: [4, 4],
+                label: VerticalLineLabel(
+                  show: true,
+                  alignment: Alignment.topRight,
+                  padding: const EdgeInsets.only(right: 4, top: 0),
+                  style: GoogleFonts.inter(color: Colors.purple, fontSize: 10, fontWeight: FontWeight.bold),
+                  labelResolver: (_) => "Ovulation",
+                ),
+              )
+          ],
+        ),
+
+        lineBarsData: [
+          LineChartBarData(
+            spots: spots,
+            isCurved: true,
+            curveSmoothness: 0.35,
+            color: Colors.purple,
+            barWidth: 3,
+            isStrokeCapRound: true,
+            dotData: FlDotData(
+              show: true,
+              getDotPainter: (spot, percent, barData, index) {
+                return FlDotCirclePainter(
+                  radius: 4,
+                  color: Colors.white,
+                  strokeWidth: 2,
+                  strokeColor: Colors.purple,
+                );
+              },
+            ),
+            belowBarData: BarAreaData(
+              show: true,
+              gradient: LinearGradient(
+                colors: [Colors.purple.withOpacity(0.3), Colors.purple.withOpacity(0.0)],
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+              ),
+            ),
           ),
         ],
       ),
@@ -438,12 +620,12 @@ class InsightsScreen extends StatelessWidget {
           );
         }),
       ),
-      swapAnimationDuration: const Duration(milliseconds: 850),
-      swapAnimationCurve: Curves.easeOutQuart,
     );
   }
 
-  Widget _buildSymptomCard(String symptomName, int count) {
+  Widget _buildSymptomCard(String symptomName, int count, bool isTTC) {
+    final activeColor = isTTC ? Colors.purple : AppColors.primary;
+
     return Padding(
       padding: const EdgeInsets.only(bottom: 12.0),
       child: PremiumGlassCard(
@@ -454,10 +636,10 @@ class InsightsScreen extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                  color: AppColors.primary.withOpacity(0.08),
+                  color: activeColor.withOpacity(0.08),
                   borderRadius: BorderRadius.circular(12)
               ),
-              child: Icon(CupertinoIcons.waveform_path, size: 18, color: AppColors.primary),
+              child: Icon(CupertinoIcons.waveform_path, size: 18, color: activeColor),
             ),
             const SizedBox(width: 16),
             Expanded(

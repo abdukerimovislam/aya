@@ -33,7 +33,7 @@ class _NanoParticle {
 class NebulaTimerWidget extends StatefulWidget {
   final CycleData data;
   final bool isCOC;
-  final bool isTTC; // 🔥 Добавили параметр для режима планирования
+  final bool isTTC; // 🔥 Параметр для режима планирования
 
   const NebulaTimerWidget({
     super.key,
@@ -134,6 +134,40 @@ class _NebulaTimerWidgetState extends State<NebulaTimerWidget> with TickerProvid
     }
   }
 
+  // 🔥 ЛОГИКА ТЕКСТОВ ДЛЯ РЕЖИМА TTC
+  Map<String, String> _getTTCLabels(int currentDay, int ovulationDay, int totalLength, CyclePhase phase) {
+    if (phase == CyclePhase.menstruation) {
+      return {"label": "PERIOD", "value": "DAY $currentDay"};
+    } else if (phase == CyclePhase.follicular) {
+      // Считаем дни до фертильного окна
+      int fertileStart = math.max(1, ovulationDay - 5);
+      int daysToFertile = fertileStart - currentDay;
+      if (daysToFertile > 0) {
+        return {"label": "FERTILE IN", "value": "$daysToFertile DAYS"};
+      } else {
+        // Уже в фертильном окне
+        int fertileDayNum = currentDay - fertileStart + 1;
+        return {"label": "FERTILE WINDOW", "value": "DAY $fertileDayNum"};
+      }
+    } else if (phase == CyclePhase.ovulation) {
+      if (currentDay == ovulationDay) {
+        return {"label": "OVULATION", "value": "PEAK"};
+      } else {
+        int fertileStart = math.max(1, ovulationDay - 5);
+        int fertileDayNum = currentDay - fertileStart + 1;
+        return {"label": "FERTILE WINDOW", "value": "DAY $fertileDayNum"};
+      }
+    } else if (phase == CyclePhase.luteal) {
+      int dpo = currentDay - ovulationDay;
+      if (dpo <= 0) dpo = 1;
+      return {"label": "PAST OVULATION", "value": "$dpo DPO"};
+    } else {
+      // Late
+      int daysLate = currentDay - totalLength;
+      return {"label": "CYCLE DELAY", "value": "$daysLate DAYS"};
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
@@ -147,9 +181,9 @@ class _NebulaTimerWidgetState extends State<NebulaTimerWidget> with TickerProvid
       displayPhase = _getPhaseForDay(displayDay, phases);
     }
 
-    final displayColor = _getColor(displayPhase, widget.isCOC);
-    final accentColor = _getAccentColor(displayPhase, widget.isCOC);
-    final displayName = _getName(context, displayPhase, l10n, widget.isCOC);
+    final displayColor = _getColor(displayPhase, widget.isCOC, widget.isTTC);
+    final accentColor = _getAccentColor(displayPhase, widget.isCOC, widget.isTTC);
+    final displayName = _getName(context, displayPhase, l10n, widget.isCOC, widget.isTTC);
 
     final today = DateTime.now();
     final dateOffset = displayDay - widget.data.currentDay;
@@ -158,8 +192,19 @@ class _NebulaTimerWidgetState extends State<NebulaTimerWidget> with TickerProvid
 
     final bool isLate = displayPhase == CyclePhase.late;
     final int daysLate = displayDay - widget.data.totalCycleLength;
-    final String mainNumberText = isLate ? "$daysLate" : "$displayDay";
-    final String labelText = isLate ? "DAYS LATE" : "DAY";
+
+    String mainNumberText;
+    String labelText;
+
+    // 🔥 РАЗВИЛКА ЛОГИКИ ТЕКСТОВ ТАЙМЕРА
+    if (widget.isTTC && _selectedDay == null) {
+      final ttcData = _getTTCLabels(widget.data.currentDay, phases[2] - 1, widget.data.totalCycleLength, displayPhase);
+      labelText = ttcData['label']!;
+      mainNumberText = ttcData['value']!;
+    } else {
+      mainNumberText = isLate ? "$daysLate" : "$displayDay";
+      labelText = isLate ? "DAYS LATE" : "DAY";
+    }
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -198,6 +243,7 @@ class _NebulaTimerWidgetState extends State<NebulaTimerWidget> with TickerProvid
                           selectedDay: _selectedDay,
                           phases: phases,
                           isCOC: widget.isCOC,
+                          isTTC: widget.isTTC,
                           pulseValue: _pulseController.value,
                         ),
                       );
@@ -216,7 +262,7 @@ class _NebulaTimerWidgetState extends State<NebulaTimerWidget> with TickerProvid
                           baseColor: displayColor,
                           accentColor: accentColor,
                           particles: _particles,
-                          shape: _currentShape, // Берет форму из свойства
+                          shape: _currentShape, // 🔥 Авто-выбор формы
                           isFrontLayer: false,
                         ),
                       );
@@ -360,8 +406,12 @@ class _NebulaTimerWidgetState extends State<NebulaTimerWidget> with TickerProvid
     return CyclePhase.luteal;
   }
 
-  Color _getColor(CyclePhase phase, bool isCOC) {
+  Color _getColor(CyclePhase phase, bool isCOC, bool isTTC) {
     if (isCOC) return phase == CyclePhase.menstruation ? Colors.redAccent : Colors.tealAccent.shade400;
+
+    // 🔥 TTC Акценты
+    if (isTTC && phase == CyclePhase.ovulation) return Colors.purple;
+
     switch (phase) {
       case CyclePhase.menstruation: return AppColors.menstruation;
       case CyclePhase.follicular: return AppColors.follicular;
@@ -371,8 +421,12 @@ class _NebulaTimerWidgetState extends State<NebulaTimerWidget> with TickerProvid
     }
   }
 
-  Color _getAccentColor(CyclePhase phase, bool isCOC) {
+  Color _getAccentColor(CyclePhase phase, bool isCOC, bool isTTC) {
     if (isCOC) return Colors.indigoAccent;
+
+    // 🔥 TTC Акценты
+    if (isTTC && phase == CyclePhase.ovulation) return Colors.pinkAccent;
+
     switch (phase) {
       case CyclePhase.menstruation: return Colors.redAccent;
       case CyclePhase.follicular: return Colors.lightBlueAccent;
@@ -382,8 +436,13 @@ class _NebulaTimerWidgetState extends State<NebulaTimerWidget> with TickerProvid
     }
   }
 
-  String _getName(BuildContext context, CyclePhase phase, AppLocalizations l10n, bool isCOC) {
+  String _getName(BuildContext context, CyclePhase phase, AppLocalizations l10n, bool isCOC, bool isTTC) {
     if (isCOC) return phase == CyclePhase.menstruation ? l10n.cocBreakPhase : l10n.cocActivePhase;
+
+    // 🔥 TTC Акценты
+    if (isTTC && phase == CyclePhase.follicular) return "PREPARING";
+    if (isTTC && phase == CyclePhase.luteal) return "TWW / DPO"; // Two Week Wait / Days Past Ovulation
+
     switch (phase) {
       case CyclePhase.menstruation: return l10n.phaseMenstruation;
       case CyclePhase.follicular: return l10n.phaseFollicular;
@@ -400,6 +459,7 @@ class _OrbitTicksPainter extends CustomPainter {
   final int? selectedDay;
   final List<int> phases;
   final bool isCOC;
+  final bool isTTC; // 🔥 Добавили проброс параметра
   final double pulseValue;
 
   _OrbitTicksPainter({
@@ -408,6 +468,7 @@ class _OrbitTicksPainter extends CustomPainter {
     required this.selectedDay,
     required this.phases,
     required this.isCOC,
+    required this.isTTC,
     required this.pulseValue,
   });
 
@@ -430,11 +491,14 @@ class _OrbitTicksPainter extends CustomPainter {
         double endAngle = (2 * math.pi / totalDays) * (endFertile - 1) - (math.pi / 2);
         double sweepAngle = endAngle - startAngle;
 
+        // 🔥 В TTC режиме делаем свечение дуги ярче (фиолетовое)
+        Color glowColor = isTTC ? Colors.purple.withOpacity(0.35) : AppColors.ovulation.withOpacity(0.25);
+
         canvas.drawArc(
             Rect.fromCircle(center: center, radius: radius),
             startAngle, sweepAngle, false,
             Paint()
-              ..color = AppColors.ovulation.withOpacity(0.25)
+              ..color = glowColor
               ..style = PaintingStyle.stroke
               ..strokeWidth = 14.0
               ..strokeCap = StrokeCap.round
@@ -453,7 +517,11 @@ class _OrbitTicksPainter extends CustomPainter {
       } else {
         if (dayNum <= phases[0]) tickColor = AppColors.menstruation;
         else if (dayNum <= phases[1]) tickColor = AppColors.follicular;
-        else if (dayNum <= phases[2]) { tickColor = AppColors.ovulation; isFertile = true; }
+        else if (dayNum <= phases[2]) {
+          // 🔥 В TTC режиме фертильные дни фиолетовые
+          tickColor = isTTC ? Colors.purple : AppColors.ovulation;
+          isFertile = true;
+        }
         else tickColor = AppColors.luteal;
       }
 
@@ -548,16 +616,19 @@ class _NanoParticlePainter extends CustomPainter {
           break;
 
         case TimerShape.dna:
-          double globalTime = time * 1.2;
-          double zRaw = (p.u - 0.5) * 2.0;
-          double twist = math.pi * 3.0;
-          double currentR = r * 0.6;
+        // 🔥 Идеальная ДНК спираль
+          double globalTime = time * 1.5;
+          double zRaw = (p.u - 0.5) * 2.0; // от -1 до 1
+          double twist = math.pi * 3.5; // Количество витков
+          double currentR = r * 0.6; // Радиус спирали (уже)
 
+          // 75% частиц - это боковые "хребты" ДНК (две линии)
           if (p.rand1 < 0.75) {
             double strandOffset = p.rand1 < 0.375 ? 0.0 : math.pi;
             double theta = zRaw * twist - globalTime;
 
-            double thickness = 3.0;
+            // Трубчатый объем для хребта
+            double thickness = 4.0;
             double tubeX = math.cos(p.v * math.pi * 2) * thickness;
             double tubeZ = math.sin(p.v * math.pi * 2) * thickness;
 
@@ -565,12 +636,13 @@ class _NanoParticlePainter extends CustomPainter {
             y3d = zRaw * r * 0.95 + (p.rand2 - 0.5) * thickness;
             z3d = currentR * math.sin(theta + strandOffset) + tubeZ;
           } else {
-            int rungs = 15;
+            // 25% частиц - это внутренние "мосты/ступеньки" между хребтами
+            int rungs = 18; // Количество ступенек
             double step = (p.u * (rungs - 1)).round() / (rungs - 1);
             double zRung = (step - 0.5) * 2.0;
             double theta = zRung * twist - globalTime;
 
-            double bridgeT = (p.v - 0.5) * 2.0;
+            double bridgeT = (p.v - 0.5) * 2.0; // от -1 до 1
 
             x3d = currentR * bridgeT * math.cos(theta);
             y3d = zRung * r * 0.95;
