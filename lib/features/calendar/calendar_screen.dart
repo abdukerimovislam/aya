@@ -17,6 +17,9 @@ import '../../shared/widgets/live_phase_background.dart';
 import '../../l10n/app_localizations.dart';
 import '../logger/symptom_log_screen.dart';
 
+// 🔥 ИМПОРТ НОВОГО ЭКРАНА ИНТИМА
+import 'intimacy_calendar_screen.dart';
+
 enum CalendarViewMode { month, cycle }
 
 class CalendarScreen extends StatefulWidget {
@@ -48,6 +51,28 @@ class _CalendarScreenState extends State<CalendarScreen> {
         elevation: 0,
         centerTitle: true,
         title: _buildViewToggle(),
+        // 🔥 КНОПКА ПЕРЕХОДА В INTIMACY CALENDAR (ТОЛЬКО ДЛЯ TTC)
+        actions: [
+          if (isTTC)
+            IconButton(
+              icon: Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: Colors.redAccent.withOpacity(0.15),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(CupertinoIcons.heart_fill, color: Colors.redAccent, size: 20),
+              ),
+              onPressed: () {
+                HapticFeedback.lightImpact();
+                Navigator.push(
+                  context,
+                  CupertinoPageRoute(builder: (context) => const IntimacyCalendarScreen()),
+                );
+              },
+            ),
+          const SizedBox(width: 8),
+        ],
       ),
       body: Stack(
         children: [
@@ -193,48 +218,49 @@ class _CalendarScreenState extends State<CalendarScreen> {
     }
   }
 
-  void _showQuickActionMenu(BuildContext context, DateTime date, CycleProvider cycle, WellnessProvider wellness) {
+  // 🔥 ОБНОВЛЕННОЕ QUICK ACTION MENU (Фокус на интиме)
+  void _showQuickActionMenu(BuildContext context, DateTime date, WellnessProvider wellness) {
     showCupertinoModalPopup(
       context: context,
       builder: (BuildContext context) => CupertinoActionSheet(
         title: Text(DateFormat('EEEE, MMM d').format(date).toUpperCase(), style: GoogleFonts.inter(fontWeight: FontWeight.bold, letterSpacing: 1)),
-        message: const Text('Quick Actions'),
+        message: const Text('Intimacy Quick Log'),
         actions: <CupertinoActionSheetAction>[
-          CupertinoActionSheetAction(
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(CupertinoIcons.drop_fill, color: AppColors.menstruation, size: 20),
-                const SizedBox(width: 8),
-                Text('Log Period', style: GoogleFonts.inter(color: AppColors.textPrimary, fontWeight: FontWeight.w600)),
-              ],
-            ),
-            onPressed: () {
-              Navigator.pop(context);
-              cycle.togglePeriodDay(date);
-            },
-          ),
-          CupertinoActionSheetAction(
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Icon(CupertinoIcons.thermometer, color: Colors.purple, size: 20),
-                const SizedBox(width: 8),
-                Text('Log Temp & Tests', style: GoogleFonts.inter(color: AppColors.textPrimary, fontWeight: FontWeight.w600)),
-              ],
-            ),
-            onPressed: () {
-              Navigator.pop(context);
-              _openFullLogger(context, date);
-            },
-          ),
           CupertinoActionSheetAction(
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 const Icon(CupertinoIcons.heart_fill, color: Colors.redAccent, size: 20),
                 const SizedBox(width: 8),
-                Text('Log Intimacy', style: GoogleFonts.inter(color: AppColors.textPrimary, fontWeight: FontWeight.w600)),
+                Text('Log Unprotected Sex', style: GoogleFonts.inter(color: AppColors.textPrimary, fontWeight: FontWeight.w600)),
+              ],
+            ),
+            onPressed: () {
+              Navigator.pop(context);
+              _quickLogIntimacy(date, wellness, 'Unprotected Sex');
+            },
+          ),
+          CupertinoActionSheetAction(
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(CupertinoIcons.shield_fill, color: Colors.blueAccent, size: 20),
+                const SizedBox(width: 8),
+                Text('Log Protected Sex', style: GoogleFonts.inter(color: AppColors.textPrimary, fontWeight: FontWeight.w600)),
+              ],
+            ),
+            onPressed: () {
+              Navigator.pop(context);
+              _quickLogIntimacy(date, wellness, 'Protected Sex');
+            },
+          ),
+          CupertinoActionSheetAction(
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(CupertinoIcons.square_list, color: AppColors.textSecondary, size: 20),
+                const SizedBox(width: 8),
+                Text('Open Full Logger', style: GoogleFonts.inter(color: AppColors.textPrimary, fontWeight: FontWeight.w600)),
               ],
             ),
             onPressed: () {
@@ -252,9 +278,36 @@ class _CalendarScreenState extends State<CalendarScreen> {
     );
   }
 
-  // 🔥 ИСПРАВЛЕННЫЙ МЕТОД (Безопасный MediaQuery)
+  // Метод для быстрого сохранения только одного симптома интима
+  void _quickLogIntimacy(DateTime date, WellnessProvider wellness, String intimacyType) async {
+    HapticFeedback.mediumImpact();
+    final log = wellness.getLogForDate(date);
+    List<String> updatedSymptoms = List.from(log.symptoms);
+
+    // Удаляем противоположный тип, если он был
+    if (intimacyType == 'Unprotected Sex') updatedSymptoms.remove('Protected Sex');
+    if (intimacyType == 'Protected Sex') updatedSymptoms.remove('Unprotected Sex');
+
+    if (!updatedSymptoms.contains(intimacyType)) {
+      updatedSymptoms.add(intimacyType);
+    }
+
+    await wellness.saveLog(log.copyWith(symptoms: updatedSymptoms));
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("Intimacy logged for ${DateFormat('MMM d').format(date)}"),
+            backgroundColor: Colors.redAccent,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          )
+      );
+    }
+  }
+
   void _openFullLogger(BuildContext context, DateTime date) {
-    final screenHeight = MediaQuery.of(context).size.height; // Вычисляем ДО билдера
+    final screenHeight = MediaQuery.of(context).size.height;
 
     showModalBottomSheet(
       context: context,
@@ -264,7 +317,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
       builder: (BuildContext sheetContext) => ClipRRect(
         borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
         child: SizedBox(
-          height: screenHeight * 0.92, // Используем безопасную переменную
+          height: screenHeight * 0.92,
           child: SymptomLogScreen(date: date),
         ),
       ),
@@ -297,7 +350,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
               },
               onDayLongPressed: (selectedDay, focusedDay) {
                 HapticFeedback.heavyImpact();
-                _showQuickActionMenu(context, selectedDay, cycle, wellness);
+                _showQuickActionMenu(context, selectedDay, wellness);
               },
               onPageChanged: (focusedDay) {
                 setState(() {

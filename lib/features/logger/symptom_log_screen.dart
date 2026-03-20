@@ -446,7 +446,7 @@ class _SymptomLogScreenState extends State<SymptomLogScreen> {
 
     final List<String> mucusOptions = ['Dry Mucus', 'Sticky Mucus', 'Creamy Mucus', 'Egg-white Mucus'];
     final List<String> lhTestOptions = ['LH: Negative', 'LH: High', 'LH: Peak'];
-    final List<String> sexOptions = ['Unprotected Sex', 'Protected Sex', 'High Libido'];
+    final List<String> sexOptions = ['Intimacy', 'High Libido'];
 
     return Container(
       decoration: BoxDecoration(
@@ -514,7 +514,8 @@ class _SymptomLogScreenState extends State<SymptomLogScreen> {
           else if (_isLoaded)
             Expanded(
               child: ListView(
-                physics: const BouncingScrollPhysics(),
+                // 🔥 ВОТ ОНО! ИСПРАВЛЕНИЕ СВАЙПА! 🔥
+                physics: const ClampingScrollPhysics(),
                 padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
                 children: [
                   if (isTTC) ...[
@@ -653,6 +654,13 @@ class _SymptomLogScreenState extends State<SymptomLogScreen> {
               } else {
                 if (symptom.startsWith("LH:")) list.removeWhere((e) => e.startsWith("LH:"));
                 if (symptom.contains("Mucus")) list.removeWhere((e) => e.contains("Mucus"));
+
+                // 🔥 Защита от дублей (убираем старые форматы интима при выборе нового)
+                if (symptom == 'Intimacy') {
+                  list.remove('Protected Sex');
+                  list.remove('Unprotected Sex');
+                }
+
                 list.add(symptom);
 
                 if (symptom == 'LH: Peak' && _log.flow != FlowIntensity.none) {

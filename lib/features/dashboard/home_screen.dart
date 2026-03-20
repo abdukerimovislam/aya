@@ -49,41 +49,25 @@ class HomeScreen extends StatelessWidget {
 class _BuildUltraModernScreen extends StatelessWidget {
   const _BuildUltraModernScreen({super.key});
 
+  // 🔥 ИСПРАВЛЕНО: Теперь логгер открывается как стандартный BottomSheet,
+  // что гарантирует правильную работу свайпа (enableDrag: true)
   void _openLoggerWithHero(BuildContext context, DateTime date, String heroTag) {
     HapticFeedback.mediumImpact();
-    Navigator.of(context).push(PageRouteBuilder(
-      opaque: false, barrierDismissible: true, barrierColor: Colors.black.withOpacity(0.5),
-      transitionDuration: const Duration(milliseconds: 400),
-      pageBuilder: (context, animation, secondaryAnimation) {
-        return FadeTransition(
-          opacity: animation,
-          child: SlideTransition(
-            position: Tween<Offset>(begin: const Offset(0, 0.1), end: Offset.zero).animate(CurvedAnimation(parent: animation, curve: Curves.easeOutCubic)),
-            child: Scaffold(
-              backgroundColor: Colors.transparent,
-              body: Align(
-                alignment: Alignment.bottomCenter,
-                child: ClipRRect(
-                  borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
-                  child: SizedBox(
-                    height: MediaQuery.of(context).size.height * 0.92,
-                    child: Stack(
-                      children: [
-                        SymptomLogScreen(date: date),
-                        Positioned(
-                          top: 24, left: 24,
-                          child: Hero(tag: heroTag, child: Material(type: MaterialType.transparency, child: Container(width: 38, height: 38, decoration: const BoxDecoration(shape: BoxShape.circle, color: Colors.transparent)))),
-                        )
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        );
-      },
-    ));
+    final screenHeight = MediaQuery.of(context).size.height;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      enableDrag: true, // Включаем возможность закрытия свайпом
+      backgroundColor: Colors.transparent,
+      builder: (BuildContext sheetContext) => ClipRRect(
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
+        child: SizedBox(
+          height: screenHeight * 0.92,
+          child: SymptomLogScreen(date: date),
+        ),
+      ),
+    );
   }
 
   @override
@@ -93,7 +77,7 @@ class _BuildUltraModernScreen extends StatelessWidget {
 
     final data = context.select<CycleProvider, CycleData>((p) => p.currentData);
     final bool isCOC = context.select<CycleProvider, bool>((p) => p.isCOCEnabled);
-    final bool isTTC = context.select<CycleProvider, bool>((p) => p.isTTCMode); // 🔥 ДОБАВЛЕНО: Слушаем режим TTC
+    final bool isTTC = context.select<CycleProvider, bool>((p) => p.isTTCMode);
 
     final String userName = context.select<SettingsProvider, String>((p) => p.userName);
     final bool isPremium = context.select<SettingsProvider, bool>((p) => p.isPremium);
@@ -132,14 +116,14 @@ class _BuildUltraModernScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 40),
 
-                  // 🔥 CENTER TIMER (Передаем все режимы)
+                  // CENTER TIMER
                   SizedBox(
                     width: MediaQuery.of(context).size.width * 0.85,
                     height: MediaQuery.of(context).size.width * 0.85,
                     child: NebulaTimerWidget(
                       data: data,
                       isCOC: isCOC,
-                      isTTC: isTTC, // 🔥 ДОБАВЛЕНО: Передаем в виджет таймера
+                      isTTC: isTTC,
                     ),
                   ),
 

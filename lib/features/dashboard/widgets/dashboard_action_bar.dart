@@ -2,12 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:provider/provider.dart'; // 🔥 Подключаем Provider
+import 'package:provider/provider.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../data/models/cycle_model.dart';
 import '../../../data/providers/cycle_provider.dart';
-import '../../../data/providers/wellness_provider.dart'; // 🔥 Подключаем логи
+import '../../../data/providers/wellness_provider.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../shared/widgets/animated_edge_button.dart';
 import '../../../shared/widgets/premium_glass_card.dart';
@@ -50,7 +50,6 @@ class DashboardActionBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // 🔥 ДОСТАЕМ ЛОГИ ЗА СЕГОДНЯ, ЧТОБЫ ЗНАТЬ, ЧТО УЖЕ ВВЕДЕНО
     final wellness = context.watch<WellnessProvider>();
     final todayLog = wellness.getLogForDate(DateTime.now());
 
@@ -58,51 +57,73 @@ class DashboardActionBar extends StatelessWidget {
     final bool isTestLogged = todayLog.symptoms.any((s) => s.startsWith('LH:') || s.startsWith('PT:'));
     final bool isSexLogged = todayLog.symptoms.any((s) => s.contains('Sex'));
 
-    // 🔥 TTC РЕЖИМ: Показываем строку быстрых действий
+    final _ActionConfig config = _resolveActionConfig(context);
+
+    // 🔥 TTC РЕЖИМ: Показываем И быстрые действия, И кнопку месячных в одной колонке
     if (provider.isTTCMode) {
-      return Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 24),
-        child: PremiumGlassCard(
-          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
-          borderRadius: 24,
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [
-              _buildTTCQuickAction(
-                context: context,
-                icon: CupertinoIcons.thermometer,
-                label: "Log BBT",
-                color: Colors.purple,
-                isLogged: isBbtLogged, // Передаем статус
-                onTap: () => onOpenLogger(context, DateTime.now(), 'log_bbt'),
+      return Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24),
+            child: PremiumGlassCard(
+              padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+              borderRadius: 24,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  Expanded( // 🔥 Защита от Overflow на маленьких экранах
+                    child: _buildTTCQuickAction(
+                      context: context,
+                      icon: CupertinoIcons.thermometer,
+                      label: "Log BBT",
+                      color: Colors.purple,
+                      isLogged: isBbtLogged,
+                      onTap: () => onOpenLogger(context, DateTime.now(), 'log_bbt'),
+                    ),
+                  ),
+                  _buildTTCVerticalDivider(),
+                  Expanded( // 🔥 Защита от Overflow на маленьких экранах
+                    child: _buildTTCQuickAction(
+                      context: context,
+                      icon: CupertinoIcons.sparkles,
+                      label: "Test",
+                      color: Colors.pinkAccent,
+                      isLogged: isTestLogged,
+                      onTap: () => onOpenLogger(context, DateTime.now(), 'log_test'),
+                    ),
+                  ),
+                  _buildTTCVerticalDivider(),
+                  Expanded( // 🔥 Защита от Overflow на маленьких экранах
+                    child: _buildTTCQuickAction(
+                      context: context,
+                      icon: CupertinoIcons.heart_fill,
+                      label: "Sex",
+                      color: Colors.redAccent,
+                      isLogged: isSexLogged,
+                      onTap: () => onOpenLogger(context, DateTime.now(), 'log_sex'),
+                    ),
+                  ),
+                ],
               ),
-              _buildTTCVerticalDivider(),
-              _buildTTCQuickAction(
-                context: context,
-                icon: CupertinoIcons.sparkles,
-                label: "Test",
-                color: Colors.pinkAccent,
-                isLogged: isTestLogged, // Передаем статус
-                onTap: () => onOpenLogger(context, DateTime.now(), 'log_test'),
-              ),
-              _buildTTCVerticalDivider(),
-              _buildTTCQuickAction(
-                context: context,
-                icon: CupertinoIcons.heart_fill,
-                label: "Sex",
-                color: Colors.redAccent,
-                isLogged: isSexLogged, // Передаем статус
-                onTap: () => onOpenLogger(context, DateTime.now(), 'log_sex'),
-              ),
-            ],
+            ),
           ),
-        ),
+          const SizedBox(height: 16), // Отступ между панелью и кнопкой
+
+          // 🔥 Возвращаем главную кнопку управления циклом (Менструация / Симптомы)
+          AnimatedEdgeButton(
+            text: config.text,
+            icon: config.icon,
+            textColor: config.textColor,
+            bgColor: config.bgColor,
+            onTap: config.onTap,
+            isPulsing: config.isPulsing,
+          ),
+        ],
       );
     }
 
     // СТАНДАРТНЫЙ ИЛИ КОК РЕЖИМ (Остается без изменений)
-    final _ActionConfig config = _resolveActionConfig(context);
-
     return AnimatedEdgeButton(
       text: config.text,
       icon: config.icon,
@@ -155,6 +176,8 @@ class DashboardActionBar extends StatelessWidget {
               fontWeight: isLogged ? FontWeight.w800 : FontWeight.bold,
               color: isLogged ? color : AppColors.textPrimary,
             ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
         ],
       ),
@@ -222,15 +245,6 @@ class DashboardActionBar extends StatelessWidget {
   }
 
   // ─── ACTION HANDLERS ────────────────────────────────────────────────────────
-
-  Future<void> _handleStartNewCOCPack(BuildContext context) async {
-    try {
-      await provider.setCOCMode(true);
-    } catch (e) {
-      debugPrint('DashboardActionBar: setCOCMode error: $e');
-      if (context.mounted) _showErrorSnackbar(context);
-    }
-  }
 
   Future<void> _handleSmartPeriodStart(BuildContext context, DateTime selectedDate) async {
     try {
