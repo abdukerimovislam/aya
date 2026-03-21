@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/cupertino.dart';
@@ -50,8 +51,11 @@ class _DashboardInsightCardState extends State<DashboardInsightCard> {
     List<String> todaySymptoms = [];
     try {
       final log = wellness.getLogForDate(DateTime.now());
-      if (log != null) todaySymptoms = log.symptoms;
-    } catch (_) {}
+      todaySymptoms = log.symptoms;
+    } catch (e) {
+      // 🔥 [M8 FIXED] Перехватываем ошибку и логируем только в дебаге
+      if (kDebugMode) debugPrint("DashboardInsightCard Error getting log: $e");
+    }
 
     String localTitle = "";
     String localSubtitle = "";
@@ -193,7 +197,6 @@ class _DashboardInsightCardState extends State<DashboardInsightCard> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              // 🔥 ИСПРАВЛЕНО: УМНАЯ СТРОКА С БЕЙДЖАМИ (ЗАЩИТА ОТ OVERFLOW)
                               Row(
                                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                 children: [

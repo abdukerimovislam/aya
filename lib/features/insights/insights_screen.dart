@@ -1,4 +1,5 @@
 import 'dart:ui';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
@@ -191,6 +192,8 @@ class InsightsScreen extends StatelessWidget {
       final currentPhase = cycle.currentData.phase;
       return SymptomIntelligence.getInsight(context, allTodaySymptoms, currentPhase, isTTCMode: cycle.isTTCMode);
     } catch (e) {
+      // 🔥 [M8 FIXED] Перехват ошибки с логированием в дебаге
+      if (kDebugMode) debugPrint("InsightsScreen Error getting today intelligence: $e");
       return null;
     }
   }
@@ -343,7 +346,6 @@ class InsightsScreen extends StatelessWidget {
     );
   }
 
-  // 🔥 ЭКСКЛЮЗИВ ДЛЯ РЕЖИМА TTC: ЛИНЕЙНЫЙ ГРАФИК БАЗАЛЬНОЙ ТЕМПЕРАТУРЫ (BBT)
   Widget _buildBBTChart(BuildContext context, CycleProvider cycle, WellnessProvider wellness) {
     final cycleStart = cycle.currentData.cycleStartDate;
     final totalDays = cycle.currentData.totalCycleLength;
@@ -353,26 +355,25 @@ class InsightsScreen extends StatelessWidget {
     double maxTemp = 37.2;
 
     final today = DateTime.now();
-    // 🔥 ФИКС БАГА С ЧАСОВЫМИ ПОЯСАМИ: Очищаем время от "сегодня", чтобы сравнение шло только по дате
     final todayClean = DateTime(today.year, today.month, today.day);
 
     for (int i = 0; i < totalDays; i++) {
       final date = cycleStart.add(Duration(days: i));
-
-      // 🔥 Очищаем дату из цикла, чтобы не было конфликтов с 12:00 UTC
       final cleanDate = DateTime(date.year, date.month, date.day);
 
-      // Не ищем данные в будущем
       if (cleanDate.isAfter(todayClean)) break;
 
       try {
-        final log = wellness.getLogForDate(cleanDate); // Ищем по чистой дате
+        final log = wellness.getLogForDate(cleanDate);
         if (log.temperature != null && log.temperature! > 0) {
           spots.add(FlSpot(i.toDouble() + 1, log.temperature!));
           if (log.temperature! < minTemp) minTemp = log.temperature! - 0.2;
           if (log.temperature! > maxTemp) maxTemp = log.temperature! + 0.2;
         }
-      } catch (_) {}
+      } catch (e) {
+        // 🔥 [M8 FIXED] Перехват ошибки с логированием
+        if (kDebugMode) debugPrint("InsightsScreen Chart Error: $e");
+      }
     }
 
     if (spots.isEmpty) {
@@ -437,7 +438,6 @@ class InsightsScreen extends StatelessWidget {
         ),
         borderData: FlBorderData(show: false),
 
-        // Вертикальная линия овуляции
         extraLinesData: ExtraLinesData(
           verticalLines: [
             if (cycle.isOvulationConfirmed)
@@ -675,7 +675,10 @@ class InsightsScreen extends StatelessWidget {
             counts[sym] = (counts[sym] ?? 0) + 1;
           }
         }
-      } catch (_) {}
+      } catch (e) {
+        // 🔥 [M8 FIXED] Перехват ошибки с логированием
+        if (kDebugMode) debugPrint("InsightsScreen Error in _getTopSymptoms: $e");
+      }
     }
     var sorted = counts.entries.toList()..sort((a, b) => b.value.compareTo(a.value));
     return sorted.take(4).toList();

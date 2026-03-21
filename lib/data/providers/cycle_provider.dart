@@ -146,7 +146,8 @@ class CycleProvider with ChangeNotifier {
 
       final rawStrategy = _settingsBox.get('ttc_strategy') as String?;
       _ttcStrategy = rawStrategy == 'maximal' ? TTCStrategy.maximal : TTCStrategy.minimal;
-    } catch (_) {
+    } catch (e) {
+      if (kDebugMode) debugPrint("Error loading overrides: $e");
       _ovulationOverride = null;
       _ovulationOverrideSource = null;
       _ttcStrategy = TTCStrategy.minimal;
@@ -158,7 +159,9 @@ class CycleProvider with ChangeNotifier {
     _ovulationOverrideSource = null;
     try {
       await _settingsBox.deleteAll(['current_ovulation_override', 'current_ovulation_override_source']);
-    } catch (_) {}
+    } catch (e) {
+      if (kDebugMode) debugPrint("Error clearing ovulation override: $e");
+    }
   }
 
   Future<void> _init() async {
@@ -188,13 +191,12 @@ class CycleProvider with ChangeNotifier {
       notifyListeners();
       rescheduleNotifications();
     } catch (e) {
-      debugPrint("CycleProvider Init Error: $e");
+      if (kDebugMode) debugPrint("CycleProvider Init Error: $e");
       _isLoaded = true;
       notifyListeners();
     }
   }
 
-  // 🔥 ОБНОВЛЕННЫЙ МЕТОД: Защита "Post-Pill Awakening"
   Future<void> setAppMode(AppMode newMode, {DateTime? packStartDate}) async {
     await _ensureBoxOpen();
 
@@ -219,8 +221,6 @@ class CycleProvider with ChangeNotifier {
     } else {
       if (!isSameMode) {
         if (wasCOC) {
-          // Искусственно начинаем новый цикл сегодня, чтобы избежать "Бага 200-го дня".
-          // Старые естественные циклы до КОК уже не релевантны для гормонального фона.
           await logActionStartPeriod(DateTime.now(), isConfirmed: true);
         } else {
           await _recalculateEngine();
@@ -684,9 +684,11 @@ class CycleProvider with ChangeNotifier {
     List<int> timestamps = (_settingsBox.get('bleeding_days') as List?)?.cast<int>() ?? [];
     List<int> manualStarts = (_settingsBox.get('manual_cycle_starts') as List?)?.cast<int>() ?? [];
 
+    // 🔥 ИСПРАВЛЕННЫЙ БАГ: Больше не удаляем прошлые 10 дней кровотечений.
+    // Удаляем ТОЛЬКО будущие даты, если юзер случайно поставил их вперед.
     timestamps.removeWhere((ts) {
       final tDate = DateTime.fromMillisecondsSinceEpoch(ts);
-      return tDate.isAfter(normDate) || (tDate.isBefore(normDate) && normDate.difference(tDate).inDays <= 10);
+      return tDate.isAfter(normDate);
     });
 
     manualStarts.removeWhere((ts) {
@@ -877,7 +879,7 @@ class CycleProvider with ChangeNotifier {
     try {
       _aiConfidence = CycleAIEngine.calculateConfidence(_history);
     } catch (e) {
-      debugPrint("AI Engine error: $e");
+      if (kDebugMode) debugPrint("AI Engine error: $e");
       _aiConfidence = null;
     }
   }
@@ -936,8 +938,11 @@ class CycleProvider with ChangeNotifier {
       final nextPeriodStart = lastStart.add(Duration(days: len));
 
       if (isCOCEnabled) {
+        // 🔥 ИСПРАВЛЕННЫЙ БАГ: Больше нет хардкода 21 дня, читаем из настроек (scheme 24/4, 21/7, etc)
+        final activePills = _settingsBox.get('coc_active_count', defaultValue: 21);
         await _scheduleIfFuture(100, nextPeriodStart, l10n.notifNewPackTitle, l10n.notifNewPackBody, payload: "screen_coc");
-        final breakDate = lastStart.add(const Duration(days: 21));
+
+        final breakDate = lastStart.add(Duration(days: activePills));
         await _scheduleIfFuture(101, breakDate, l10n.notifBreakTitle, l10n.notifBreakBody, payload: "screen_coc");
         return;
       }
@@ -979,13 +984,15 @@ class CycleProvider with ChangeNotifier {
       }
 
     } catch (e) {
-      debugPrint("Reschedule notifications error: $e");
+      if (kDebugMode) debugPrint("Reschedule notifications error: $e");
     }
   }
 
   Future<void> _scheduleIfFuture(int id, DateTime date, String title, String body, {String? payload}) async {
     if (_notificationService == null) return;
-    DateTime scheduleTime = (date.hour == 0 && date.minute == 0) ? DateTime(date.year, date.month, date.day, 9, 0) : date;
+
+    // Преобразуем UTC 12:00 в локальное утро 09:00
+    DateTime scheduleTime = DateTime(date.year, date.month, date.day, 9, 0);
 
     if (scheduleTime.isAfter(DateTime.now())) {
       await _notificationService!.scheduleNotification(id: id, title: title, body: body, scheduledDate: scheduleTime, payload: payload ?? 'screen_calendar');

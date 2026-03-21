@@ -200,12 +200,14 @@ class WellnessProvider extends ChangeNotifier {
         if (log.symptoms.contains(factor)) {
           factorCount++;
 
-          // 🔥 ИСПРАВЛЕНО: Складываем симптомы за 2 дня в Set,
+          // 🔥 Складываем симптомы за 2 дня в Set,
           // чтобы избежать двойного счета и вероятности > 100%
           final Set<String> incidentPains = {};
           incidentPains.addAll(log.painSymptoms);
 
-          final nextDay = log.date.add(const Duration(days: 1));
+          // 🔥 ИСПРАВЛЕННЫЙ БАГ: Безопасное прибавление дня с защитой от DST (перевода часов)
+          final nextDay = DateTime(log.date.year, log.date.month, log.date.day + 1);
+
           if (hasLogForDate(nextDay)) {
             incidentPains.addAll(getLogForDate(nextDay).painSymptoms);
           }
