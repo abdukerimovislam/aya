@@ -18,6 +18,7 @@ import '../../shared/widgets/live_phase_background.dart';
 
 import '../../data/logic/symptom_intelligence.dart';
 import '../../data/models/cycle_model.dart';
+import '../../data/logic/health_pattern_detector.dart';
 
 class InsightsScreen extends StatelessWidget {
   const InsightsScreen({super.key});
@@ -34,6 +35,13 @@ class InsightsScreen extends StatelessWidget {
     List<MapEntry<String, int>> topSymptoms = _getTopSymptoms(wellnessProvider);
 
     final todayInsight = _getTodayIntelligence(context, wellnessProvider, cycleProvider);
+
+    // 🔥 АНАЛИЗИРУЕМ КЛИНИЧЕСКИЕ ПАТТЕРНЫ
+    final clinicalFlags = HealthPatternDetector.analyzePatterns(
+        cycleProvider.history,
+        wellnessProvider,
+        isCocEnabled: cycleProvider.isCOCEnabled
+    );
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -85,6 +93,14 @@ class InsightsScreen extends StatelessWidget {
                   _buildSectionTitle("Today's Body Pattern"),
                   const SizedBox(height: 12),
                   _buildSymptomInsightCard(todayInsight, isTTC),
+                  const SizedBox(height: 24),
+                ],
+
+                // 🔥 РЕНДЕРИМ СЕКЦИЮ ПАТТЕРНОВ, ЕСЛИ ОНИ НАЙДЕНЫ
+                if (clinicalFlags.isNotEmpty) ...[
+                  _buildSectionTitle("Clinical Patterns"),
+                  const SizedBox(height: 12),
+                  ...clinicalFlags.map((flag) => _buildClinicalFlagCard(context, flag)),
                   const SizedBox(height: 24),
                 ],
 
@@ -182,6 +198,168 @@ class InsightsScreen extends StatelessWidget {
     );
   }
 
+  // 🔥 ВИДЖЕТ ДЛЯ КЛИНИЧЕСКИХ ПАТТЕРНОВ
+  Widget _buildClinicalFlagCard(BuildContext context, HealthFlag flag) {
+    Color cardColor;
+    IconData icon;
+
+    switch (flag.type) {
+      case HealthFlagType.pcos:
+        cardColor = Colors.orange;
+        icon = CupertinoIcons.waveform_path_ecg;
+        break;
+      case HealthFlagType.endometriosis:
+        cardColor = Colors.redAccent;
+        icon = CupertinoIcons.drop_triangle_fill;
+        break;
+      case HealthFlagType.lutealDefect:
+        cardColor = Colors.purple;
+        icon = CupertinoIcons.graph_square_fill;
+        break;
+      case HealthFlagType.amenorrhea:
+        cardColor = Colors.deepOrange;
+        icon = CupertinoIcons.exclamationmark_shield_fill;
+        break;
+      case HealthFlagType.menorrhagia:
+        cardColor = Colors.red;
+        icon = CupertinoIcons.drop_fill;
+        break;
+      case HealthFlagType.pmdd:
+        cardColor = Colors.indigo;
+        icon = CupertinoIcons.cloud_bolt_rain_fill;
+        break;
+      case HealthFlagType.polymenorrhea:
+        cardColor = Colors.teal;
+        icon = CupertinoIcons.arrow_2_circlepath_circle_fill;
+        break;
+    }
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12.0),
+      child: GestureDetector(
+        onTap: () {
+          HapticFeedback.lightImpact();
+          _showFlagDetails(context, flag, cardColor, icon);
+        },
+        child: PremiumGlassCard(
+          padding: const EdgeInsets.all(16),
+          borderRadius: 20,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: cardColor.withOpacity(0.15),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(icon, color: cardColor, size: 22),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      flag.title,
+                      style: GoogleFonts.outfit(fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      flag.description,
+                      style: GoogleFonts.inter(fontSize: 13, color: AppColors.textSecondary, height: 1.4, fontWeight: FontWeight.w500),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              Icon(CupertinoIcons.info_circle, color: AppColors.textSecondary.withOpacity(0.5), size: 20),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showFlagDetails(BuildContext context, HealthFlag flag, Color color, IconData icon) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (context) => Container(
+        padding: const EdgeInsets.all(24),
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
+        ),
+        child: SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 40, height: 4,
+                decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2)),
+              ),
+              const SizedBox(height: 24),
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(color: color.withOpacity(0.15), shape: BoxShape.circle),
+                child: Icon(icon, color: color, size: 32),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                flag.title,
+                textAlign: TextAlign.center,
+                style: GoogleFonts.outfit(fontSize: 22, fontWeight: FontWeight.w800, color: AppColors.textPrimary),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                flag.description,
+                textAlign: TextAlign.center,
+                style: GoogleFonts.inter(fontSize: 15, color: AppColors.textSecondary, height: 1.5),
+              ),
+              const SizedBox(height: 24),
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                    color: AppColors.background,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: AppColors.textSecondary.withOpacity(0.1))
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // 🔥 ИСПРАВЛЕНА ИКОНКА ЗДЕСЬ
+                    Icon(Icons.medical_services_outlined, color: AppColors.primary, size: 20),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        flag.recommendation,
+                        style: GoogleFonts.inter(fontSize: 14, color: AppColors.textPrimary, height: 1.5, fontWeight: FontWeight.w600),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 24),
+              SizedBox(
+                width: double.infinity,
+                child: CupertinoButton(
+                  color: AppColors.textPrimary,
+                  borderRadius: BorderRadius.circular(16),
+                  onPressed: () => Navigator.pop(context),
+                  child: Text("Understood", style: GoogleFonts.inter(fontWeight: FontWeight.w700, color: Colors.white)),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   SymptomInsight? _getTodayIntelligence(BuildContext context, WellnessProvider wellness, CycleProvider cycle) {
     try {
       final todayLog = wellness.getLogForDate(DateTime.now());
@@ -192,7 +370,6 @@ class InsightsScreen extends StatelessWidget {
       final currentPhase = cycle.currentData.phase;
       return SymptomIntelligence.getInsight(context, allTodaySymptoms, currentPhase, isTTCMode: cycle.isTTCMode);
     } catch (e) {
-      // 🔥 [M8 FIXED] Перехват ошибки с логированием в дебаге
       if (kDebugMode) debugPrint("InsightsScreen Error getting today intelligence: $e");
       return null;
     }
@@ -371,7 +548,6 @@ class InsightsScreen extends StatelessWidget {
           if (log.temperature! > maxTemp) maxTemp = log.temperature! + 0.2;
         }
       } catch (e) {
-        // 🔥 [M8 FIXED] Перехват ошибки с логированием
         if (kDebugMode) debugPrint("InsightsScreen Chart Error: $e");
       }
     }
@@ -676,7 +852,6 @@ class InsightsScreen extends StatelessWidget {
           }
         }
       } catch (e) {
-        // 🔥 [M8 FIXED] Перехват ошибки с логированием
         if (kDebugMode) debugPrint("InsightsScreen Error in _getTopSymptoms: $e");
       }
     }

@@ -11,6 +11,10 @@ import 'package:provider/provider.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:intl/intl.dart';
 
+// 🔥 ИМПОРТЫ FIREBASE
+import 'package:firebase_core/firebase_core.dart';
+import 'firebase_options.dart';
+
 // 🔥 Импорты для фоновой работы ИИ
 import 'package:workmanager/workmanager.dart';
 import 'core/services/ai_oracle_service.dart';
@@ -45,9 +49,15 @@ void callbackDispatcher() {
     try {
       // 1. Инициализируем Flutter биндинги
       WidgetsFlutterBinding.ensureInitialized();
+
+      // 🚀 ОБЯЗАТЕЛЬНО: Инициализируем Firebase даже в фоновом изоляте!
+      await Firebase.initializeApp(
+        options: DefaultFirebaseOptions.currentPlatform,
+      );
+
       await Hive.initFlutter();
 
-      // 2. 🔥 ДОБАВЛЕНО: Достаем ключ шифрования для фонового изолята
+      // 2. Достаем ключ шифрования для фонового изолята
       final storageService = SecureStorageService();
       final encryptionKey = await storageService.getOrCreateHiveCipherKey();
 
@@ -64,12 +74,12 @@ void callbackDispatcher() {
         debugPrint("Background adapters already registered");
       }
 
-      // 4. 🔥 ДОБАВЛЕНО: Безопасно открываем базы С ШИФРОВАНИЕМ, чтобы ИИ мог их прочитать
+      // 4. Безопасно открываем базы С ШИФРОВАНИЕМ, чтобы ИИ мог их прочитать
       if (!Hive.isBoxOpen('settings')) await Hive.openBox('settings', encryptionCipher: HiveAesCipher(encryptionKey));
       if (!Hive.isBoxOpen('cycles')) await Hive.openBox('cycles', encryptionCipher: HiveAesCipher(encryptionKey));
       if (!Hive.isBoxOpen('symptom_logs')) await Hive.openBox('symptom_logs', encryptionCipher: HiveAesCipher(encryptionKey));
 
-      // 5. Запускаем ИИ анализ (теперь он имеет доступ к зашифрованным данным!)
+      // 5. Запускаем ИИ анализ (теперь он имеет доступ к зашифрованным данным и Firebase!)
       await AiOracleService.fetchDailyInsight(isManual: false);
 
       return Future.value(true);
@@ -96,16 +106,26 @@ void main() async {
   };
 
   await runZonedGuarded(() async {
+    // 0) Инициализируем Flutter биндинги
     WidgetsFlutterBinding.ensureInitialized();
 
-    // 1) Critical services
+    // 🚀 1) ЗАПУСКАЕМ FIREBASE ДЛЯ REMOTE CONFIG (И других сервисов)
+    try {
+      await Firebase.initializeApp(
+        options: DefaultFirebaseOptions.currentPlatform,
+      );
+    } catch (e) {
+      debugPrint("🔥 Ошибка инициализации Firebase (возможно, уже инициализирован): $e");
+    }
+
+    // 2) Critical services
     await SubscriptionService.init();
     final storageService = SecureStorageService();
 
-    // 🔥 2) Получаем или создаем ключ для шифрования Hive
+    // 3) Получаем или создаем ключ для шифрования Hive
     final encryptionKey = await storageService.getOrCreateHiveCipherKey();
 
-    // 3) System UI
+    // 4) System UI
     SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
       statusBarColor: Colors.transparent,
       statusBarIconBrightness: Brightness.dark,
@@ -117,7 +137,7 @@ void main() async {
       DeviceOrientation.portraitDown,
     ]);
 
-    // 4) Hive init
+    // 5) Hive init
     await Hive.initFlutter();
 
     // 🔥 ЗАЩИТА ОТ КРАША КЕЙСТОРА ANDROID 🔥
@@ -134,7 +154,7 @@ void main() async {
       }
     }
 
-    // 5) Register adapters (safe)
+    // 6) Register adapters (safe)
     try {
       if (!Hive.isAdapterRegistered(0)) Hive.registerAdapter(CycleModelAdapter());
       if (!Hive.isAdapterRegistered(1)) Hive.registerAdapter(SymptomLogAdapter());
@@ -147,13 +167,13 @@ void main() async {
       debugPrint("⚠️ Hive Adapter Registration Warning: $e");
     }
 
-    // 6) Open boxes safely with ENCRYPTION
+    // 7) Open boxes safely with ENCRYPTION
     final settingsBox = await _openBoxSafely('settings', encryptionKey);
     final cycleBox = await _openBoxSafely('cycles', encryptionKey);
     final wellnessBox = await _openBoxSafely('symptom_logs', encryptionKey);
     final cocBox = await _openBoxSafely('coc_settings', encryptionKey);
 
-    // 7) Notifications
+    // 8) Notifications
     final notificationService = NotificationService();
     await notificationService.init(
       onNotificationTap: (payload) {
@@ -168,7 +188,7 @@ void main() async {
       },
     );
 
-    // 8) Инициализация Workmanager
+    // 9) Инициализация Workmanager
     try {
       Workmanager().initialize(
         callbackDispatcher,

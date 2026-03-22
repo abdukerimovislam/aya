@@ -9,12 +9,8 @@ import '../../../data/models/cycle_model.dart';
 import '../../../data/providers/cycle_provider.dart';
 import '../../../data/providers/wellness_provider.dart';
 import '../../../l10n/app_localizations.dart';
-import '../../../shared/widgets/animated_edge_button.dart';
 import '../../../shared/widgets/premium_glass_card.dart';
 
-// ─────────────────────────────────────────────────────────────────────────────
-// CONSTANTS
-// ─────────────────────────────────────────────────────────────────────────────
 class _ActionBarConstants {
   static const int pulseTriggerDays = 3;
   static const int maxRetroactiveDays = 60;
@@ -24,18 +20,15 @@ class _ActionBarConstants {
   static const double handleWidth = 48;
   static const double handleHeight = 5;
   static const double optionIconSize = 26;
-  static const int minDaysBetweenCycles = 11;
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// WIDGET
-// ─────────────────────────────────────────────────────────────────────────────
 class DashboardActionBar extends StatelessWidget {
   final CycleData data;
   final bool isCOC;
   final CycleProvider provider;
   final AppLocalizations l10n;
-  final void Function(BuildContext context, DateTime date, String heroTag) onOpenLogger;
+  final void Function(BuildContext context, DateTime date, String heroTag)
+  onOpenLogger;
 
   const DashboardActionBar({
     super.key,
@@ -46,20 +39,19 @@ class DashboardActionBar extends StatelessWidget {
     required this.onOpenLogger,
   });
 
-  // ─── BUILD ─────────────────────────────────────────────────────────────────
-
   @override
   Widget build(BuildContext context) {
     final wellness = context.watch<WellnessProvider>();
     final todayLog = wellness.getLogForDate(DateTime.now());
 
-    final bool isBbtLogged = todayLog.temperature != null && todayLog.temperature! > 0.0;
-    final bool isTestLogged = todayLog.symptoms.any((s) => s.startsWith('LH:') || s.startsWith('PT:'));
+    final bool isBbtLogged =
+        todayLog.temperature != null && todayLog.temperature! > 0.0;
+    final bool isTestLogged =
+    todayLog.symptoms.any((s) => s.startsWith('LH:') || s.startsWith('PT:'));
     final bool isSexLogged = todayLog.symptoms.any((s) => s.contains('Sex'));
 
     final _ActionConfig config = _resolveActionConfig(context);
 
-    // 🔥 TTC РЕЖИМ: Показываем И быстрые действия, И кнопку месячных в одной колонке
     if (provider.isTTCMode) {
       return Column(
         mainAxisSize: MainAxisSize.min,
@@ -72,69 +64,54 @@ class DashboardActionBar extends StatelessWidget {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
-                  Expanded( // 🔥 Защита от Overflow на маленьких экранах
+                  Expanded(
                     child: _buildTTCQuickAction(
                       context: context,
                       icon: CupertinoIcons.thermometer,
                       label: "Log BBT",
                       color: Colors.purple,
                       isLogged: isBbtLogged,
-                      onTap: () => onOpenLogger(context, DateTime.now(), 'log_bbt'),
+                      onTap: () =>
+                          onOpenLogger(context, DateTime.now(), 'log_bbt'),
                     ),
                   ),
                   _buildTTCVerticalDivider(),
-                  Expanded( // 🔥 Защита от Overflow на маленьких экранах
+                  Expanded(
                     child: _buildTTCQuickAction(
                       context: context,
                       icon: CupertinoIcons.sparkles,
                       label: "Test",
                       color: Colors.pinkAccent,
                       isLogged: isTestLogged,
-                      onTap: () => onOpenLogger(context, DateTime.now(), 'log_test'),
+                      onTap: () =>
+                          onOpenLogger(context, DateTime.now(), 'log_test'),
                     ),
                   ),
                   _buildTTCVerticalDivider(),
-                  Expanded( // 🔥 Защита от Overflow на маленьких экранах
+                  Expanded(
                     child: _buildTTCQuickAction(
                       context: context,
                       icon: CupertinoIcons.heart_fill,
                       label: "Sex",
                       color: Colors.redAccent,
                       isLogged: isSexLogged,
-                      onTap: () => onOpenLogger(context, DateTime.now(), 'log_sex'),
+                      onTap: () =>
+                          onOpenLogger(context, DateTime.now(), 'log_sex'),
                     ),
                   ),
                 ],
               ),
             ),
           ),
-          const SizedBox(height: 16), // Отступ между панелью и кнопкой
-
-          // 🔥 Возвращаем главную кнопку управления циклом (Менструация / Симптомы)
-          AnimatedEdgeButton(
-            text: config.text,
-            icon: config.icon,
-            textColor: config.textColor,
-            bgColor: config.bgColor,
-            onTap: config.onTap,
-            isPulsing: config.isPulsing,
-          ),
+          const SizedBox(height: 16),
+          _CycleActionCard(config: config),
         ],
       );
     }
 
-    // СТАНДАРТНЫЙ ИЛИ КОК РЕЖИМ (Остается без изменений)
-    return AnimatedEdgeButton(
-      text: config.text,
-      icon: config.icon,
-      textColor: config.textColor,
-      bgColor: config.bgColor,
-      onTap: config.onTap,
-      isPulsing: config.isPulsing,
-    );
+    return _CycleActionCard(config: config);
   }
 
-  // 🔥 УМНЫЕ КОМПОНЕНТЫ ДЛЯ TTC ПАНЕЛИ С ВИЗУАЛЬНЫМ ПОДКРЕПЛЕНИЕМ
   Widget _buildTTCQuickAction({
     required BuildContext context,
     required IconData icon,
@@ -159,18 +136,24 @@ class DashboardActionBar extends StatelessWidget {
               color: isLogged ? color : color.withOpacity(0.15),
               shape: BoxShape.circle,
               boxShadow: isLogged
-                  ? [BoxShadow(color: color.withOpacity(0.4), blurRadius: 8, offset: const Offset(0, 4))]
+                  ? [
+                BoxShadow(
+                  color: color.withOpacity(0.4),
+                  blurRadius: 8,
+                  offset: const Offset(0, 4),
+                )
+              ]
                   : [],
             ),
             child: Icon(
-                isLogged ? CupertinoIcons.check_mark : icon, // Меняем иконку на галочку
-                color: isLogged ? Colors.white : color, // Меняем цвет на белый
-                size: 24
+              isLogged ? CupertinoIcons.check_mark : icon,
+              color: isLogged ? Colors.white : color,
+              size: 24,
             ),
           ),
           const SizedBox(height: 8),
           Text(
-            isLogged ? "Logged" : label, // Если введено, пишем "Logged"
+            isLogged ? "Logged" : label,
             style: GoogleFonts.inter(
               fontSize: 12,
               fontWeight: isLogged ? FontWeight.w800 : FontWeight.bold,
@@ -192,16 +175,15 @@ class DashboardActionBar extends StatelessWidget {
     );
   }
 
-  // ─── ACTION CONFIG RESOLVER (Для не-TTC режимов) ──────────────────────────
-
   _ActionConfig _resolveActionConfig(BuildContext context) {
     if (isCOC) {
       return _ActionConfig(
-        text: l10n.logSymptomsTitle,
+        title: l10n.logSymptomsTitle,
+        subtitle: l10n.symptomSubHeader,
         icon: CupertinoIcons.add,
-        textColor: Colors.white,
-        bgColor: AppColors.primary,
+        isPrimaryFilled: true,
         isPulsing: false,
+        showTodayBadge: false,
         onTap: () {
           HapticFeedback.lightImpact();
           onOpenLogger(context, DateTime.now(), 'log_sheet');
@@ -212,41 +194,46 @@ class DashboardActionBar extends StatelessWidget {
     if (data.phase == CyclePhase.menstruation) {
       if (provider.isPeriodEnded) {
         return _ActionConfig(
-          text: "Ending today",
+          title: "Ending today",
+          subtitle: "Tap if bleeding has stopped",
           icon: CupertinoIcons.check_mark_circled_solid,
-          textColor: Colors.white,
-          bgColor: AppColors.menstruation.withOpacity(0.7),
+          isPrimaryFilled: false,
           isPulsing: false,
+          showTodayBadge: false,
           onTap: () => _showActivePeriodSheet(context),
         );
       }
 
       return _ActionConfig(
-        text: l10n.phaseMenstruation,
+        title: "Day ${data.currentDay} of period",
+        subtitle: "Tap to manage or log symptoms",
         icon: CupertinoIcons.drop_fill,
-        textColor: Colors.white,
-        bgColor: AppColors.menstruation,
+        isPrimaryFilled: true,
         isPulsing: false,
+        showTodayBadge: false,
         onTap: () => _showActivePeriodSheet(context),
       );
     }
 
-    final bool isPulsing = data.daysUntilNextPeriod <= _ActionBarConstants.pulseTriggerDays ||
-        data.phase == CyclePhase.late;
+    final bool isPulsing =
+        data.daysUntilNextPeriod <= _ActionBarConstants.pulseTriggerDays ||
+            data.phase == CyclePhase.late;
 
     return _ActionConfig(
-      text: l10n.dialogPeriodStartTitle,
-      icon: CupertinoIcons.drop,
-      textColor: AppColors.menstruation,
-      bgColor: Colors.white,
+      title: "Start period",
+      subtitle: "Log today, yesterday, or choose a date",
+      icon: CupertinoIcons.drop_fill,
+      isPrimaryFilled: true,
       isPulsing: isPulsing,
+      showTodayBadge: true,
       onTap: () => _showPeriodInterceptorSheet(context),
     );
   }
 
-  // ─── ACTION HANDLERS ────────────────────────────────────────────────────────
-
-  Future<void> _handleSmartPeriodStart(BuildContext context, DateTime selectedDate) async {
+  Future<void> _handleSmartPeriodStart(
+      BuildContext context,
+      DateTime selectedDate,
+      ) async {
     try {
       final result = await provider.logActionStartPeriod(selectedDate);
 
@@ -263,16 +250,16 @@ class DashboardActionBar extends StatelessWidget {
       }
 
       _showSuccessSnackbar(context, l10n.msgSaved);
-
     } catch (e) {
       debugPrint('DashboardActionBar: logActionStartPeriod error: $e');
       if (context.mounted) _showErrorSnackbar(context);
     }
   }
 
-  // ─── DIALOGS & BOTTOM SHEETS ────────────────────────────────────────────────
-
-  void _showSuspiciouslyEarlyDialog(BuildContext context, DateTime selectedDate) {
+  void _showSuspiciouslyEarlyDialog(
+      BuildContext context,
+      DateTime selectedDate,
+      ) {
     HapticFeedback.heavyImpact();
     showDialog(
       context: context,
@@ -287,7 +274,10 @@ class DashboardActionBar extends StatelessWidget {
                 color: Colors.orange.withOpacity(0.1),
                 shape: BoxShape.circle,
               ),
-              child: const Icon(CupertinoIcons.exclamationmark_triangle_fill, color: Colors.orange),
+              child: const Icon(
+                CupertinoIcons.exclamationmark_triangle_fill,
+                color: Colors.orange,
+              ),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -310,7 +300,11 @@ class DashboardActionBar extends StatelessWidget {
             height: 1.4,
           ),
         ),
-        actionsPadding: const EdgeInsets.only(bottom: 16, right: 16, left: 16),
+        actionsPadding: const EdgeInsets.only(
+          bottom: 16,
+          right: 16,
+          left: 16,
+        ),
         actions: [
           TextButton(
             onPressed: () async {
@@ -333,13 +327,21 @@ class DashboardActionBar extends StatelessWidget {
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.menstruation,
               elevation: 0,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              padding: const EdgeInsets.symmetric(
+                horizontal: 20,
+                vertical: 12,
+              ),
             ),
             onPressed: () async {
               Navigator.pop(ctx);
               HapticFeedback.mediumImpact();
-              await provider.logActionStartPeriod(selectedDate, isConfirmed: true);
+              await provider.logActionStartPeriod(
+                selectedDate,
+                isConfirmed: true,
+              );
               if (context.mounted) {
                 _showSuccessSnackbar(context, l10n.msgSaved);
               }
@@ -380,8 +382,9 @@ class DashboardActionBar extends StatelessWidget {
           final DateTime? picked = await showDatePicker(
             context: context,
             initialDate: DateTime.now(),
-            firstDate: DateTime.now()
-                .subtract(const Duration(days: _ActionBarConstants.maxRetroactiveDays)),
+            firstDate: DateTime.now().subtract(
+              const Duration(days: _ActionBarConstants.maxRetroactiveDays),
+            ),
             lastDate: DateTime.now(),
             builder: (context, child) => Theme(
               data: Theme.of(context).copyWith(
@@ -435,13 +438,13 @@ class DashboardActionBar extends StatelessWidget {
           HapticFeedback.heavyImpact();
           Navigator.pop(ctx);
           await provider.undoPeriodStart();
-          if (context.mounted) _showSuccessSnackbar(context, "Period start removed");
+          if (context.mounted) {
+            _showSuccessSnackbar(context, "Period start removed");
+          }
         },
       ),
     );
   }
-
-  // ─── SNACKBARS ──────────────────────────────────────────────────────────────
 
   void _showSuccessSnackbar(BuildContext context, String message) {
     ScaffoldMessenger.of(context).clearSnackBars();
@@ -450,13 +453,13 @@ class DashboardActionBar extends StatelessWidget {
     );
   }
 
-  void _showErrorSnackbar(BuildContext context, {String message = 'Error. Please try again.'}) {
+  void _showErrorSnackbar(
+      BuildContext context, {
+        String message = 'Error. Please try again.',
+      }) {
     ScaffoldMessenger.of(context).clearSnackBars();
     ScaffoldMessenger.of(context).showSnackBar(
-      _buildSnackbar(
-        message,
-        Colors.redAccent.withOpacity(0.9),
-      ),
+      _buildSnackbar(message, Colors.redAccent.withOpacity(0.9)),
     );
   }
 
@@ -464,12 +467,17 @@ class DashboardActionBar extends StatelessWidget {
     return SnackBar(
       content: Text(
         message,
-        style: GoogleFonts.inter(fontWeight: FontWeight.w600, color: Colors.white),
+        style: GoogleFonts.inter(
+          fontWeight: FontWeight.w600,
+          color: Colors.white,
+        ),
       ),
       backgroundColor: bgColor,
       behavior: SnackBarBehavior.floating,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      duration: const Duration(seconds: _ActionBarConstants.snackbarDurationSeconds),
+      duration: const Duration(
+        seconds: _ActionBarConstants.snackbarDurationSeconds,
+      ),
       margin: const EdgeInsets.only(
         bottom: _ActionBarConstants.snackbarBottomMargin,
         left: 20,
@@ -479,31 +487,277 @@ class DashboardActionBar extends StatelessWidget {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// PRIVATE CONFIG MODEL
-// ─────────────────────────────────────────────────────────────────────────────
+class _CycleActionCard extends StatefulWidget {
+  final _ActionConfig config;
+
+  const _CycleActionCard({
+    required this.config,
+  });
+
+  @override
+  State<_CycleActionCard> createState() => _CycleActionCardState();
+}
+
+class _CycleActionCardState extends State<_CycleActionCard>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  late final Animation<double> _scale;
+  late final Animation<double> _glowOpacity;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1700),
+    );
+
+    _scale = Tween<double>(begin: 1.0, end: 1.028).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
+    );
+
+    _glowOpacity = Tween<double>(begin: 0.72, end: 1.0).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
+    );
+
+    if (widget.config.isPulsing) {
+      _controller.repeat(reverse: true);
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant _CycleActionCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+
+    if (widget.config.isPulsing && !_controller.isAnimating) {
+      _controller.repeat(reverse: true);
+    } else if (!widget.config.isPulsing && _controller.isAnimating) {
+      _controller.stop();
+      _controller.value = 0;
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  bool get _isEndingState =>
+      widget.config.title.toLowerCase().contains('ending');
+
+  @override
+  Widget build(BuildContext context) {
+    final bool isFilled = widget.config.isPrimaryFilled;
+    final bool isEnding = _isEndingState;
+
+    final Gradient backgroundGradient = isEnding
+        ? const LinearGradient(
+      colors: [
+        Color(0xFFFFF1F5),
+        Color(0xFFFFE4EC),
+      ],
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+    )
+        : const LinearGradient(
+      colors: [
+        Color(0xFFFF6FA1),
+        Color(0xFFFF4D79),
+        Color(0xFFE63E6D),
+      ],
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+    );
+
+    final Color titleColor = isEnding
+        ? const Color(0xFF3C2A31)
+        : Colors.white;
+
+    final Color subtitleColor = isEnding
+        ? const Color(0xFF8C6B75)
+        : Colors.white.withOpacity(0.88);
+
+    final Color borderColor = isEnding
+        ? const Color(0xFFFFD3DE)
+        : Colors.white.withOpacity(0.18);
+
+    final List<BoxShadow> shadows = isEnding
+        ? [
+      BoxShadow(
+        color: const Color(0xFFFFC7D4).withOpacity(0.35),
+        blurRadius: 18,
+        offset: const Offset(0, 10),
+      ),
+    ]
+        : [
+      BoxShadow(
+        color: const Color(0xFFE94057).withOpacity(
+          widget.config.isPulsing ? _glowOpacity.value * 0.42 : 0.34,
+        ),
+        blurRadius: widget.config.isPulsing ? 30 : 24,
+        spreadRadius: widget.config.isPulsing ? 2 : 1,
+        offset: const Offset(0, 14),
+      ),
+      BoxShadow(
+        color: const Color(0xFFFF8DB2).withOpacity(
+          widget.config.isPulsing ? _glowOpacity.value * 0.24 : 0.18,
+        ),
+        blurRadius: 10,
+        spreadRadius: -1,
+        offset: const Offset(0, 4),
+      ),
+    ];
+
+    Widget card = Container(
+      margin: const EdgeInsets.symmetric(horizontal: 20),
+      constraints: const BoxConstraints(minHeight: 82),
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+      decoration: BoxDecoration(
+        gradient: backgroundGradient,
+        borderRadius: BorderRadius.circular(28),
+        border: Border.all(color: borderColor, width: 1.3),
+        boxShadow: shadows,
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 54,
+            height: 54,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: isEnding
+                    ? const Color(0xFFFFD3DE)
+                    : Colors.white.withOpacity(0.95),
+                width: 1.2,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.06),
+                  blurRadius: 10,
+                  offset: const Offset(0, 5),
+                ),
+              ],
+            ),
+            child: Icon(
+              widget.config.icon,
+              color: const Color(0xFFE94057),
+              size: 26,
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  widget.config.title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.inter(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w900,
+                    color: titleColor,
+                    letterSpacing: -0.25,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  widget.config.subtitle,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.inter(
+                    fontSize: 12.8,
+                    fontWeight: FontWeight.w600,
+                    color: subtitleColor,
+                    height: 1.25,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 10),
+          if (widget.config.showTodayBadge && !isEnding)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.18),
+                borderRadius: BorderRadius.circular(999),
+                border: Border.all(
+                  color: Colors.white.withOpacity(0.24),
+                ),
+              ),
+              child: Text(
+                'TODAY',
+                style: GoogleFonts.inter(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w800,
+                  color: Colors.white,
+                  letterSpacing: 0.6,
+                ),
+              ),
+            )
+          else
+            Icon(
+              CupertinoIcons.chevron_right,
+              color: isEnding
+                  ? const Color(0xFFC89AA8)
+                  : Colors.white.withOpacity(0.82),
+              size: 18,
+            ),
+        ],
+      ),
+    );
+
+    if (widget.config.isPulsing && !isEnding) {
+      card = AnimatedBuilder(
+        animation: _controller,
+        builder: (_, child) {
+          return Transform.scale(
+            scale: _scale.value,
+            child: child,
+          );
+        },
+        child: card,
+      );
+    }
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(28),
+        onTap: () {
+          HapticFeedback.mediumImpact();
+          widget.config.onTap();
+        },
+        child: card,
+      ),
+    );
+  }
+}
 
 class _ActionConfig {
-  final String text;
+  final String title;
+  final String subtitle;
   final IconData icon;
-  final Color textColor;
-  final Color bgColor;
+  final bool isPrimaryFilled;
   final bool isPulsing;
+  final bool showTodayBadge;
   final VoidCallback onTap;
 
   const _ActionConfig({
-    required this.text,
+    required this.title,
+    required this.subtitle,
     required this.icon,
-    required this.textColor,
-    required this.bgColor,
+    required this.isPrimaryFilled,
     required this.isPulsing,
+    required this.showTodayBadge,
     required this.onTap,
   });
 }
-
-// ─────────────────────────────────────────────────────────────────────────────
-// SHEET: Period not active — ask when it started
-// ─────────────────────────────────────────────────────────────────────────────
 
 class _PeriodInterceptorSheet extends StatelessWidget {
   final AppLocalizations l10n;
@@ -551,10 +805,6 @@ class _PeriodInterceptorSheet extends StatelessWidget {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// SHEET: Period active — manage it
-// ─────────────────────────────────────────────────────────────────────────────
-
 class _ActivePeriodSheet extends StatelessWidget {
   final AppLocalizations l10n;
   final bool isPeriodEnded;
@@ -587,7 +837,6 @@ class _ActivePeriodSheet extends StatelessWidget {
           onTap: onLogTap,
         ),
         const SizedBox(height: 12),
-
         if (isPeriodEnded)
           _SheetOption(
             icon: CupertinoIcons.play_circle_fill,
@@ -604,7 +853,6 @@ class _ActivePeriodSheet extends StatelessWidget {
             color: AppColors.textSecondary,
             onTap: onEndTap,
           ),
-
         if (isDayOne) ...[
           const SizedBox(height: 12),
           _SheetOption(
@@ -614,26 +862,30 @@ class _ActivePeriodSheet extends StatelessWidget {
             color: Colors.redAccent,
             onTap: onUndoTap,
           ),
-        ]
+        ],
       ],
     );
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// SHARED SHEET SCAFFOLD
-// ─────────────────────────────────────────────────────────────────────────────
-
 class _BaseSheet extends StatelessWidget {
   final String title;
   final List<Widget> children;
 
-  const _BaseSheet({required this.title, required this.children});
+  const _BaseSheet({
+    required this.title,
+    required this.children,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.only(bottom: 40, left: 24, right: 24, top: 12),
+      padding: const EdgeInsets.only(
+        bottom: 40,
+        left: 24,
+        right: 24,
+        top: 12,
+      ),
       decoration: const BoxDecoration(
         color: Color(0xFFF8F9FA),
         borderRadius: BorderRadius.vertical(
@@ -648,7 +900,7 @@ class _BaseSheet extends StatelessWidget {
               width: _ActionBarConstants.handleWidth,
               height: _ActionBarConstants.handleHeight,
               decoration: BoxDecoration(
-                color: Colors.grey.shade300,
+                color: Colors.grey,
                 borderRadius: BorderRadius.circular(3),
               ),
             ),
@@ -670,10 +922,6 @@ class _BaseSheet extends StatelessWidget {
     );
   }
 }
-
-// ─────────────────────────────────────────────────────────────────────────────
-// SHARED OPTION ROW
-// ─────────────────────────────────────────────────────────────────────────────
 
 class _SheetOption extends StatelessWidget {
   final IconData icon;

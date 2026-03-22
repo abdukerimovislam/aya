@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import 'dart:math' as math;
 
 import '../../core/services/notification_service.dart';
+import '../../core/services/secure_storage_service.dart'; // 🔥 ИМПОРТ ДЛЯ GUARD'А УВЕДОМЛЕНИЙ
 import '../../l10n/app_localizations.dart';
 import '../models/cycle_model.dart';
 import '../logic/cycle_ai_engine.dart';
@@ -189,7 +190,7 @@ class CycleProvider with ChangeNotifier {
 
       _isLoaded = true;
       notifyListeners();
-      rescheduleNotifications();
+      await rescheduleNotifications();
     } catch (e) {
       if (kDebugMode) debugPrint("CycleProvider Init Error: $e");
       _isLoaded = true;
@@ -217,7 +218,7 @@ class CycleProvider with ChangeNotifier {
       DateTime effectiveStart = packStartDate ?? (isSameMode ? _currentData.cycleStartDate : _normalizeDate(DateTime.now()));
       final active = _settingsBox.get('coc_active_count', defaultValue: 21);
       final brk = _settingsBox.get('coc_break_days', defaultValue: 7);
-      _updateCurrentData(effectiveStart, active + brk, brk);
+      await _updateCurrentData(effectiveStart, active + brk, brk);
     } else {
       if (!isSameMode) {
         if (wasCOC) {
@@ -228,7 +229,7 @@ class CycleProvider with ChangeNotifier {
       }
     }
 
-    rescheduleNotifications();
+    await rescheduleNotifications();
     notifyListeners();
   }
 
@@ -249,7 +250,7 @@ class CycleProvider with ChangeNotifier {
     if (isCOCEnabled) {
       final activePills = _settingsBox.get('coc_active_count', defaultValue: 21);
       final breakDays = _settingsBox.get('coc_break_days', defaultValue: 7);
-      _updateCurrentData(_currentData.cycleStartDate, activePills + breakDays, breakDays);
+      await _updateCurrentData(_currentData.cycleStartDate, activePills + breakDays, breakDays);
       return;
     }
 
@@ -267,7 +268,7 @@ class CycleProvider with ChangeNotifier {
       } else {
         _settingsBox.put('fallback_start_date', fallbackStart.millisecondsSinceEpoch);
       }
-      _updateCurrentData(fallbackStart, _avgCycleLength, _avgPeriodDuration);
+      await _updateCurrentData(fallbackStart, _avgCycleLength, _avgPeriodDuration);
       return;
     } else {
       _settingsBox.delete('fallback_start_date');
@@ -344,7 +345,7 @@ class CycleProvider with ChangeNotifier {
     _calculateAIConfidence();
 
     final latestCycle = _history.first;
-    _updateCurrentData(latestCycle.startDate, _avgCycleLength, _avgPeriodDuration);
+    await _updateCurrentData(latestCycle.startDate, _avgCycleLength, _avgPeriodDuration);
   }
 
   void _calculateSmartAverages() {
@@ -389,7 +390,8 @@ class CycleProvider with ChangeNotifier {
     }
   }
 
-  void _updateCurrentData(DateTime startDate, int avgLen, int periodLen, {bool notify = true}) {
+  // 🔥 [HIGH 2 FIXED] Сделали метод асинхронным для устранения Race Condition
+  Future<void> _updateCurrentData(DateTime startDate, int avgLen, int periodLen, {bool notify = true}) async {
     final now = DateTime.now();
     final normalizedNow = _normalizeDate(now);
     final safeStart = _normalizeDate(startDate);
@@ -398,8 +400,9 @@ class CycleProvider with ChangeNotifier {
     int currentDay = diff + 1;
     if (currentDay <= 0) currentDay = 1;
 
+    // 🔥 Безопасный асинхронный вызов, убирающий гонку состояний
     if (_ovulationOverride != null && _ovulationOverride!.isBefore(safeStart)) {
-      _clearOvulationOverride();
+      await _clearOvulationOverride();
     }
 
     int effectiveCycleLen;
@@ -644,12 +647,12 @@ class CycleProvider with ChangeNotifier {
     if (isCOCEnabled) {
       final active = _settingsBox.get('coc_active_count', defaultValue: 21);
       final brk = _settingsBox.get('coc_break_days', defaultValue: 7);
-      _updateCurrentData(_currentData.cycleStartDate, active + brk, brk);
+      await _updateCurrentData(_currentData.cycleStartDate, active + brk, brk);
       return;
     }
 
     await _recalculateEngine();
-    rescheduleNotifications();
+    await rescheduleNotifications();
   }
 
   Future<CycleLogResult> logActionStartPeriod(DateTime date, {bool isConfirmed = false}) async {
@@ -684,8 +687,6 @@ class CycleProvider with ChangeNotifier {
     List<int> timestamps = (_settingsBox.get('bleeding_days') as List?)?.cast<int>() ?? [];
     List<int> manualStarts = (_settingsBox.get('manual_cycle_starts') as List?)?.cast<int>() ?? [];
 
-    // 🔥 ИСПРАВЛЕННЫЙ БАГ: Больше не удаляем прошлые 10 дней кровотечений.
-    // Удаляем ТОЛЬКО будущие даты, если юзер случайно поставил их вперед.
     timestamps.removeWhere((ts) {
       final tDate = DateTime.fromMillisecondsSinceEpoch(ts);
       return tDate.isAfter(normDate);
@@ -710,7 +711,7 @@ class CycleProvider with ChangeNotifier {
     });
 
     await _recalculateEngine();
-    rescheduleNotifications();
+    await rescheduleNotifications();
 
     return CycleLogResult.success;
   }
@@ -749,7 +750,7 @@ class CycleProvider with ChangeNotifier {
     });
 
     await _recalculateEngine();
-    rescheduleNotifications();
+    await rescheduleNotifications();
   }
 
   Future<void> setSpecificCycleStartDate(DateTime date) async => logActionStartPeriod(date, isConfirmed: true);
@@ -774,8 +775,8 @@ class CycleProvider with ChangeNotifier {
       'current_ovulation_override_source': source,
     });
 
-    _updateCurrentData(_currentData.cycleStartDate, _avgCycleLength, _avgPeriodDuration);
-    rescheduleNotifications();
+    await _updateCurrentData(_currentData.cycleStartDate, _avgCycleLength, _avgPeriodDuration);
+    await rescheduleNotifications();
   }
 
   Future<void> clearOvulationIfMatchesLHTestDate(DateTime testDate) async {
@@ -786,8 +787,8 @@ class CycleProvider with ChangeNotifier {
     if (_normalizeDate(_ovulationOverride!) != expectedOvulation) return;
 
     await _clearOvulationOverride();
-    _updateCurrentData(_currentData.cycleStartDate, _avgCycleLength, _avgPeriodDuration);
-    rescheduleNotifications();
+    await _updateCurrentData(_currentData.cycleStartDate, _avgCycleLength, _avgPeriodDuration);
+    await rescheduleNotifications();
   }
 
   Future<void> tryAutoConfirmOvulationFromBBT(List<MapEntry<DateTime, double>> tempHistory) async {
@@ -841,16 +842,16 @@ class CycleProvider with ChangeNotifier {
       'current_ovulation_override_source': 'bbt',
     });
 
-    _updateCurrentData(_currentData.cycleStartDate, _avgCycleLength, _avgPeriodDuration);
-    rescheduleNotifications();
+    await _updateCurrentData(_currentData.cycleStartDate, _avgCycleLength, _avgPeriodDuration);
+    await rescheduleNotifications();
   }
 
   Future<void> clearOvulationData(DateTime date) async {
     await _ensureBoxOpen();
     if (date.isBefore(_currentData.cycleStartDate)) return;
     await _clearOvulationOverride();
-    _updateCurrentData(_currentData.cycleStartDate, _avgCycleLength, _avgPeriodDuration);
-    rescheduleNotifications();
+    await _updateCurrentData(_currentData.cycleStartDate, _avgCycleLength, _avgPeriodDuration);
+    await rescheduleNotifications();
   }
 
   Future<void> setAveragePeriodDuration(int days) async {
@@ -858,8 +859,8 @@ class CycleProvider with ChangeNotifier {
     days = days.clamp(1, 14);
     await _settingsBox.put('avg_period_len', days);
     _avgPeriodDuration = days;
-    _updateCurrentData(_currentData.cycleStartDate, _avgCycleLength, days);
-    rescheduleNotifications();
+    await _updateCurrentData(_currentData.cycleStartDate, _avgCycleLength, days);
+    await rescheduleNotifications();
   }
 
   Future<void> setCycleLength(int length) async {
@@ -867,8 +868,8 @@ class CycleProvider with ChangeNotifier {
     length = length.clamp(12, 180);
     await _settingsBox.put('avg_cycle_len', length);
     _avgCycleLength = length;
-    _updateCurrentData(_currentData.cycleStartDate, length, _avgPeriodDuration);
-    rescheduleNotifications();
+    await _updateCurrentData(_currentData.cycleStartDate, length, _avgPeriodDuration);
+    await rescheduleNotifications();
   }
 
   void _calculateAIConfidence() {
@@ -889,8 +890,8 @@ class CycleProvider with ChangeNotifier {
     if (isCOCEnabled) return;
 
     await _settingsBox.put('current_period_ended', false);
-    _updateCurrentData(_currentData.cycleStartDate, _avgCycleLength, _avgPeriodDuration);
-    rescheduleNotifications();
+    await _updateCurrentData(_currentData.cycleStartDate, _avgCycleLength, _avgPeriodDuration);
+    await rescheduleNotifications();
   }
 
   Future<void> undoPeriodStart() async {
@@ -913,12 +914,21 @@ class CycleProvider with ChangeNotifier {
     });
 
     await _recalculateEngine();
-    rescheduleNotifications();
+    await rescheduleNotifications();
   }
 
   Future<void> rescheduleNotifications() async {
     if (_notificationService == null) return;
     try {
+      // 🔥 [HIGH 1 FIXED] Guard: Проверяем, не отключил ли юзер уведомления
+      final storage = SecureStorageService();
+      final notificationsEnabled = await storage.getNotificationsEnabled();
+
+      if (!notificationsEnabled) {
+        await _notificationService!.cancelAll();
+        return;
+      }
+
       await _notificationService!.cancelAll();
 
       Locale targetLocale;
@@ -938,7 +948,6 @@ class CycleProvider with ChangeNotifier {
       final nextPeriodStart = lastStart.add(Duration(days: len));
 
       if (isCOCEnabled) {
-        // 🔥 ИСПРАВЛЕННЫЙ БАГ: Больше нет хардкода 21 дня, читаем из настроек (scheme 24/4, 21/7, etc)
         final activePills = _settingsBox.get('coc_active_count', defaultValue: 21);
         await _scheduleIfFuture(100, nextPeriodStart, l10n.notifNewPackTitle, l10n.notifNewPackBody, payload: "screen_coc");
 
@@ -991,7 +1000,6 @@ class CycleProvider with ChangeNotifier {
   Future<void> _scheduleIfFuture(int id, DateTime date, String title, String body, {String? payload}) async {
     if (_notificationService == null) return;
 
-    // Преобразуем UTC 12:00 в локальное утро 09:00
     DateTime scheduleTime = DateTime(date.year, date.month, date.day, 9, 0);
 
     if (scheduleTime.isAfter(DateTime.now())) {

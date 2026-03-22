@@ -53,6 +53,7 @@ dependencies:
   firebase_core: ^4.5.0
   googleai_dart: ^3.0.0
   http: ^1.6.0
+  firebase_remote_config: ^6.2.0
 
 dev_dependencies:
   flutter_test:

@@ -49,8 +49,6 @@ class HomeScreen extends StatelessWidget {
 class _BuildUltraModernScreen extends StatelessWidget {
   const _BuildUltraModernScreen({super.key});
 
-  // 🔥 ИСПРАВЛЕНО: Теперь логгер открывается как стандартный BottomSheet,
-  // что гарантирует правильную работу свайпа (enableDrag: true)
   void _openLoggerWithHero(BuildContext context, DateTime date, String heroTag) {
     HapticFeedback.mediumImpact();
     final screenHeight = MediaQuery.of(context).size.height;
@@ -58,7 +56,7 @@ class _BuildUltraModernScreen extends StatelessWidget {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      enableDrag: true, // Включаем возможность закрытия свайпом
+      enableDrag: true,
       backgroundColor: Colors.transparent,
       builder: (BuildContext sheetContext) => ClipRRect(
         borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
@@ -78,14 +76,33 @@ class _BuildUltraModernScreen extends StatelessWidget {
     final data = context.select<CycleProvider, CycleData>((p) => p.currentData);
     final bool isCOC = context.select<CycleProvider, bool>((p) => p.isCOCEnabled);
     final bool isTTC = context.select<CycleProvider, bool>((p) => p.isTTCMode);
-
-    final String userName = context.select<SettingsProvider, String>((p) => p.userName);
     final bool isPremium = context.select<SettingsProvider, bool>((p) => p.isPremium);
 
     final provider = context.read<CycleProvider>();
 
     return Scaffold(
       backgroundColor: Colors.white,
+      // 🔥 Настоящий прозрачный AppBar наверху
+      extendBodyBehindAppBar: true,
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        systemOverlayStyle: SystemUiOverlayStyle.dark,
+        title: Text(
+          "A Y L A",
+          style: GoogleFonts.outfit(
+            color: AppColors.textPrimary,
+            fontWeight: FontWeight.w800,
+            fontSize: 22,
+            letterSpacing: 2.0,
+          ),
+        ),
+        centerTitle: false,
+        actions: [
+          Center(child: _DashboardPremiumBadge(isPremium: isPremium, l10n: l10n)),
+          const SizedBox(width: 24),
+        ],
+      ),
       body: Stack(
         children: [
           Positioned.fill(child: LivePhaseBackground(phase: data.phase, isCOC: isCOC)),
@@ -96,25 +113,16 @@ class _BuildUltraModernScreen extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 8),
 
-                  // HEADER
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 24),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        _DashboardDateWidget(
-                          l10n: l10n,
-                          userName: userName,
-                          phase: data.phase,
-                        ),
-                        _DashboardPremiumBadge(isPremium: isPremium, l10n: l10n),
-                      ],
+                  // 🔥 Наш новый нежный микро-календарь теперь прямо под AppBar
+                  if (!isCOC) ...[
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      child: DashboardMicroCalendar(provider: provider, onOpenLogger: _openLoggerWithHero),
                     ),
-                  ),
-                  const SizedBox(height: 40),
+                    const SizedBox(height: 32),
+                  ],
 
                   // CENTER TIMER
                   SizedBox(
@@ -147,10 +155,11 @@ class _BuildUltraModernScreen extends StatelessWidget {
                     _COCPackControlCard(provider: provider, l10n: l10n),
                   ]
                   else ...[
-                    // ОБЫЧНЫЙ РЕЖИМ И TTC
-                    Padding(padding: const EdgeInsets.symmetric(horizontal: 24), child: DashboardMicroCalendar(provider: provider, onOpenLogger: _openLoggerWithHero)),
-                    const SizedBox(height: 20),
-                    Padding(padding: const EdgeInsets.symmetric(horizontal: 24), child: DashboardInsightCard(data: data, l10n: l10n)),
+                    // ОБЫЧНЫЙ РЕЖИМ И TTC (Инсайты ИИ)
+                    Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 24),
+                        child: DashboardInsightCard(data: data, l10n: l10n)
+                    ),
                   ],
 
                   const SizedBox(height: 140),
@@ -198,8 +207,7 @@ class _COCPackControlCard extends StatelessWidget {
                     shape: BoxShape.circle,
                   ),
                   child: Icon(
-                    isBreak ? CupertinoIcons.drop_fill : CupertinoIcons
-                        .shield_fill,
+                    isBreak ? CupertinoIcons.drop_fill : CupertinoIcons.shield_fill,
                     color: isBreak ? Colors.orangeAccent : AppColors.primary,
                     size: 22,
                   ),
@@ -234,8 +242,7 @@ class _COCPackControlCard extends StatelessWidget {
               width: double.infinity,
               child: CupertinoButton(
                 padding: const EdgeInsets.symmetric(vertical: 16),
-                color: isBreak ? AppColors.primary : AppColors.primary
-                    .withOpacity(0.1),
+                color: isBreak ? AppColors.primary : AppColors.primary.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(16),
                 onPressed: () => _showStartNewPackDialog(context, provider),
                 child: Text(
@@ -261,8 +268,7 @@ class _COCPackControlCard extends StatelessWidget {
       builder: (ctx) =>
           AlertDialog(
             backgroundColor: Colors.white,
-            shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(24)),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
             title: Row(
               children: [
                 Icon(CupertinoIcons.arrow_2_circlepath_circle_fill,
@@ -320,60 +326,6 @@ class _COCPackControlCard extends StatelessWidget {
   }
 }
 
-class _DashboardDateWidget extends StatelessWidget {
-  final AppLocalizations l10n;
-  final String userName;
-  final CyclePhase phase;
-
-  const _DashboardDateWidget({required this.l10n, required this.userName, required this.phase});
-
-  String _getContextualGreeting() {
-    final hour = DateTime.now().hour;
-    String timeOfDay = "Hello";
-
-    if (hour >= 5 && hour < 12) {
-      timeOfDay = "Good morning";
-    } else if (hour >= 12 && hour < 18) {
-      timeOfDay = "Good afternoon";
-    } else if (hour >= 18 && hour < 22) {
-      timeOfDay = "Good evening";
-    } else {
-      timeOfDay = "Time to rest";
-    }
-
-    final firstName = userName.split(' ').first;
-
-    String phaseVibe = "";
-    switch (phase) {
-      case CyclePhase.menstruation: phaseVibe = "Be gentle with yourself today."; break;
-      case CyclePhase.follicular: phaseVibe = "Your energy is rising."; break;
-      case CyclePhase.ovulation: phaseVibe = "You are glowing today ✨"; break;
-      case CyclePhase.luteal: phaseVibe = "Listen to your body's needs."; break;
-      case CyclePhase.late: phaseVibe = "Take a deep breath."; break;
-    }
-
-    return "$timeOfDay, $firstName.\n$phaseVibe";
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          _getContextualGreeting(),
-          style: GoogleFonts.inter(color: AppColors.textSecondary.withOpacity(0.8), fontWeight: FontWeight.w600, fontSize: 13, height: 1.4),
-        ),
-        const SizedBox(height: 6),
-        Text(
-          DateFormat('MMMM d', l10n.localeName).format(DateTime.now()),
-          style: GoogleFonts.inter(color: AppColors.textPrimary, fontWeight: FontWeight.w900, fontSize: 26, letterSpacing: -1.0),
-        ),
-      ],
-    );
-  }
-}
-
 class _DashboardPremiumBadge extends StatelessWidget {
   final bool isPremium;
   final AppLocalizations l10n;
@@ -382,14 +334,31 @@ class _DashboardPremiumBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: () { HapticFeedback.lightImpact(); showModalBottomSheet(context: context, isScrollControlled: true, backgroundColor: Colors.transparent, builder: (_) => isPremium ? const SubscriptionStatusSheet() : const PremiumPaywallSheet()); },
+      onTap: () {
+        HapticFeedback.lightImpact();
+        showModalBottomSheet(
+            context: context,
+            isScrollControlled: true,
+            backgroundColor: Colors.transparent,
+            builder: (_) => isPremium ? const SubscriptionStatusSheet() : const PremiumPaywallSheet()
+        );
+      },
       child: PremiumGlassCard(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8), borderRadius: 30,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        borderRadius: 30,
         child: Row(
           children: [
             Icon(isPremium ? Icons.verified_rounded : Icons.star_rounded, color: isPremium ? Colors.amber.shade800 : AppColors.textPrimary, size: 16),
             const SizedBox(width: 6),
-            Text(isPremium ? l10n.badgePro : "PRO", style: GoogleFonts.inter(color: isPremium ? Colors.amber.shade900 : AppColors.textPrimary, fontWeight: FontWeight.w800, fontSize: 12, letterSpacing: 1.0))
+            Text(
+                isPremium ? l10n.badgePro : "PRO",
+                style: GoogleFonts.inter(
+                    color: isPremium ? Colors.amber.shade900 : AppColors.textPrimary,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 12,
+                    letterSpacing: 1.0
+                )
+            )
           ],
         ),
       ),
