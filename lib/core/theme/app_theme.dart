@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../../data/models/cycle_model.dart';
 
-// Перечисление доступных тем
 enum AppThemeType { oceanic, nature, velvet, digital }
 
-// Интерфейс для всех палитр
 abstract class ColorPalette {
   Color get primary;
   Color get background;
@@ -13,140 +12,299 @@ abstract class ColorPalette {
   Color get textSecondary;
   Color get textAccent;
 
-  // Цвета цикла
+  // Cycle colors
   Color get menstruation;
   Color get follicular;
   Color get ovulation;
   Color get luteal;
 
-  // Цвета для графиков
+  // Chart colors
   Color get chartMenstruation;
   Color get chartFollicular;
   Color get chartOvulation;
   Color get chartLuteal;
+
+  // Glass system
+  Color get glassBase;
+  Color get glassSecondary;
+  Color get glassHighlight;
+  Color get glassBorder;
+  Color get glassShadow;
 }
 
-// --- 1. OCEANIC SERENITY (Текущая) ---
 class OceanicPalette implements ColorPalette {
-  @override get primary => const Color(0xFF006D77);
-  @override get background => const Color(0xFFEDF6F9);
-  @override get surface => const Color(0xFFFFFFFF);
-  @override get textPrimary => const Color(0xFF1D3557);
-  @override get textSecondary => const Color(0xFF457B9D);
-  @override get textAccent => const Color(0xFFA8DADC);
+  @override
+  Color get primary => const Color(0xFF2B7A78);
 
-  @override get menstruation => const Color(0xFFE63946);
-  @override get follicular => const Color(0xFFA8DADC);
-  @override get ovulation => const Color(0xFFFFB703);
-  @override get luteal => const Color(0xFF457B9D);
+  @override
+  Color get background => const Color(0xFFF4FBFB);
 
-  @override get chartMenstruation => const Color(0xFFD62828);
-  @override get chartFollicular => const Color(0xFF1D3557);
-  @override get chartOvulation => const Color(0xFFFB8500);
-  @override get chartLuteal => const Color(0xFF2A9D8F);
+  @override
+  Color get surface => const Color(0xFFFFFFFF);
+
+  @override
+  Color get textPrimary => const Color(0xFF183B4A);
+
+  @override
+  Color get textSecondary => const Color(0xFF5E8290);
+
+  @override
+  Color get textAccent => const Color(0xFFA9D8D6);
+
+  @override
+  Color get menstruation => const Color(0xFFE87A92);
+
+  @override
+  Color get follicular => const Color(0xFF9EDFD8);
+
+  @override
+  Color get ovulation => const Color(0xFFFFC98B);
+
+  @override
+  Color get luteal => const Color(0xFF7E8CE0);
+
+  @override
+  Color get chartMenstruation => const Color(0xFFD95B78);
+
+  @override
+  Color get chartFollicular => const Color(0xFF49AFA5);
+
+  @override
+  Color get chartOvulation => const Color(0xFFF2A65A);
+
+  @override
+  Color get chartLuteal => const Color(0xFF6177D6);
+
+  @override
+  Color get glassBase => const Color(0xFFFFFFFF);
+
+  @override
+  Color get glassSecondary => const Color(0xFFF3FBFB);
+
+  @override
+  Color get glassHighlight => const Color(0xFFE7F7F6);
+
+  @override
+  Color get glassBorder => const Color(0xFFFFFFFF);
+
+  @override
+  Color get glassShadow => const Color(0xFF8DC9C6);
 }
 
-// --- 2. NATURE'S WISDOM ---
 class NaturePalette implements ColorPalette {
-  @override get primary => const Color(0xFF588157);
-  @override get background => const Color(0xFFFAEDCD);
-  @override get surface => const Color(0xFFFEFAE0);
-  @override get textPrimary => const Color(0xFF344E41);
-  @override get textSecondary => const Color(0xFF588157);
-  @override get textAccent => const Color(0xFFA3B18A);
+  @override
+  Color get primary => const Color(0xFF6B8E62);
 
-  @override get menstruation => const Color(0xFFBC4749);
-  @override get follicular => const Color(0xFFA3B18A);
-  @override get ovulation => const Color(0xFFD4A373);
-  @override get luteal => const Color(0xFF6B705C);
+  @override
+  Color get background => const Color(0xFFFAF8F2);
 
-  @override get chartMenstruation => const Color(0xFF9E2A2B);
-  @override get chartFollicular => const Color(0xFF3A5A40);
-  @override get chartOvulation => const Color(0xFFFAEDCD);
-  @override get chartLuteal => const Color(0xFF588157);
+  @override
+  Color get surface => const Color(0xFFFFFEFB);
+
+  @override
+  Color get textPrimary => const Color(0xFF334036);
+
+  @override
+  Color get textSecondary => const Color(0xFF758271);
+
+  @override
+  Color get textAccent => const Color(0xFFC6D1B5);
+
+  @override
+  Color get menstruation => const Color(0xFFD97C8F);
+
+  @override
+  Color get follicular => const Color(0xFFA7C7A1);
+
+  @override
+  Color get ovulation => const Color(0xFFE3B47A);
+
+  @override
+  Color get luteal => const Color(0xFF8E83C9);
+
+  @override
+  Color get chartMenstruation => const Color(0xFFC85A71);
+
+  @override
+  Color get chartFollicular => const Color(0xFF6B9D74);
+
+  @override
+  Color get chartOvulation => const Color(0xFFD89A52);
+
+  @override
+  Color get chartLuteal => const Color(0xFF7668B4);
+
+  @override
+  Color get glassBase => const Color(0xFFFFFEFB);
+
+  @override
+  Color get glassSecondary => const Color(0xFFF8F6EE);
+
+  @override
+  Color get glassHighlight => const Color(0xFFF1F3E8);
+
+  @override
+  Color get glassBorder => const Color(0xFFFFFFFF);
+
+  @override
+  Color get glassShadow => const Color(0xFFC8D6B7);
 }
 
-// --- 3. VELVET SUNSET ---
 class VelvetPalette implements ColorPalette {
-  @override get primary => const Color(0xFF9D8189);
-  @override get background => const Color(0xFFFFF0F3);
-  @override get surface => const Color(0xFFFFFFFF);
-  @override get textPrimary => const Color(0xFF4A3B40);
-  @override get textSecondary => const Color(0xFF8E7C82);
-  @override get textAccent => const Color(0xFFD4B5B0);
+  @override
+  Color get primary => const Color(0xFFE06C86);
 
-  @override get menstruation => const Color(0xFFFF4D6D);
-  @override get follicular => const Color(0xFFFF8FA3);
-  @override get ovulation => const Color(0xFFFFB3C1);
-  @override get luteal => const Color(0xFFC9184A);
+  @override
+  Color get background => const Color(0xFFFFF7F9);
 
-  @override get chartMenstruation => const Color(0xFF800F2F);
-  @override get chartFollicular => const Color(0xFFA4133C);
-  @override get chartOvulation => const Color(0xFFFF758F);
-  @override get chartLuteal => const Color(0xFF590D22);
+  @override
+  Color get surface => const Color(0xFFFFFFFF);
+
+  @override
+  Color get textPrimary => const Color(0xFF402D35);
+
+  @override
+  Color get textSecondary => const Color(0xFF8E727C);
+
+  @override
+  Color get textAccent => const Color(0xFFF2CAD5);
+
+  @override
+  Color get menstruation => const Color(0xFFE85D75);
+
+  @override
+  Color get follicular => const Color(0xFFFFA8BA);
+
+  @override
+  Color get ovulation => const Color(0xFFFFC98E);
+
+  @override
+  Color get luteal => const Color(0xFFC38BDA);
+
+  @override
+  Color get chartMenstruation => const Color(0xFFD94868);
+
+  @override
+  Color get chartFollicular => const Color(0xFFF28FA7);
+
+  @override
+  Color get chartOvulation => const Color(0xFFF3AE63);
+
+  @override
+  Color get chartLuteal => const Color(0xFFAD6BC8);
+
+  @override
+  Color get glassBase => const Color(0xFFFFFFFF);
+
+  @override
+  Color get glassSecondary => const Color(0xFFFFF2F5);
+
+  @override
+  Color get glassHighlight => const Color(0xFFFFE5EC);
+
+  @override
+  Color get glassBorder => const Color(0xFFFFFFFF);
+
+  @override
+  Color get glassShadow => const Color(0xFFFFC7D4);
 }
 
-// --- 4. DIGITAL LAVENDER ---
 class DigitalPalette implements ColorPalette {
-  @override get primary => const Color(0xFF4361EE);
-  @override get background => const Color(0xFFF8F9FC);
-  @override get surface => const Color(0xFFFFFFFF);
-  @override get textPrimary => const Color(0xFF2B2D42);
-  @override get textSecondary => const Color(0xFF8D99AE);
-  @override get textAccent => const Color(0xFFB8C0FF);
+  @override
+  Color get primary => const Color(0xFF7B61FF);
 
-  @override get menstruation => const Color(0xFFEF233C);
-  @override get follicular => const Color(0xFF7209B7);
-  @override get ovulation => const Color(0xFF4CC9F0);
-  @override get luteal => const Color(0xFFF72585);
+  @override
+  Color get background => const Color(0xFFF8F8FE);
 
-  @override get chartMenstruation => const Color(0xFFD90429);
-  @override get chartFollicular => const Color(0xFF3A0CA3);
-  @override get chartOvulation => const Color(0xFF4361EE);
-  @override get chartLuteal => const Color(0xFF7209B7);
+  @override
+  Color get surface => const Color(0xFFFFFFFF);
+
+  @override
+  Color get textPrimary => const Color(0xFF2F2B45);
+
+  @override
+  Color get textSecondary => const Color(0xFF8C86A8);
+
+  @override
+  Color get textAccent => const Color(0xFFD7D2FF);
+
+  @override
+  Color get menstruation => const Color(0xFFE85D75);
+
+  @override
+  Color get follicular => const Color(0xFF9E8CFF);
+
+  @override
+  Color get ovulation => const Color(0xFF71CBEF);
+
+  @override
+  Color get luteal => const Color(0xFFC98EF2);
+
+  @override
+  Color get chartMenstruation => const Color(0xFFD94B69);
+
+  @override
+  Color get chartFollicular => const Color(0xFF7F6AF5);
+
+  @override
+  Color get chartOvulation => const Color(0xFF47B8E8);
+
+  @override
+  Color get chartLuteal => const Color(0xFFB36DE6);
+
+  @override
+  Color get glassBase => const Color(0xFFFFFFFF);
+
+  @override
+  Color get glassSecondary => const Color(0xFFF4F2FF);
+
+  @override
+  Color get glassHighlight => const Color(0xFFE8E3FF);
+
+  @override
+  Color get glassBorder => const Color(0xFFFFFFFF);
+
+  @override
+  Color get glassShadow => const Color(0xFFD6CCFF);
 }
 
 class AppTheme {
   static ColorPalette getPalette(AppThemeType type) {
     switch (type) {
-      case AppThemeType.oceanic: return OceanicPalette();
-      case AppThemeType.nature: return NaturePalette();
-      case AppThemeType.velvet: return VelvetPalette();
-      case AppThemeType.digital: return DigitalPalette();
+      case AppThemeType.oceanic:
+        return OceanicPalette();
+      case AppThemeType.nature:
+        return NaturePalette();
+      case AppThemeType.velvet:
+        return VelvetPalette();
+      case AppThemeType.digital:
+        return DigitalPalette();
     }
   }
-  // Текущая активная палитра (по умолчанию Digital Lavender, как в твоем коде)
-  static ColorPalette colors = DigitalPalette();
 
-  // Метод для переключения палитры
+  static ColorPalette colors = VelvetPalette();
+
   static void setPalette(AppThemeType type) {
-    switch (type) {
-      case AppThemeType.oceanic: colors = OceanicPalette(); break;
-      case AppThemeType.nature: colors = NaturePalette(); break;
-      case AppThemeType.velvet: colors = VelvetPalette(); break;
-      case AppThemeType.digital: colors = DigitalPalette(); break;
-    }
+    colors = getPalette(type);
   }
 
-  // Генерация ThemeData на основе текущей палитры
   static ThemeData get lightTheme {
-    // Выбираем шрифт в зависимости от темы для полного погружения
-    TextTheme baseTextTheme;
+    final TextTheme baseTextTheme;
     if (colors is NaturePalette) {
-      baseTextTheme = GoogleFonts.spectralTextTheme(); // Serif для природы
+      baseTextTheme = GoogleFonts.spectralTextTheme();
     } else if (colors is DigitalPalette) {
-      baseTextTheme = GoogleFonts.outfitTextTheme(); // Modern Sans для Digital
+      baseTextTheme = GoogleFonts.outfitTextTheme();
     } else {
-      baseTextTheme = GoogleFonts.manropeTextTheme(); // Универсальный
+      baseTextTheme = GoogleFonts.manropeTextTheme();
     }
 
     return ThemeData(
       useMaterial3: true,
       scaffoldBackgroundColor: colors.background,
       primaryColor: colors.primary,
-
       colorScheme: ColorScheme.fromSeed(
         seedColor: colors.primary,
+        brightness: Brightness.light,
         background: colors.background,
         surface: colors.surface,
         primary: colors.primary,
@@ -155,65 +313,94 @@ class AppTheme {
         onSurface: colors.textPrimary,
         onPrimary: Colors.white,
       ),
-
       textTheme: TextTheme(
-        displayLarge: baseTextTheme.displayLarge?.copyWith(fontSize: 34, fontWeight: FontWeight.w800, color: colors.textPrimary, letterSpacing: -1.0),
-        displayMedium: baseTextTheme.displayMedium?.copyWith(fontSize: 28, fontWeight: FontWeight.w700, color: colors.textPrimary),
-        titleLarge: baseTextTheme.titleLarge?.copyWith(fontSize: 18, fontWeight: FontWeight.w600, color: colors.textPrimary),
-
-        bodyLarge: baseTextTheme.bodyLarge?.copyWith(fontSize: 16, color: colors.textPrimary, height: 1.5),
-        bodyMedium: baseTextTheme.bodyMedium?.copyWith(fontSize: 14, color: colors.textSecondary, height: 1.5),
-        bodySmall: baseTextTheme.bodySmall?.copyWith(fontSize: 12, color: colors.textSecondary.withOpacity(0.8)),
-
-        labelLarge: baseTextTheme.labelLarge?.copyWith(fontSize: 14, fontWeight: FontWeight.w700, color: colors.primary),
+        displayLarge: baseTextTheme.displayLarge?.copyWith(
+          fontSize: 34,
+          fontWeight: FontWeight.w800,
+          color: colors.textPrimary,
+          letterSpacing: -1.0,
+        ),
+        displayMedium: baseTextTheme.displayMedium?.copyWith(
+          fontSize: 28,
+          fontWeight: FontWeight.w700,
+          color: colors.textPrimary,
+        ),
+        titleLarge: baseTextTheme.titleLarge?.copyWith(
+          fontSize: 18,
+          fontWeight: FontWeight.w700,
+          color: colors.textPrimary,
+        ),
+        bodyLarge: baseTextTheme.bodyLarge?.copyWith(
+          fontSize: 16,
+          color: colors.textPrimary,
+          height: 1.5,
+        ),
+        bodyMedium: baseTextTheme.bodyMedium?.copyWith(
+          fontSize: 14,
+          color: colors.textSecondary,
+          height: 1.5,
+        ),
+        bodySmall: baseTextTheme.bodySmall?.copyWith(
+          fontSize: 12,
+          color: colors.textSecondary.withOpacity(0.82),
+        ),
+        labelLarge: baseTextTheme.labelLarge?.copyWith(
+          fontSize: 14,
+          fontWeight: FontWeight.w700,
+          color: colors.primary,
+        ),
       ),
-
       appBarTheme: AppBarTheme(
         backgroundColor: Colors.transparent,
         elevation: 0,
         centerTitle: true,
         iconTheme: IconThemeData(color: colors.textPrimary),
-        titleTextStyle: baseTextTheme.titleLarge?.copyWith(fontSize: 20, fontWeight: FontWeight.w700, color: colors.textPrimary),
+        titleTextStyle: baseTextTheme.titleLarge?.copyWith(
+          fontSize: 20,
+          fontWeight: FontWeight.w700,
+          color: colors.textPrimary,
+        ),
       ),
-
       cardTheme: CardThemeData(
         color: colors.surface,
         elevation: 0,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(24),
-          side: BorderSide(color: colors.primary.withOpacity(0.05), width: 1),
+          side: BorderSide(
+            color: colors.primary.withOpacity(0.05),
+            width: 1,
+          ),
         ),
         margin: EdgeInsets.zero,
       ),
-
       elevatedButtonTheme: ElevatedButtonThemeData(
-          style: ElevatedButton.styleFrom(
-            backgroundColor: colors.primary,
-            foregroundColor: Colors.white,
-            elevation: 4,
-            shadowColor: colors.primary.withOpacity(0.4),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-            padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 18),
-            textStyle: baseTextTheme.labelLarge?.copyWith(fontSize: 16),
-          )
+        style: ElevatedButton.styleFrom(
+          backgroundColor: colors.primary,
+          foregroundColor: Colors.white,
+          elevation: 4,
+          shadowColor: colors.primary.withOpacity(0.28),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 18),
+          textStyle: baseTextTheme.labelLarge?.copyWith(fontSize: 16),
+        ),
       ),
-
       bottomNavigationBarTheme: BottomNavigationBarThemeData(
         backgroundColor: colors.surface,
         selectedItemColor: colors.primary,
-        unselectedItemColor: colors.textSecondary.withOpacity(0.5),
+        unselectedItemColor: colors.textSecondary.withOpacity(0.55),
         elevation: 0,
         type: BottomNavigationBarType.fixed,
-        selectedLabelStyle: baseTextTheme.bodySmall?.copyWith(fontWeight: FontWeight.w700),
+        selectedLabelStyle: baseTextTheme.bodySmall?.copyWith(
+          fontWeight: FontWeight.w700,
+        ),
         unselectedLabelStyle: baseTextTheme.bodySmall,
       ),
     );
   }
 }
 
-
-
-// Для обратной совместимости (чтобы не ломать старый код, который вызывает AppColors.primary)
 class AppColors {
   static Color get primary => AppTheme.colors.primary;
   static Color get background => AppTheme.colors.background;
@@ -232,19 +419,36 @@ class AppColors {
   static Color get chartOvulation => AppTheme.colors.chartOvulation;
   static Color get chartLuteal => AppTheme.colors.chartLuteal;
 
-  // Статические вспомогательные
+  static Color get glassBase => AppTheme.colors.glassBase;
+  static Color get glassSecondary => AppTheme.colors.glassSecondary;
+  static Color get glassHighlight => AppTheme.colors.glassHighlight;
+  static Color get glassBorder => AppTheme.colors.glassBorder;
+  static Color get glassShadow => AppTheme.colors.glassShadow;
+
+  static Color phaseTint(CyclePhase phase) {
+    switch (phase) {
+      case CyclePhase.menstruation:
+        return menstruation;
+      case CyclePhase.follicular:
+        return follicular;
+      case CyclePhase.ovulation:
+        return ovulation;
+      case CyclePhase.luteal:
+        return luteal;
+      case CyclePhase.late:
+        return luteal.withOpacity(0.85);
+    }
+  }
+
   static Color get gridLines => AppTheme.colors.textPrimary.withOpacity(0.05);
   static const Color divider = Color(0xFFEDF2F4);
   static const Color success = Color(0xFF06D6A0);
   static const Color warning = Color(0xFFFFD166);
   static const Color error = Color(0xFFEF233C);
-
-  // Для совместимости с твоим кодом secondaryBackground
   static const Color secondaryBackground = Color(0xFFE0E7FF);
 }
 
 class AppStyles {
-  // Градиент фона (адаптируется под тему)
   static BoxDecoration get backgroundGradient {
     return BoxDecoration(
       gradient: LinearGradient(
@@ -252,7 +456,7 @@ class AppStyles {
         end: Alignment.bottomRight,
         colors: [
           AppTheme.colors.background,
-          Color.lerp(AppTheme.colors.background, AppTheme.colors.primary, 0.05)!, // Легкий оттенок
+          Color.lerp(AppTheme.colors.background, AppTheme.colors.primary, 0.05)!,
         ],
       ),
     );

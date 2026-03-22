@@ -16,8 +16,6 @@ import '../../shared/widgets/premium_glass_card.dart';
 import '../../shared/widgets/live_phase_background.dart';
 import '../../l10n/app_localizations.dart';
 import '../logger/symptom_log_screen.dart';
-
-// 🔥 ИМПОРТ НОВОГО ЭКРАНА ИНТИМА
 import 'intimacy_calendar_screen.dart';
 
 enum CalendarViewMode { month, cycle }
@@ -47,31 +45,50 @@ class _CalendarScreenState extends State<CalendarScreen> {
       backgroundColor: AppColors.background,
       extendBodyBehindAppBar: true,
       appBar: AppBar(
+        toolbarHeight: 72,
         backgroundColor: Colors.transparent,
         elevation: 0,
         centerTitle: true,
         title: _buildViewToggle(),
-        // 🔥 КНОПКА ПЕРЕХОДА В INTIMACY CALENDAR (ТОЛЬКО ДЛЯ TTC)
         actions: [
           if (isTTC)
-            IconButton(
-              icon: Container(
-                padding: const EdgeInsets.all(6),
-                decoration: BoxDecoration(
-                  color: Colors.redAccent.withOpacity(0.15),
-                  shape: BoxShape.circle,
+            Padding(
+              padding: const EdgeInsets.only(right: 10),
+              child: IconButton(
+                onPressed: () {
+                  HapticFeedback.lightImpact();
+                  Navigator.push(
+                    context,
+                    CupertinoPageRoute(
+                      builder: (context) => const IntimacyCalendarScreen(),
+                    ),
+                  );
+                },
+                icon: Container(
+                  width: 38,
+                  height: 38,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: LinearGradient(
+                      colors: [
+                        Colors.redAccent.withOpacity(0.22),
+                        Colors.pinkAccent.withOpacity(0.16),
+                      ],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    border: Border.all(
+                      color: Colors.white.withOpacity(0.25),
+                    ),
+                  ),
+                  child: const Icon(
+                    CupertinoIcons.heart_fill,
+                    color: Colors.redAccent,
+                    size: 18,
+                  ),
                 ),
-                child: const Icon(CupertinoIcons.heart_fill, color: Colors.redAccent, size: 20),
               ),
-              onPressed: () {
-                HapticFeedback.lightImpact();
-                Navigator.push(
-                  context,
-                  CupertinoPageRoute(builder: (context) => const IntimacyCalendarScreen()),
-                );
-              },
             ),
-          const SizedBox(width: 8),
         ],
       ),
       body: Stack(
@@ -82,23 +99,32 @@ class _CalendarScreenState extends State<CalendarScreen> {
               isCOC: cycleProvider.isCOCEnabled,
             ),
           ),
-
           SafeArea(
             child: Column(
               children: [
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                  padding: const EdgeInsets.fromLTRB(16, 6, 16, 0),
                   child: _buildStatusPanel(cycleProvider, l10n, isTTC),
                 ),
                 const SizedBox(height: 12),
                 Expanded(
                   child: AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 400),
+                    duration: const Duration(milliseconds: 380),
                     switchInCurve: Curves.easeOutCubic,
                     switchOutCurve: Curves.easeInCubic,
                     child: _viewMode == CalendarViewMode.month
-                        ? _buildMonthCalendar(cycleProvider, wellnessProvider, l10n, isTTC)
-                        : _buildLinearCycleView(cycleProvider, wellnessProvider, isTTC, l10n),
+                        ? _buildMonthCalendar(
+                      cycleProvider,
+                      wellnessProvider,
+                      l10n,
+                      isTTC,
+                    )
+                        : _buildLinearCycleView(
+                      cycleProvider,
+                      wellnessProvider,
+                      isTTC,
+                      l10n,
+                    ),
                   ),
                 ),
               ],
@@ -111,11 +137,12 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
   Widget _buildViewToggle() {
     return Container(
-      decoration: BoxDecoration(
-        color: AppColors.textSecondary.withOpacity(0.15),
-        borderRadius: BorderRadius.circular(20),
-      ),
       padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.22),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.white.withOpacity(0.16)),
+      ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -128,36 +155,59 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
   Widget _buildToggleBtn(String label, CalendarViewMode mode) {
     final isActive = _viewMode == mode;
+
     return GestureDetector(
       onTap: () {
         HapticFeedback.selectionClick();
         setState(() => _viewMode = mode);
       },
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+        duration: const Duration(milliseconds: 220),
+        curve: Curves.easeOut,
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 9),
         decoration: BoxDecoration(
           color: isActive ? Colors.white : Colors.transparent,
           borderRadius: BorderRadius.circular(16),
-          boxShadow: isActive ? [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 4, offset: const Offset(0, 2))] : [],
+          boxShadow: isActive
+              ? [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ]
+              : null,
         ),
         child: Text(
           label,
           style: GoogleFonts.inter(
             fontWeight: isActive ? FontWeight.w800 : FontWeight.w600,
             fontSize: 13,
-            color: isActive ? AppColors.textPrimary : AppColors.textPrimary.withOpacity(0.6),
+            color: isActive
+                ? AppColors.textPrimary
+                : AppColors.textPrimary.withOpacity(0.55),
           ),
         ),
       ),
     );
   }
 
-  Widget _buildStatusPanel(CycleProvider cycle, AppLocalizations l10n, bool isTTC) {
-    bool hasData = cycle.history.isNotEmpty || cycle.isCOCEnabled;
+  Widget _buildStatusPanel(
+      CycleProvider cycle,
+      AppLocalizations l10n,
+      bool isTTC,
+      ) {
+    final bool hasData = cycle.history.isNotEmpty || cycle.isCOCEnabled;
 
-    String title = cycle.isCOCEnabled ? "Pill Day ${cycle.currentData.dayOfCycle}" : "Day ${cycle.currentData.dayOfCycle}";
-    String phaseName = _getPhaseName(cycle.currentData.phase, cycle.isCOCEnabled, isTTC, l10n);
+    String title = cycle.isCOCEnabled
+        ? "Pill Day ${cycle.currentData.dayOfCycle}"
+        : "Day ${cycle.currentData.dayOfCycle}";
+    String phaseName = _getPhaseName(
+      cycle.currentData.phase,
+      cycle.isCOCEnabled,
+      isTTC,
+      l10n,
+    );
 
     String forecast = cycle.isCOCEnabled
         ? "~${cycle.currentData.daysToNextPeriod} days to break"
@@ -165,7 +215,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
     if (isTTC && hasData) {
       if (cycle.currentData.phase == CyclePhase.follicular) {
-        int daysToFertile = math.max(0, cycle.ovulationDay - 5 - cycle.currentData.dayOfCycle);
+        final int daysToFertile =
+        math.max(0, cycle.ovulationDay - 5 - cycle.currentData.dayOfCycle);
         forecast = "~$daysToFertile days to fertile window";
       } else if (cycle.currentData.phase == CyclePhase.luteal) {
         forecast = "~${cycle.currentData.daysToNextPeriod} days to test day";
@@ -178,61 +229,158 @@ class _CalendarScreenState extends State<CalendarScreen> {
       forecast = "Add first day of your period to start.";
     }
 
+    final Color accentColor = cycle.isCOCEnabled
+        ? const Color(0xFF5FA8D3)
+        : isTTC
+        ? Colors.purple
+        : AppColors.primary;
+
     return PremiumGlassCard(
-      padding: const EdgeInsets.all(20),
-      borderRadius: 24,
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 18),
+      borderRadius: 28,
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(title, style: GoogleFonts.outfit(fontSize: 28, fontWeight: FontWeight.w800, color: AppColors.textPrimary)),
-              const SizedBox(height: 4),
-              Text(phaseName, style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w700, color: isTTC ? Colors.purple : AppColors.primary)),
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  Icon(CupertinoIcons.sparkles, size: 14, color: AppColors.textSecondary),
-                  const SizedBox(width: 6),
-                  Text(forecast, style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w500, color: AppColors.textSecondary)),
+          Container(
+            width: 46,
+            height: 46,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: LinearGradient(
+                colors: [
+                  accentColor.withOpacity(0.22),
+                  accentColor.withOpacity(0.10),
                 ],
-              )
-            ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+            ),
+            child: Icon(
+              cycle.isCOCEnabled
+                  ? CupertinoIcons.circle_grid_3x3_fill
+                  : isTTC
+                  ? CupertinoIcons.sparkles
+                  : CupertinoIcons.drop_fill,
+              size: 22,
+              color: accentColor,
+            ),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: GoogleFonts.outfit(
+                    fontSize: 28,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.textPrimary,
+                    height: 1,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  phaseName,
+                  style: GoogleFonts.inter(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: accentColor,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Icon(
+                      CupertinoIcons.sparkles,
+                      size: 14,
+                      color: AppColors.textSecondary,
+                    ),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        forecast,
+                        style: GoogleFonts.inter(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                          color: AppColors.textSecondary,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
         ],
       ),
     );
   }
 
-  String _getPhaseName(CyclePhase phase, bool isCOC, bool isTTC, AppLocalizations l10n) {
-    if (isCOC) return phase == CyclePhase.menstruation ? l10n.cocBreakPhase : l10n.cocActivePhase;
-    if (isTTC && phase == CyclePhase.luteal) return "Two Week Wait (TWW)";
+  String _getPhaseName(
+      CyclePhase phase,
+      bool isCOC,
+      bool isTTC,
+      AppLocalizations l10n,
+      ) {
+    if (isCOC) {
+      return phase == CyclePhase.menstruation
+          ? l10n.cocBreakPhase
+          : l10n.cocActivePhase;
+    }
+    if (isTTC && phase == CyclePhase.luteal) {
+      return "Two Week Wait (TWW)";
+    }
 
     switch (phase) {
-      case CyclePhase.menstruation: return l10n.phaseMenstruation;
-      case CyclePhase.follicular: return l10n.phaseFollicular;
-      case CyclePhase.ovulation: return l10n.phaseOvulation;
-      case CyclePhase.luteal: return l10n.phaseLuteal;
-      case CyclePhase.late: return l10n.phaseLate;
+      case CyclePhase.menstruation:
+        return l10n.phaseMenstruation;
+      case CyclePhase.follicular:
+        return l10n.phaseFollicular;
+      case CyclePhase.ovulation:
+        return l10n.phaseOvulation;
+      case CyclePhase.luteal:
+        return l10n.phaseLuteal;
+      case CyclePhase.late:
+        return l10n.phaseLate;
     }
   }
 
-  // 🔥 ОБНОВЛЕННОЕ QUICK ACTION MENU (Фокус на интиме)
-  void _showQuickActionMenu(BuildContext context, DateTime date, WellnessProvider wellness) {
+  void _showQuickActionMenu(
+      BuildContext context,
+      DateTime date,
+      WellnessProvider wellness,
+      ) {
     showCupertinoModalPopup(
       context: context,
       builder: (BuildContext context) => CupertinoActionSheet(
-        title: Text(DateFormat('EEEE, MMM d').format(date).toUpperCase(), style: GoogleFonts.inter(fontWeight: FontWeight.bold, letterSpacing: 1)),
+        title: Text(
+          DateFormat('EEEE, MMM d').format(date).toUpperCase(),
+          style: GoogleFonts.inter(
+            fontWeight: FontWeight.bold,
+            letterSpacing: 1,
+          ),
+        ),
         message: const Text('Intimacy Quick Log'),
         actions: <CupertinoActionSheetAction>[
           CupertinoActionSheetAction(
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Icon(CupertinoIcons.heart_fill, color: Colors.redAccent, size: 20),
+                const Icon(
+                  CupertinoIcons.heart_fill,
+                  color: Colors.redAccent,
+                  size: 20,
+                ),
                 const SizedBox(width: 8),
-                Text('Log Unprotected Sex', style: GoogleFonts.inter(color: AppColors.textPrimary, fontWeight: FontWeight.w600)),
+                Text(
+                  'Log Unprotected Sex',
+                  style: GoogleFonts.inter(
+                    color: AppColors.textPrimary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
               ],
             ),
             onPressed: () {
@@ -244,9 +392,19 @@ class _CalendarScreenState extends State<CalendarScreen> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Icon(CupertinoIcons.shield_fill, color: Colors.blueAccent, size: 20),
+                const Icon(
+                  CupertinoIcons.shield_fill,
+                  color: Colors.blueAccent,
+                  size: 20,
+                ),
                 const SizedBox(width: 8),
-                Text('Log Protected Sex', style: GoogleFonts.inter(color: AppColors.textPrimary, fontWeight: FontWeight.w600)),
+                Text(
+                  'Log Protected Sex',
+                  style: GoogleFonts.inter(
+                    color: AppColors.textPrimary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
               ],
             ),
             onPressed: () {
@@ -258,9 +416,19 @@ class _CalendarScreenState extends State<CalendarScreen> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(CupertinoIcons.square_list, color: AppColors.textSecondary, size: 20),
+                Icon(
+                  CupertinoIcons.square_list,
+                  color: AppColors.textSecondary,
+                  size: 20,
+                ),
                 const SizedBox(width: 8),
-                Text('Open Full Logger', style: GoogleFonts.inter(color: AppColors.textPrimary, fontWeight: FontWeight.w600)),
+                Text(
+                  'Open Full Logger',
+                  style: GoogleFonts.inter(
+                    color: AppColors.textPrimary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
               ],
             ),
             onPressed: () {
@@ -272,21 +440,30 @@ class _CalendarScreenState extends State<CalendarScreen> {
         cancelButton: CupertinoActionSheetAction(
           isDefaultAction: true,
           onPressed: () => Navigator.pop(context),
-          child: Text('Cancel', style: GoogleFonts.inter(fontWeight: FontWeight.bold)),
+          child: Text(
+            'Cancel',
+            style: GoogleFonts.inter(fontWeight: FontWeight.bold),
+          ),
         ),
       ),
     );
   }
 
-  // Метод для быстрого сохранения только одного симптома интима
-  void _quickLogIntimacy(DateTime date, WellnessProvider wellness, String intimacyType) async {
+  void _quickLogIntimacy(
+      DateTime date,
+      WellnessProvider wellness,
+      String intimacyType,
+      ) async {
     HapticFeedback.mediumImpact();
     final log = wellness.getLogForDate(date);
-    List<String> updatedSymptoms = List.from(log.symptoms);
+    final List<String> updatedSymptoms = List.from(log.symptoms);
 
-    // Удаляем противоположный тип, если он был
-    if (intimacyType == 'Unprotected Sex') updatedSymptoms.remove('Protected Sex');
-    if (intimacyType == 'Protected Sex') updatedSymptoms.remove('Unprotected Sex');
+    if (intimacyType == 'Unprotected Sex') {
+      updatedSymptoms.remove('Protected Sex');
+    }
+    if (intimacyType == 'Protected Sex') {
+      updatedSymptoms.remove('Unprotected Sex');
+    }
 
     if (!updatedSymptoms.contains(intimacyType)) {
       updatedSymptoms.add(intimacyType);
@@ -296,12 +473,16 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text("Intimacy logged for ${DateFormat('MMM d').format(date)}"),
-            backgroundColor: Colors.redAccent,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          )
+        SnackBar(
+          content: Text(
+            "Intimacy logged for ${DateFormat('MMM d').format(date)}",
+          ),
+          backgroundColor: Colors.redAccent,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+        ),
       );
     }
   }
@@ -324,16 +505,23 @@ class _CalendarScreenState extends State<CalendarScreen> {
     );
   }
 
-  Widget _buildMonthCalendar(CycleProvider cycle, WellnessProvider wellness, AppLocalizations l10n, bool isTTC) {
+  Widget _buildMonthCalendar(
+      CycleProvider cycle,
+      WellnessProvider wellness,
+      AppLocalizations l10n,
+      bool isTTC,
+      ) {
     return ListView(
-      physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
+      physics: const AlwaysScrollableScrollPhysics(
+        parent: BouncingScrollPhysics(),
+      ),
       padding: const EdgeInsets.only(bottom: 40),
       children: [
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
+          padding: const EdgeInsets.symmetric(horizontal: 14),
           child: PremiumGlassCard(
-            padding: const EdgeInsets.only(bottom: 12, left: 8, right: 8, top: 4),
-            borderRadius: 24,
+            padding: const EdgeInsets.fromLTRB(8, 8, 8, 14),
+            borderRadius: 28,
             child: TableCalendar(
               firstDay: DateTime(2020, 1, 1),
               lastDay: DateTime(2035, 12, 31),
@@ -360,35 +548,90 @@ class _CalendarScreenState extends State<CalendarScreen> {
               headerStyle: HeaderStyle(
                 formatButtonVisible: false,
                 titleCentered: true,
-                titleTextStyle: GoogleFonts.outfit(fontSize: 18, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
-                leftChevronIcon: Icon(CupertinoIcons.chevron_left, color: AppColors.textPrimary, size: 24),
-                rightChevronIcon: Icon(CupertinoIcons.chevron_right, color: AppColors.textPrimary, size: 24),
+                titleTextStyle: GoogleFonts.outfit(
+                  fontSize: 19,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textPrimary,
+                ),
+                headerPadding: const EdgeInsets.symmetric(vertical: 10),
+                leftChevronIcon: Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.55),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    CupertinoIcons.chevron_left,
+                    color: AppColors.textPrimary,
+                    size: 18,
+                  ),
+                ),
+                rightChevronIcon: Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.55),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    CupertinoIcons.chevron_right,
+                    color: AppColors.textPrimary,
+                    size: 18,
+                  ),
+                ),
               ),
+              daysOfWeekHeight: 28,
               daysOfWeekStyle: DaysOfWeekStyle(
-                weekdayStyle: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.textSecondary),
-                weekendStyle: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.textSecondary.withOpacity(0.5)),
+                weekdayStyle: GoogleFonts.inter(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textSecondary,
+                ),
+                weekendStyle: GoogleFonts.inter(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textSecondary.withOpacity(0.55),
+                ),
               ),
               calendarStyle: const CalendarStyle(
                 defaultTextStyle: TextStyle(color: Colors.transparent),
                 weekendTextStyle: TextStyle(color: Colors.transparent),
                 todayTextStyle: TextStyle(color: Colors.transparent),
+                selectedTextStyle: TextStyle(color: Colors.transparent),
                 outsideDaysVisible: false,
+                cellMargin: EdgeInsets.zero,
               ),
               calendarBuilders: CalendarBuilders(
-                defaultBuilder: (context, day, focusedDay) => _buildDayCell(day, cycle, wellness, isSelected: false, isTTC: isTTC),
-                todayBuilder: (context, day, focusedDay) => _buildDayCell(day, cycle, wellness, isSelected: false, isToday: true, isTTC: isTTC),
-                selectedBuilder: (context, day, focusedDay) => _buildDayCell(day, cycle, wellness, isSelected: true, isTTC: isTTC),
+                defaultBuilder: (context, day, focusedDay) => _buildDayCell(
+                  day,
+                  cycle,
+                  wellness,
+                  isSelected: false,
+                  isTTC: isTTC,
+                ),
+                todayBuilder: (context, day, focusedDay) => _buildDayCell(
+                  day,
+                  cycle,
+                  wellness,
+                  isSelected: false,
+                  isToday: true,
+                  isTTC: isTTC,
+                ),
+                selectedBuilder: (context, day, focusedDay) => _buildDayCell(
+                  day,
+                  cycle,
+                  wellness,
+                  isSelected: true,
+                  isTTC: isTTC,
+                ),
               ),
             ),
           ),
         ),
-
         const SizedBox(height: 16),
         _buildLegend(cycle.isCOCEnabled, isTTC),
-        const SizedBox(height: 24),
-
+        const SizedBox(height: 20),
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
+          padding: const EdgeInsets.symmetric(horizontal: 14),
           child: _DaySummaryCard(
             date: _selectedDate,
             cycleProvider: cycle,
@@ -404,25 +647,32 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
   Widget _buildLegend(bool isCOC, bool isTTC) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
+      padding: const EdgeInsets.symmetric(horizontal: 14),
       child: PremiumGlassCard(
-        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 20),
-        borderRadius: 20,
-        child: Row(
-          mainAxisAlignment: isCOC ? MainAxisAlignment.center : MainAxisAlignment.spaceEvenly,
+        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 18),
+        borderRadius: 22,
+        child: Wrap(
+          alignment: WrapAlignment.center,
+          spacing: 18,
+          runSpacing: 10,
           children: [
-            _buildLegendItem(isCOC ? "Break" : "Period", Colors.redAccent.withOpacity(0.8)),
+            _buildLegendItem(
+              isCOC ? "Break" : "Period",
+              Colors.redAccent.withOpacity(0.85),
+            ),
             if (!isCOC) ...[
               _buildLegendItem(
-                  isTTC ? "Fertile Window" : "Fertile",
-                  isTTC ? Colors.pinkAccent.withOpacity(0.15) : AppColors.primary.withOpacity(0.15)
+                isTTC ? "Fertile Window" : "Fertile",
+                isTTC
+                    ? Colors.pinkAccent.withOpacity(0.16)
+                    : AppColors.primary.withOpacity(0.16),
               ),
               _buildLegendItem(
-                  isTTC ? "Peak Ovulation" : "Ovulation",
-                  isTTC ? Colors.purple : AppColors.primary.withOpacity(0.25),
-                  dotColor: isTTC ? null : AppColors.primary
+                isTTC ? "Peak Ovulation" : "Ovulation",
+                isTTC ? Colors.purple : AppColors.primary.withOpacity(0.25),
+                dotColor: isTTC ? null : AppColors.primary,
               ),
-            ]
+            ],
           ],
         ),
       ),
@@ -434,16 +684,33 @@ class _CalendarScreenState extends State<CalendarScreen> {
       mainAxisSize: MainAxisSize.min,
       children: [
         Container(
-          width: 12, height: 12,
-          decoration: BoxDecoration(color: bgColor, shape: BoxShape.circle, border: Border.all(color: Colors.black.withOpacity(0.05))),
-          child: dotColor != null ? Center(child: Container(width: 4, height: 4, decoration: BoxDecoration(color: dotColor, shape: BoxShape.circle))) : null,
+          width: 12,
+          height: 12,
+          decoration: BoxDecoration(
+            color: bgColor,
+            shape: BoxShape.circle,
+            border: Border.all(color: Colors.black.withOpacity(0.05)),
+          ),
+          child: dotColor != null
+              ? Center(
+            child: Container(
+              width: 4,
+              height: 4,
+              decoration: BoxDecoration(
+                color: dotColor,
+                shape: BoxShape.circle,
+              ),
+            ),
+          )
+              : null,
         ),
-        const SizedBox(width: 6),
-        Flexible(
-          child: Text(
-            title,
-            style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.textSecondary),
-            overflow: TextOverflow.ellipsis,
+        const SizedBox(width: 7),
+        Text(
+          title,
+          style: GoogleFonts.inter(
+            fontSize: 11,
+            fontWeight: FontWeight.w600,
+            color: AppColors.textSecondary,
           ),
         ),
       ],
@@ -453,9 +720,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
   DayType _getCorrectDayType(DateTime date, CycleProvider cycle) {
     final normDate = DateTime(date.year, date.month, date.day);
     final start = DateTime(
-        cycle.currentData.cycleStartDate.year,
-        cycle.currentData.cycleStartDate.month,
-        cycle.currentData.cycleStartDate.day
+      cycle.currentData.cycleStartDate.year,
+      cycle.currentData.cycleStartDate.month,
+      cycle.currentData.cycleStartDate.day,
     );
 
     int diff = normDate.difference(start).inDays;
@@ -466,31 +733,39 @@ class _CalendarScreenState extends State<CalendarScreen> {
       return cycle.getDayType(date);
     }
 
-    int dayOfCycle = (diff % length) + 1;
+    final int dayOfCycle = (diff % length) + 1;
 
     if (cycle.isCOCEnabled) {
-      final active = 21;
-      final total = 28;
+      const active = 21;
+      const total = 28;
       if (dayOfCycle > active && dayOfCycle <= total) return DayType.period;
       return DayType.none;
     }
 
     if (dayOfCycle <= cycle.periodDuration) return DayType.period;
 
-    int ovDay = cycle.ovulationDay;
+    final int ovDay = cycle.ovulationDay;
     if (dayOfCycle == ovDay) return DayType.ovulation;
     if (dayOfCycle >= ovDay - 5 && dayOfCycle < ovDay) return DayType.fertile;
 
     return DayType.none;
   }
 
-  Widget _buildDayCell(DateTime day, CycleProvider cycle, WellnessProvider wellness, {bool isSelected = false, bool isToday = false, required bool isTTC}) {
+  Widget _buildDayCell(
+      DateTime day,
+      CycleProvider cycle,
+      WellnessProvider wellness, {
+        bool isSelected = false,
+        bool isToday = false,
+        required bool isTTC,
+      }) {
     final dayType = _getCorrectDayType(day, cycle);
     final hasLogs = wellness.hasLogForDate(day);
     final log = hasLogs ? wellness.getLogForDate(day) : null;
 
     final cleanDay = DateTime(day.year, day.month, day.day);
-    final cleanToday = DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day);
+    final now = DateTime.now();
+    final cleanToday = DateTime(now.year, now.month, now.day);
 
     Color bgColor = Colors.transparent;
     Color textColor = AppColors.textPrimary;
@@ -503,28 +778,43 @@ class _CalendarScreenState extends State<CalendarScreen> {
     String? emojiMarker;
 
     if (log != null) {
-      if (log.symptoms.contains('Unprotected Sex') || log.symptoms.contains('Protected Sex')) hasSex = true;
-      if (log.temperature != null && log.temperature! > 0) hasBBT = true;
+      if (log.symptoms.contains('Unprotected Sex') ||
+          log.symptoms.contains('Protected Sex')) {
+        hasSex = true;
+      }
+      if (log.temperature != null && log.temperature! > 0) {
+        hasBBT = true;
+      }
 
-      if (log.painSymptoms.contains('Cramps')) emojiMarker = '😣';
-      else if (log.symptoms.contains('Spotting')) emojiMarker = '🩸';
-      else if (log.painSymptoms.contains('Headache')) emojiMarker = '🤕';
-      else if (log.symptoms.contains('Crying Spells') || log.mood <= 2) emojiMarker = '💧';
-      else if (log.symptoms.contains('High Stress')) emojiMarker = '⚡';
+      if (log.painSymptoms.contains('Cramps')) {
+        emojiMarker = '😣';
+      } else if (log.symptoms.contains('Spotting')) {
+        emojiMarker = '🩸';
+      } else if (log.painSymptoms.contains('Headache')) {
+        emojiMarker = '🤕';
+      } else if (log.symptoms.contains('Crying Spells') || log.mood <= 2) {
+        emojiMarker = '💧';
+      } else if (log.symptoms.contains('High Stress')) {
+        emojiMarker = '⚡';
+      }
     }
 
     if (isTTC && dayType == DayType.none) {
       final normDate = DateTime(day.year, day.month, day.day);
-      final start = DateTime(cycle.currentData.cycleStartDate.year, cycle.currentData.cycleStartDate.month, cycle.currentData.cycleStartDate.day);
+      final start = DateTime(
+        cycle.currentData.cycleStartDate.year,
+        cycle.currentData.cycleStartDate.month,
+        cycle.currentData.cycleStartDate.day,
+      );
       int diff = normDate.difference(start).inDays;
       int length = cycle.cycleLength;
       if (length <= 0) length = 28;
 
       if (diff >= 0) {
-        int dayOfCycle = (diff % length) + 1;
-        int ovDay = cycle.ovulationDay;
+        final int dayOfCycle = (diff % length) + 1;
+        final int ovDay = cycle.ovulationDay;
         if (dayOfCycle > ovDay && dayOfCycle <= length) {
-          int dpo = dayOfCycle - ovDay;
+          final int dpo = dayOfCycle - ovDay;
           if (dpo <= 14) dpoText = "$dpo";
         }
       }
@@ -534,7 +824,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
     if (dayType == DayType.period) {
       if (log != null && log.flow != FlowIntensity.none) {
-        bgColor = Colors.redAccent.withOpacity(0.8);
+        bgColor = Colors.redAccent.withOpacity(0.84);
         textColor = Colors.white;
       } else {
         isPredictedPeriod = true;
@@ -542,7 +832,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
         textColor = AppColors.textPrimary;
       }
     } else if (dayType == DayType.fertile && !cycle.isCOCEnabled) {
-      bgColor = isTTC ? Colors.pinkAccent.withOpacity(0.15) : AppColors.primary.withOpacity(0.15);
+      bgColor = isTTC
+          ? Colors.pinkAccent.withOpacity(0.14)
+          : AppColors.primary.withOpacity(0.14);
       textColor = isTTC ? Colors.pinkAccent : AppColors.primary;
     } else if (dayType == DayType.ovulation && !cycle.isCOCEnabled) {
       if (isTTC) {
@@ -556,71 +848,139 @@ class _CalendarScreenState extends State<CalendarScreen> {
       }
     }
 
-    Widget cellContent = Stack(
+    final Border? border = isSelected
+        ? Border.all(color: AppColors.textPrimary, width: 2)
+        : isToday
+        ? Border.all(
+      color: AppColors.textSecondary.withOpacity(0.25),
+      width: 1.2,
+    )
+        : null;
+
+    final Widget cellContent = Stack(
       alignment: Alignment.center,
       children: [
         Text(
           '${day.day}',
           style: GoogleFonts.inter(
-            fontSize: 15,
-            fontWeight: isSelected || isToday ? FontWeight.w800 : FontWeight.w500,
+            fontSize: 14.5,
+            fontWeight:
+            isSelected || isToday ? FontWeight.w800 : FontWeight.w600,
             color: textColor,
           ),
         ),
-
         if (emojiMarker != null)
           Positioned(
-              top: 2, left: 4,
-              child: Text(emojiMarker, style: const TextStyle(fontSize: 8))
+            top: 3,
+            left: 4,
+            child: Text(
+              emojiMarker,
+              style: const TextStyle(fontSize: 8),
+            ),
           ),
-
         if (dpoText != null && !cleanDay.isAfter(cleanToday))
           Positioned(
-              top: 2, right: 4,
-              child: Text(dpoText, style: GoogleFonts.inter(fontSize: 8, fontWeight: FontWeight.bold, color: AppColors.textSecondary.withOpacity(0.5)))
+            top: 3,
+            right: 4,
+            child: Text(
+              dpoText,
+              style: GoogleFonts.inter(
+                fontSize: 8,
+                fontWeight: FontWeight.w800,
+                color: AppColors.textSecondary.withOpacity(0.45),
+              ),
+            ),
           ),
-
         if (showDot)
-          Positioned(top: 4, child: Container(width: 4, height: 4, decoration: BoxDecoration(color: dotColor, shape: BoxShape.circle))),
-
+          Positioned(
+            top: 5,
+            child: Container(
+              width: 4,
+              height: 4,
+              decoration: BoxDecoration(
+                color: dotColor,
+                shape: BoxShape.circle,
+              ),
+            ),
+          ),
         if (hasLogs)
           Positioned(
-              bottom: 2,
-              child: isTTC
-                  ? Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (hasBBT) const Icon(CupertinoIcons.thermometer, size: 8, color: Colors.purple),
-                  if (hasSex) const Icon(CupertinoIcons.heart_fill, size: 8, color: Colors.redAccent),
-                  if (!hasBBT && !hasSex) Icon(CupertinoIcons.checkmark_alt, size: 8, color: textColor.withOpacity(0.7)),
-                ],
-              )
-                  : Icon(CupertinoIcons.checkmark_alt, size: 8, color: textColor.withOpacity(0.7))
+            bottom: 3,
+            child: isTTC
+                ? Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (hasBBT)
+                  const Icon(
+                    CupertinoIcons.thermometer,
+                    size: 8,
+                    color: Colors.purple,
+                  ),
+                if (hasSex)
+                  const Padding(
+                    padding: EdgeInsets.only(left: 2),
+                    child: Icon(
+                      CupertinoIcons.heart_fill,
+                      size: 8,
+                      color: Colors.redAccent,
+                    ),
+                  ),
+                if (!hasBBT && !hasSex)
+                  Icon(
+                    CupertinoIcons.checkmark_alt,
+                    size: 8,
+                    color: textColor.withOpacity(0.7),
+                  ),
+              ],
+            )
+                : Icon(
+              CupertinoIcons.checkmark_alt,
+              size: 8,
+              color: textColor.withOpacity(0.7),
+            ),
           ),
       ],
     );
 
-    return Container(
+    final Widget baseCell = Container(
       margin: const EdgeInsets.all(4),
       decoration: BoxDecoration(
         color: bgColor,
-        borderRadius: BorderRadius.circular(12),
-        border: isSelected
-            ? Border.all(color: AppColors.textPrimary, width: 2)
-            : (isToday ? Border.all(color: AppColors.textSecondary.withOpacity(0.3), width: 1) : null),
+        borderRadius: BorderRadius.circular(14),
+        border: border,
       ),
-      child: isPredictedPeriod
-          ? CustomPaint(
-        painter: _DashedBorderPainter(color: Colors.redAccent.withOpacity(0.5)),
-        child: cellContent,
-      )
-          : cellContent,
+      child: cellContent,
     );
+
+    if (isPredictedPeriod) {
+      return Container(
+        margin: const EdgeInsets.all(4),
+        child: CustomPaint(
+          painter: _DashedBorderPainter(
+            color: Colors.redAccent.withOpacity(0.45),
+            radius: 14,
+          ),
+          child: SizedBox.expand(child: cellContent),
+        ),
+      );
+    }
+
+    return baseCell;
   }
 
-  Widget _buildLinearCycleView(CycleProvider cycle, WellnessProvider wellness, bool isTTC, AppLocalizations l10n) {
+  Widget _buildLinearCycleView(
+      CycleProvider cycle,
+      WellnessProvider wellness,
+      bool isTTC,
+      AppLocalizations l10n,
+      ) {
     if (cycle.history.isEmpty && !cycle.isCOCEnabled) {
-      return Center(child: Text("Need data to build cycle view", style: GoogleFonts.inter(color: AppColors.textSecondary)));
+      return Center(
+        child: Text(
+          "Need data to build cycle view",
+          style: GoogleFonts.inter(color: AppColors.textSecondary),
+        ),
+      );
     }
 
     final startDate = cycle.currentData.cycleStartDate;
@@ -631,22 +991,26 @@ class _CalendarScreenState extends State<CalendarScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+          padding: const EdgeInsets.fromLTRB(18, 8, 18, 8),
           child: Text(
             "Cycle Timeline",
-            style: GoogleFonts.outfit(fontSize: 18, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+            style: GoogleFonts.outfit(
+              fontSize: 19,
+              fontWeight: FontWeight.w700,
+              color: AppColors.textPrimary,
+            ),
           ),
         ),
         Expanded(
           child: ListView.builder(
             scrollDirection: Axis.horizontal,
             physics: const BouncingScrollPhysics(),
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             itemCount: length,
             itemBuilder: (context, index) {
-              final dayNum = index + 1;
-              final date = startDate.add(Duration(days: index));
-              final isToday = dayNum == currentDayNum;
+              final int dayNum = index + 1;
+              final DateTime date = startDate.add(Duration(days: index));
+              final bool isToday = dayNum == currentDayNum;
 
               final dayType = _getCorrectDayType(date, cycle);
               final log = wellness.getLogForDate(date);
@@ -658,42 +1022,94 @@ class _CalendarScreenState extends State<CalendarScreen> {
               IconData? mainIcon;
 
               if (dayType == DayType.period) {
-                cardColor = hasFlow ? Colors.redAccent.withOpacity(0.8) : Colors.redAccent.withOpacity(0.1);
+                cardColor = hasFlow
+                    ? Colors.redAccent.withOpacity(0.82)
+                    : Colors.redAccent.withOpacity(0.10);
                 textColor = hasFlow ? Colors.white : Colors.redAccent;
                 phaseLabel = "Period";
                 mainIcon = CupertinoIcons.drop_fill;
               } else if (dayType == DayType.fertile && !cycle.isCOCEnabled) {
-                cardColor = isTTC ? Colors.pinkAccent.withOpacity(0.15) : AppColors.primary.withOpacity(0.15);
+                cardColor = isTTC
+                    ? Colors.pinkAccent.withOpacity(0.14)
+                    : AppColors.primary.withOpacity(0.14);
                 textColor = isTTC ? Colors.pinkAccent : AppColors.primary;
                 phaseLabel = "Fertile";
                 mainIcon = CupertinoIcons.sparkles;
               } else if (dayType == DayType.ovulation && !cycle.isCOCEnabled) {
-                cardColor = isTTC ? Colors.purple : AppColors.primary.withOpacity(0.3);
+                cardColor = isTTC
+                    ? Colors.purple
+                    : AppColors.primary.withOpacity(0.30);
                 textColor = isTTC ? Colors.white : AppColors.primary;
                 phaseLabel = "Ovulation";
-                mainIcon = isTTC ? CupertinoIcons.heart_circle_fill : CupertinoIcons.circle_bottomthird_split;
+                mainIcon = isTTC
+                    ? CupertinoIcons.heart_circle_fill
+                    : CupertinoIcons.circle_bottomthird_split;
               } else if (dayNum > cycle.ovulationDay) {
                 phaseLabel = "Luteal";
               }
 
-              return Container(
-                width: 90,
+              return AnimatedContainer(
+                duration: const Duration(milliseconds: 220),
+                width: 96,
                 margin: const EdgeInsets.only(right: 12),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 14),
                 decoration: BoxDecoration(
                   color: cardColor,
-                  borderRadius: BorderRadius.circular(20),
-                  border: isToday ? Border.all(color: AppColors.textPrimary, width: 2) : null,
+                  borderRadius: BorderRadius.circular(22),
+                  border: isToday
+                      ? Border.all(color: AppColors.textPrimary, width: 2)
+                      : Border.all(
+                    color: Colors.white.withOpacity(0.18),
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.03),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
                 ),
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Text("Day $dayNum", style: GoogleFonts.outfit(fontSize: 16, fontWeight: FontWeight.w800, color: textColor)),
+                    Text(
+                      "Day $dayNum",
+                      style: GoogleFonts.outfit(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                        color: textColor,
+                      ),
+                    ),
                     const SizedBox(height: 4),
-                    Text(DateFormat('MMM d').format(date), style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w600, color: textColor.withOpacity(0.7))),
+                    Text(
+                      DateFormat('MMM d').format(date),
+                      style: GoogleFonts.inter(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: textColor.withOpacity(0.72),
+                      ),
+                    ),
                     const SizedBox(height: 12),
                     if (mainIcon != null) Icon(mainIcon, color: textColor, size: 24),
+                    if (mainIcon == null)
+                      Container(
+                        width: 22,
+                        height: 22,
+                        decoration: BoxDecoration(
+                          color: textColor.withOpacity(0.08),
+                          shape: BoxShape.circle,
+                        ),
+                      ),
                     const SizedBox(height: 12),
-                    Text(phaseLabel, style: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.bold, color: textColor.withOpacity(0.8))),
+                    Text(
+                      phaseLabel,
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.inter(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w800,
+                        color: textColor.withOpacity(0.82),
+                      ),
+                    ),
                   ],
                 ),
               );
@@ -707,37 +1123,48 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
 class _DashedBorderPainter extends CustomPainter {
   final Color color;
+  final double radius;
 
-  _DashedBorderPainter({required this.color});
+  _DashedBorderPainter({
+    required this.color,
+    this.radius = 12,
+  });
 
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
       ..color = color
-      ..strokeWidth = 2
+      ..strokeWidth = 1.8
       ..style = PaintingStyle.stroke;
 
-    final rrect = RRect.fromRectAndRadius(Offset.zero & size, const Radius.circular(12));
+    final rrect = RRect.fromRectAndRadius(
+      Offset.zero & size,
+      Radius.circular(radius),
+    );
     final path = Path()..addRRect(rrect);
 
-    Path dashPath = Path();
+    final dashPath = Path();
     const dashWidth = 5.0;
     const dashSpace = 4.0;
-    double distance = 0.0;
 
-    for (PathMetric pathMetric in path.computeMetrics()) {
+    for (final PathMetric pathMetric in path.computeMetrics()) {
+      double distance = 0.0;
       while (distance < pathMetric.length) {
-        dashPath.addPath(pathMetric.extractPath(distance, distance + dashWidth), Offset.zero);
+        dashPath.addPath(
+          pathMetric.extractPath(distance, distance + dashWidth),
+          Offset.zero,
+        );
         distance += dashWidth + dashSpace;
       }
-      distance = 0.0;
     }
 
     canvas.drawPath(dashPath, paint);
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+  bool shouldRepaint(covariant _DashedBorderPainter oldDelegate) {
+    return oldDelegate.color != color || oldDelegate.radius != radius;
+  }
 }
 
 class _DaySummaryCard extends StatelessWidget {
@@ -761,7 +1188,8 @@ class _DaySummaryCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final phase = cycleProvider.getPhaseForDate(date);
     final cleanDate = DateTime(date.year, date.month, date.day);
-    final cleanToday = DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day);
+    final now = DateTime.now();
+    final cleanToday = DateTime(now.year, now.month, now.day);
     final isFuture = cleanDate.isAfter(cleanToday);
     final hasLogs = wellnessProvider.hasLogForDate(date);
 
@@ -771,26 +1199,53 @@ class _DaySummaryCard extends StatelessWidget {
 
     if (phase != null) {
       if (cycleProvider.isCOCEnabled) {
-        phaseText = phase == CyclePhase.menstruation ? l10n.cocBreakPhase : l10n.cocActivePhase;
-        phaseColor = phase == CyclePhase.menstruation ? AppColors.menstruation : AppColors.follicular;
+        phaseText = phase == CyclePhase.menstruation
+            ? l10n.cocBreakPhase
+            : l10n.cocActivePhase;
+        phaseColor = phase == CyclePhase.menstruation
+            ? AppColors.menstruation
+            : AppColors.follicular;
       } else {
         switch (phase) {
-          case CyclePhase.menstruation: phaseText = l10n.phaseMenstruation; phaseColor = AppColors.menstruation; break;
-          case CyclePhase.follicular: phaseText = l10n.phaseFollicular; phaseColor = AppColors.follicular; break;
-          case CyclePhase.ovulation: phaseText = isTTC ? "Peak Ovulation" : l10n.phaseOvulation; phaseColor = isTTC ? Colors.purple : AppColors.ovulation; break;
-          case CyclePhase.luteal: phaseText = isTTC ? "Two Week Wait" : l10n.phaseLuteal; phaseColor = AppColors.luteal; break;
-          case CyclePhase.late: phaseText = isTTC ? "Test Day" : l10n.phaseLate; phaseColor = Colors.orangeAccent; break;
+          case CyclePhase.menstruation:
+            phaseText = l10n.phaseMenstruation;
+            phaseColor = AppColors.menstruation;
+            break;
+          case CyclePhase.follicular:
+            phaseText = l10n.phaseFollicular;
+            phaseColor = AppColors.follicular;
+            break;
+          case CyclePhase.ovulation:
+            phaseText = isTTC ? "Peak Ovulation" : l10n.phaseOvulation;
+            phaseColor = isTTC ? Colors.purple : AppColors.ovulation;
+            break;
+          case CyclePhase.luteal:
+            phaseText = isTTC ? "Two Week Wait" : l10n.phaseLuteal;
+            phaseColor = AppColors.luteal;
+            break;
+          case CyclePhase.late:
+            phaseText = isTTC ? "Test Day" : l10n.phaseLate;
+            phaseColor = Colors.orangeAccent;
+            break;
         }
       }
     }
 
     if (hasLogs) {
       final log = wellnessProvider.getLogForDate(date);
-      List<String> loggedItems = [];
+      final List<String> loggedItems = [];
+
       if (log.flow != FlowIntensity.none) loggedItems.add("Bleeding");
-      if (log.temperature != null && log.temperature! > 0) loggedItems.add("BBT: ${log.temperature}");
-      if (log.symptoms.contains('Unprotected Sex') || log.symptoms.contains('Protected Sex')) loggedItems.add("Intimacy");
-      if (log.symptoms.any((s) => s.startsWith("LH:"))) loggedItems.add("OPK Logged");
+      if (log.temperature != null && log.temperature! > 0) {
+        loggedItems.add("BBT: ${log.temperature}");
+      }
+      if (log.symptoms.contains('Unprotected Sex') ||
+          log.symptoms.contains('Protected Sex')) {
+        loggedItems.add("Intimacy");
+      }
+      if (log.symptoms.any((s) => s.startsWith("LH:"))) {
+        loggedItems.add("OPK Logged");
+      }
 
       if (loggedItems.isNotEmpty) {
         subText = loggedItems.join(" • ");
@@ -802,7 +1257,7 @@ class _DaySummaryCard extends StatelessWidget {
     }
 
     return PremiumGlassCard(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(18),
       borderRadius: 24,
       child: Row(
         children: [
@@ -811,30 +1266,36 @@ class _DaySummaryCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  DateFormat('EEEE, MMM d', l10n.localeName).format(date).toUpperCase(),
+                  DateFormat('EEEE, MMM d', l10n.localeName)
+                      .format(date)
+                      .toUpperCase(),
                   style: GoogleFonts.inter(
                     fontWeight: FontWeight.w700,
                     fontSize: 11,
                     color: AppColors.textSecondary,
-                    letterSpacing: 1.5,
+                    letterSpacing: 1.4,
                   ),
                 ),
-                const SizedBox(height: 6),
+                const SizedBox(height: 8),
                 Row(
                   children: [
                     Container(
-                      width: 10, height: 10,
-                      decoration: BoxDecoration(color: phaseColor, shape: BoxShape.circle),
+                      width: 10,
+                      height: 10,
+                      decoration: BoxDecoration(
+                        color: phaseColor,
+                        shape: BoxShape.circle,
+                      ),
                     ),
                     const SizedBox(width: 8),
-                    Flexible(
+                    Expanded(
                       child: Text(
                         phaseText,
                         style: GoogleFonts.outfit(
-                            fontWeight: FontWeight.w800,
-                            fontSize: 18,
-                            color: AppColors.textPrimary,
-                            letterSpacing: -0.5
+                          fontWeight: FontWeight.w800,
+                          fontSize: 19,
+                          color: AppColors.textPrimary,
+                          letterSpacing: -0.4,
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -842,16 +1303,35 @@ class _DaySummaryCard extends StatelessWidget {
                     ),
                   ],
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 9),
                 Row(
                   children: [
-                    Icon(hasLogs ? CupertinoIcons.checkmark_seal_fill : CupertinoIcons.circle, size: 14, color: hasLogs ? AppColors.primary : AppColors.textSecondary),
-                    const SizedBox(width: 4),
+                    Icon(
+                      hasLogs
+                          ? CupertinoIcons.checkmark_seal_fill
+                          : CupertinoIcons.circle,
+                      size: 14,
+                      color: hasLogs
+                          ? AppColors.primary
+                          : AppColors.textSecondary,
+                    ),
+                    const SizedBox(width: 5),
                     Expanded(
-                      child: Text(subText, style: GoogleFonts.inter(fontSize: 12, color: hasLogs ? AppColors.primary : AppColors.textSecondary, fontWeight: FontWeight.w600), maxLines: 1, overflow: TextOverflow.ellipsis),
+                      child: Text(
+                        subText,
+                        style: GoogleFonts.inter(
+                          fontSize: 12,
+                          color: hasLogs
+                              ? AppColors.primary
+                              : AppColors.textSecondary,
+                          fontWeight: FontWeight.w600,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
                   ],
-                )
+                ),
               ],
             ),
           ),
@@ -859,15 +1339,34 @@ class _DaySummaryCard extends StatelessWidget {
             GestureDetector(
               onTap: onOpenLogger,
               child: Container(
-                padding: const EdgeInsets.all(16),
+                width: 56,
+                height: 56,
                 decoration: BoxDecoration(
-                  color: isTTC ? Colors.purple : AppColors.textPrimary,
                   shape: BoxShape.circle,
+                  gradient: LinearGradient(
+                    colors: [
+                      (isTTC ? Colors.purple : AppColors.textPrimary)
+                          .withOpacity(0.96),
+                      (isTTC ? Colors.purple : AppColors.textPrimary)
+                          .withOpacity(0.84),
+                    ],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
                   boxShadow: [
-                    BoxShadow(color: (isTTC ? Colors.purple : AppColors.textPrimary).withOpacity(0.3), blurRadius: 15, offset: const Offset(0, 8))
+                    BoxShadow(
+                      color: (isTTC ? Colors.purple : AppColors.textPrimary)
+                          .withOpacity(0.24),
+                      blurRadius: 16,
+                      offset: const Offset(0, 8),
+                    ),
                   ],
                 ),
-                child: const Icon(CupertinoIcons.add, color: Colors.white, size: 24),
+                child: const Icon(
+                  CupertinoIcons.add,
+                  color: Colors.white,
+                  size: 24,
+                ),
               ),
             ),
         ],
