@@ -200,6 +200,26 @@ class SymptomLog extends HiveObject {
   @HiveField(16, defaultValue: CervicalMucusType.none)
   final CervicalMucusType mucus;
 
+  // 🔥 НОВОЕ: Проверка на пустой объект. Если всё дефолтное — лог считается пустым.
+  bool get isEmpty {
+    return flow == FlowIntensity.none &&
+        painSymptoms.isEmpty &&
+        moodSymptoms.isEmpty &&
+        mood == 3 &&
+        energy == 3 &&
+        sleep == 3 &&
+        skin == 3 &&
+        libido == 3 &&
+        symptoms.isEmpty &&
+        (notes == null || notes!.trim().isEmpty) &&
+        temperature == null &&
+        weight == null &&
+        hadSex == false &&
+        protectedSex == false &&
+        ovulationTest == OvulationTestResult.none &&
+        mucus == CervicalMucusType.none;
+  }
+
   SymptomLog({
     required this.date,
     this.flow = FlowIntensity.none,

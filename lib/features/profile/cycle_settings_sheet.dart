@@ -1,4 +1,4 @@
-import 'package:evimoon/features/profile/profile_settings_list.dart';
+import 'package:evimoon/features/profile/profile_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';

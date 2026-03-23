@@ -204,7 +204,7 @@ class CycleProvider with ChangeNotifier {
     final bool isSameMode = _appMode == newMode;
     if (isSameMode && packStartDate == null) return;
 
-    final bool wasCOC = _appMode == AppMode.coc;
+    // final bool wasCOC = _appMode == AppMode.coc; // УБРАНО ДЛЯ БЕЗОПАСНОСТИ
 
     _appMode = newMode;
     await _settingsBox.put('app_mode', _appMode.index);
@@ -221,11 +221,9 @@ class CycleProvider with ChangeNotifier {
       await _updateCurrentData(effectiveStart, active + brk, brk);
     } else {
       if (!isSameMode) {
-        if (wasCOC) {
-          await logActionStartPeriod(DateTime.now(), isConfirmed: true);
-        } else {
-          await _recalculateEngine();
-        }
+        // 🔥 ИСПРАВЛЕНИЕ: Больше не форсируем ложное начало месячных при отключении КОК.
+        // Просто пересчитываем движок на основе существующих данных.
+        await _recalculateEngine();
       }
     }
 
@@ -390,7 +388,6 @@ class CycleProvider with ChangeNotifier {
     }
   }
 
-  // 🔥 [HIGH 2 FIXED] Сделали метод асинхронным для устранения Race Condition
   Future<void> _updateCurrentData(DateTime startDate, int avgLen, int periodLen, {bool notify = true}) async {
     final now = DateTime.now();
     final normalizedNow = _normalizeDate(now);
@@ -400,7 +397,6 @@ class CycleProvider with ChangeNotifier {
     int currentDay = diff + 1;
     if (currentDay <= 0) currentDay = 1;
 
-    // 🔥 Безопасный асинхронный вызов, убирающий гонку состояний
     if (_ovulationOverride != null && _ovulationOverride!.isBefore(safeStart)) {
       await _clearOvulationOverride();
     }
@@ -719,6 +715,7 @@ class CycleProvider with ChangeNotifier {
   Future<CycleLogResult> startNewCycle({bool isConfirmed = false}) async =>
       logActionStartPeriod(DateTime.now(), isConfirmed: isConfirmed);
 
+  // 🔥 ИСПРАВЛЕНИЕ: Безопасное удаление только для текущего цикла (до 15 дней вперед)
   Future<void> endCurrentPeriod({DateTime? endDate}) async {
     await _ensureBoxOpen();
     if (isCOCEnabled) return;
@@ -739,9 +736,12 @@ class CycleProvider with ChangeNotifier {
       }
     }
 
+    // Удаляем логи кровотечений, которые идут ПОСЛЕ конца месячных (end),
+    // НО только в пределах текущего цикла (чтобы не стереть будущие настоящие месячные).
+    final maxPeriodEnd = start.add(const Duration(days: 15));
     timestamps.removeWhere((ts) {
       final d = DateTime.fromMillisecondsSinceEpoch(ts);
-      return !d.isBefore(end);
+      return !d.isBefore(end) && d.isBefore(maxPeriodEnd);
     });
 
     await _settingsBox.putAll({
@@ -791,6 +791,7 @@ class CycleProvider with ChangeNotifier {
     await rescheduleNotifications();
   }
 
+  // 🔥 ИСПРАВЛЕНИЕ: Ищем 3 подтвержденные температуры из базы
   Future<void> tryAutoConfirmOvulationFromBBT(List<MapEntry<DateTime, double>> tempHistory) async {
     await _ensureBoxOpen();
     if (!isTTCMode || isCOCEnabled || _ovulationOverride != null) return;
@@ -803,27 +804,23 @@ class CycleProvider with ChangeNotifier {
 
     if (temps.length < 10) return;
 
-    final Map<DateTime, double> map = {for (final e in temps) e.key: e.value};
-    final dates = map.keys.toList()..sort();
     DateTime? shiftStart;
 
-    for (int i = 6; i < dates.length; i++) {
-      final d = dates[i];
-      final prevDates = <DateTime>[];
-      for (int k = 1; k <= 6; k++) {
-        final pd = d.subtract(Duration(days: k));
-        if (map.containsKey(pd)) prevDates.add(pd);
-      }
-      if (prevDates.length < 5) continue;
+    // FAM Алгоритм: ищем 3 подряд температуры, которые выше последних 6
+    for (int i = 6; i < temps.length - 2; i++) {
+      final currentTemp = temps[i];
 
-      final baseline = prevDates.map((pd) => map[pd]!).reduce((a, b) => a + b) / prevDates.length;
-      final d1 = d.add(const Duration(days: 1));
-      final d2 = d.add(const Duration(days: 2));
-      if (!map.containsKey(d1) || !map.containsKey(d2)) continue;
-
+      // Берем предыдущие 6 значений (существующие в логах)
+      final prevTemps = temps.sublist(i - 6, i);
+      final baseline = prevTemps.map((e) => e.value).reduce((a, b) => a + b) / 6;
       final threshold = baseline + 0.20;
-      if (map[d]! >= threshold && map[d1]! >= threshold && map[d2]! >= threshold) {
-        shiftStart = d;
+
+      // Берем следующие 2 значения (существующие в логах)
+      final temp1 = temps[i + 1].value;
+      final temp2 = temps[i + 2].value;
+
+      if (currentTemp.value >= threshold && temp1 >= threshold && temp2 >= threshold) {
+        shiftStart = currentTemp.key;
         break;
       }
     }
@@ -920,7 +917,6 @@ class CycleProvider with ChangeNotifier {
   Future<void> rescheduleNotifications() async {
     if (_notificationService == null) return;
     try {
-      // 🔥 [HIGH 1 FIXED] Guard: Проверяем, не отключил ли юзер уведомления
       final storage = SecureStorageService();
       final notificationsEnabled = await storage.getNotificationsEnabled();
 

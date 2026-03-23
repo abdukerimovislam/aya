@@ -62,15 +62,23 @@ class WellnessProvider extends ChangeNotifier {
     return _logsCache.values.toList();
   }
 
+  // 🔥 ИСПРАВЛЕНИЕ: Мусоросборщик. Если лог пустой, удаляем его из базы!
   Future<void> saveLog(SymptomLog log) async {
     final key = _dateKey(log.date);
-    await _logsBox.put(key, log);
-    _logsCache[key] = log;
+
+    if (log.isEmpty) {
+      await _logsBox.delete(key);
+      _logsCache.remove(key);
+    } else {
+      await _logsBox.put(key, log);
+      _logsCache[key] = log;
+    }
     notifyListeners();
   }
 
+  // 🔥 ИСПРАВЛЕНИЕ: Форматирование дат с нулями для идеальной сортировки
   String _dateKey(DateTime date) {
-    return "${date.year}-${date.month}-${date.day}";
+    return "${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}";
   }
 
   // --- CHART METHODS ---
@@ -149,7 +157,8 @@ class WellnessProvider extends ChangeNotifier {
     final now = DateTime.now();
 
     for (int i = 29; i >= 0; i--) {
-      final date = now.subtract(Duration(days: i));
+      // 🔥 ИСПРАВЛЕНИЕ: Безопасно от DST (Daylight Saving Time)
+      final date = DateTime(now.year, now.month, now.day - i);
       if (hasLogForDate(date)) {
         double val = getLogForDate(date).mood.toDouble();
         if (val == 0) val = 3.0;
@@ -200,19 +209,18 @@ class WellnessProvider extends ChangeNotifier {
         if (log.symptoms.contains(factor)) {
           factorCount++;
 
-          // 🔥 Складываем симптомы за 2 дня в Set,
-          // чтобы избежать двойного счета и вероятности > 100%
+          // Складываем симптомы за 2 дня в Set, чтобы избежать двойного счета
           final Set<String> incidentPains = {};
           incidentPains.addAll(log.painSymptoms);
 
-          // 🔥 ИСПРАВЛЕННЫЙ БАГ: Безопасное прибавление дня с защитой от DST (перевода часов)
+          // 🔥 ИСПРАВЛЕНИЕ: Безопасное прибавление дня с защитой от DST
           final nextDay = DateTime(log.date.year, log.date.month, log.date.day + 1);
 
           if (hasLogForDate(nextDay)) {
             incidentPains.addAll(getLogForDate(nextDay).painSymptoms);
           }
 
-          // Теперь увеличиваем счетчики корректно
+          // Увеличиваем счетчики корректно
           for (var pain in incidentPains) {
             painCounts[pain] = (painCounts[pain] ?? 0) + 1;
           }
@@ -242,7 +250,8 @@ class WellnessProvider extends ChangeNotifier {
     final List<double?> temps = [];
     final now = DateTime.now();
     for (int i = 13; i >= 0; i--) {
-      final date = now.subtract(Duration(days: i));
+      // 🔥 ИСПРАВЛЕНИЕ: Безопасно от DST (Daylight Saving Time)
+      final date = DateTime(now.year, now.month, now.day - i);
       final log = getLogForDate(date);
       temps.add(log.temperature);
     }
