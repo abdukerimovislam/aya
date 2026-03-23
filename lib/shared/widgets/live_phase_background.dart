@@ -2,6 +2,8 @@ import 'dart:math' as math;
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
+
+import '../../core/theme/app_theme.dart';
 import '../../data/models/cycle_model.dart';
 
 class LivePhaseBackground extends StatefulWidget {
@@ -27,7 +29,7 @@ class _LivePhaseBackgroundState extends State<LivePhaseBackground>
     super.initState();
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(seconds: 18),
+      duration: const Duration(seconds: 20),
     )..repeat();
   }
 
@@ -44,111 +46,108 @@ class _LivePhaseBackgroundState extends State<LivePhaseBackground>
       isCOC: widget.isCOC,
     );
 
-    return RepaintBoundary(
+    return IgnorePointer(
       child: AnimatedBuilder(
         animation: _controller,
         builder: (context, _) {
           final t = _controller.value * 2 * math.pi;
+          final dynamicShift = 0.04 * math.sin(t * 0.6);
 
-          return IgnorePointer(
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                // Base gradient
-                DecoratedBox(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [
-                        palette.baseTop,
+          return Stack(
+            fit: StackFit.expand,
+            children: [
+              DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      palette.baseTop,
+                      Color.lerp(
                         palette.baseBottom,
-                      ],
-                    ),
+                        palette.blobA,
+                        dynamicShift.abs(),
+                      )!,
+                    ],
                   ),
                 ),
+              ),
 
-                // Soft central light wash
-                Align(
-                  alignment: const Alignment(0.0, -0.15),
-                  child: Container(
-                    width: 420,
-                    height: 420,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      gradient: RadialGradient(
-                        colors: [
-                          Colors.white.withOpacity(0.18),
-                          Colors.white.withOpacity(0.08),
-                          Colors.white.withOpacity(0.0),
-                        ],
-                        stops: const [0.0, 0.38, 1.0],
-                      ),
-                    ),
-                  ),
-                ),
-
-                // Large floating blobs
-                _MovingBlob(
-                  size: 320,
-                  dx: 42 * math.cos(t * 0.95),
-                  dy: 34 * math.sin(t * 0.80),
-                  alignment: const Alignment(-0.95, -0.82),
-                  color: palette.blobA,
-                  opacity: 0.42,
-                ),
-                _MovingBlob(
-                  size: 420,
-                  dx: 28 * math.sin(t * 0.72),
-                  dy: 44 * math.cos(t * 0.88),
-                  alignment: const Alignment(1.00, -0.10),
-                  color: palette.blobB,
-                  opacity: 0.34,
-                ),
-                _MovingBlob(
-                  size: 280,
-                  dx: 24 * math.cos(t * 1.12),
-                  dy: 36 * math.sin(t * 0.64),
-                  alignment: const Alignment(-0.10, 1.05),
-                  color: palette.blobC,
-                  opacity: 0.28,
-                ),
-
-                // Extra soft highlight for depth
-                Align(
-                  alignment: const Alignment(0.7, 0.75),
-                  child: Container(
-                    width: 240,
-                    height: 240,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: palette.highlight.withOpacity(0.18),
-                    ),
-                  ),
-                ),
-
-                // Heavy blur to get that modern glass/wellness look
-                BackdropFilter(
-                  filter: ImageFilter.blur(sigmaX: 90, sigmaY: 90),
-                  child: Container(color: Colors.transparent),
-                ),
-
-                // Subtle tint overlay to unify the composition
-                DecoratedBox(
+              Align(
+                alignment: const Alignment(0.0, -0.18),
+                child: Container(
+                  width: 430,
+                  height: 430,
                   decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
+                    shape: BoxShape.circle,
+                    gradient: RadialGradient(
                       colors: [
-                        Colors.white.withOpacity(0.04),
-                        palette.overlay.withOpacity(0.08),
-                        palette.overlay.withOpacity(0.14),
+                        Colors.white.withOpacity(0.22),
+                        Colors.white.withOpacity(0.10),
+                        Colors.transparent,
                       ],
+                      stops: const [0.0, 0.36, 1.0],
                     ),
                   ),
                 ),
-              ],
-            ),
+              ),
+
+              _MovingBlob(
+                size: 330,
+                dx: 34 * math.cos(t * 0.92),
+                dy: 28 * math.sin(t * 0.78),
+                alignment: const Alignment(-0.96, -0.82),
+                color: palette.blobA,
+                opacity: 0.36,
+              ),
+              _MovingBlob(
+                size: 400,
+                dx: 24 * math.sin(t * 0.70),
+                dy: 36 * math.cos(t * 0.86),
+                alignment: const Alignment(1.02, -0.08),
+                color: palette.blobB,
+                opacity: 0.32,
+              ),
+              _MovingBlob(
+                size: 280,
+                dx: 22 * math.cos(t * 1.08),
+                dy: 30 * math.sin(t * 0.62),
+                alignment: const Alignment(-0.12, 1.03),
+                color: palette.blobC,
+                opacity: 0.28,
+              ),
+
+              Align(
+                alignment: const Alignment(0.72, 0.78),
+                child: Container(
+                  width: 240,
+                  height: 240,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: palette.highlight.withOpacity(0.14),
+                  ),
+                ),
+              ),
+
+              BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 90, sigmaY: 90),
+                child: Container(color: Colors.transparent),
+              ),
+
+              DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Colors.white.withOpacity(0.04),
+                      palette.overlay.withOpacity(0.10),
+                      palette.overlay.withOpacity(0.16),
+                    ],
+                  ),
+                ),
+              ),
+            ],
           );
         },
       ),
@@ -187,10 +186,10 @@ class _MovingBlob extends StatelessWidget {
             gradient: RadialGradient(
               colors: [
                 color.withOpacity(opacity),
-                color.withOpacity(opacity * 0.55),
+                color.withOpacity(opacity * 0.5),
                 color.withOpacity(0.0),
               ],
-              stops: const [0.0, 0.45, 1.0],
+              stops: const [0.0, 0.42, 1.0],
             ),
           ),
         ),
@@ -223,72 +222,78 @@ class _PhasePalette {
     required bool isCOC,
   }) {
     if (isCOC) {
-      return const _PhasePalette(
-        baseTop: Color(0xFFF8FBFF),
-        baseBottom: Color(0xFFF3F8F7),
-        blobA: Color(0xFFAEDFF2),
-        blobB: Color(0xFFCDECCF),
-        blobC: Color(0xFFE3D9FF),
-        highlight: Color(0xFFFFFFFF),
-        overlay: Color(0xFFDCEFF1),
+      return _build(
+        accentA: const Color(0xFFCFE6E9),
+        accentB: const Color(0xFFD9E8F7),
+        accentC: const Color(0xFFE9E3FA),
+        baseMixTop: 0.06,
+        baseMixBottom: 0.12,
       );
     }
 
     switch (phase) {
       case CyclePhase.menstruation:
-        return const _PhasePalette(
-          baseTop: Color(0xFFFFF7F9),
-          baseBottom: Color(0xFFFFEEF2),
-          blobA: Color(0xFFFF8FA8),
-          blobB: Color(0xFFFFC2CF),
-          blobC: Color(0xFFFFD9E2),
-          highlight: Color(0xFFFFFFFF),
-          overlay: Color(0xFFFFD6E0),
+        return _build(
+          accentA: AppColors.menstruation,
+          accentB: const Color(0xFFFFD5DF),
+          accentC: const Color(0xFFFFE8EE),
+          baseMixTop: 0.07,
+          baseMixBottom: 0.14,
         );
 
       case CyclePhase.follicular:
-        return const _PhasePalette(
-          baseTop: Color(0xFFF7FFF9),
-          baseBottom: Color(0xFFF1FBF7),
-          blobA: Color(0xFFA8E6CF),
-          blobB: Color(0xFFCDEFD9),
-          blobC: Color(0xFFBFE7E3),
-          highlight: Color(0xFFFFFFFF),
-          overlay: Color(0xFFD7F3E7),
+        return _build(
+          accentA: AppColors.follicular,
+          accentB: const Color(0xFFE0F7F2),
+          accentC: const Color(0xFFF0FBF8),
+          baseMixTop: 0.06,
+          baseMixBottom: 0.12,
         );
 
       case CyclePhase.ovulation:
-        return const _PhasePalette(
-          baseTop: Color(0xFFFFFCF6),
-          baseBottom: Color(0xFFFFF5EC),
-          blobA: Color(0xFFFFD6A5),
-          blobB: Color(0xFFFFE6BF),
-          blobC: Color(0xFFFFD9C8),
-          highlight: Color(0xFFFFFFFF),
-          overlay: Color(0xFFFFE7C9),
+        return _build(
+          accentA: AppColors.ovulation,
+          accentB: const Color(0xFFDDE8FF),
+          accentC: const Color(0xFFF1F5FF),
+          baseMixTop: 0.065,
+          baseMixBottom: 0.125,
         );
 
       case CyclePhase.luteal:
-        return const _PhasePalette(
-          baseTop: Color(0xFFFAF7FF),
-          baseBottom: Color(0xFFF4F0FF),
-          blobA: Color(0xFFD8B4FE),
-          blobB: Color(0xFFC7D2FE),
-          blobC: Color(0xFFE4D7FF),
-          highlight: Color(0xFFFFFFFF),
-          overlay: Color(0xFFE5DEFF),
+        return _build(
+          accentA: AppColors.luteal,
+          accentB: const Color(0xFFF0E2FA),
+          accentC: const Color(0xFFF8F0FD),
+          baseMixTop: 0.065,
+          baseMixBottom: 0.13,
         );
 
       case CyclePhase.late:
-        return const _PhasePalette(
-          baseTop: Color(0xFFF8FAFC),
-          baseBottom: Color(0xFFF1F5F9),
-          blobA: Color(0xFFD7DEE7),
-          blobB: Color(0xFFC7D2DA),
-          blobC: Color(0xFFE5EAF0),
-          highlight: Color(0xFFFFFFFF),
-          overlay: Color(0xFFDDE5EC),
+        return _build(
+          accentA: AppColors.late,
+          accentB: const Color(0xFFFFEFD7),
+          accentC: const Color(0xFFFFF7EA),
+          baseMixTop: 0.055,
+          baseMixBottom: 0.11,
         );
     }
+  }
+
+  static _PhasePalette _build({
+    required Color accentA,
+    required Color accentB,
+    required Color accentC,
+    required double baseMixTop,
+    required double baseMixBottom,
+  }) {
+    return _PhasePalette(
+      baseTop: Color.lerp(AppColors.background, accentA, baseMixTop)!,
+      baseBottom: Color.lerp(AppColors.background, accentB, baseMixBottom)!,
+      blobA: accentA,
+      blobB: accentB,
+      blobC: accentC,
+      highlight: Colors.white,
+      overlay: Color.lerp(accentA, accentB, 0.45)!,
+    );
   }
 }

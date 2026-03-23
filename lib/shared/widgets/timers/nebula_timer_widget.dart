@@ -9,7 +9,6 @@ import '../../../core/theme/app_theme.dart';
 import '../../../data/models/cycle_model.dart';
 import '../../../l10n/app_localizations.dart';
 
-// 🔥 3 основные формы для режимов
 enum TimerShape { sphere, dna, infinity }
 
 class _NanoParticle {
@@ -33,7 +32,7 @@ class _NanoParticle {
 class NebulaTimerWidget extends StatefulWidget {
   final CycleData data;
   final bool isCOC;
-  final bool isTTC; // 🔥 Параметр для режима планирования
+  final bool isTTC;
 
   const NebulaTimerWidget({
     super.key,
@@ -56,9 +55,12 @@ class _NebulaTimerWidgetState extends State<NebulaTimerWidget> with TickerProvid
   final List<_NanoParticle> _particles = [];
   final int _particleCount = 600;
 
-  final int _startTime = DateTime.now().millisecondsSinceEpoch;
+  // 🔥 Аккумулятор времени для бесшовного изменения скорости
+  double _accumulatedTime = 0.0;
+  DateTime _lastFrameTime = DateTime.now();
+  double _currentSpeed = 0.6;
+  double _targetSpeed = 0.6;
 
-  // 🔥 АВТОМАТИЧЕСКИЙ ВЫБОР ФОРМЫ НА ОСНОВЕ РЕЖИМА
   TimerShape get _currentShape {
     if (widget.isCOC) return TimerShape.infinity;
     if (widget.isTTC) return TimerShape.dna;
@@ -69,6 +71,17 @@ class _NebulaTimerWidgetState extends State<NebulaTimerWidget> with TickerProvid
   void initState() {
     super.initState();
     _renderController = AnimationController(vsync: this, duration: const Duration(seconds: 1))..repeat();
+
+    // Подписываемся на кадры, чтобы плавно накапливать время с нужной скоростью
+    _renderController.addListener(() {
+      final now = DateTime.now();
+      final dt = now.difference(_lastFrameTime).inMilliseconds / 1000.0;
+      _lastFrameTime = now;
+
+      // Плавное ускорение/замедление (инерция)
+      _currentSpeed += (_targetSpeed - _currentSpeed) * 0.05;
+      _accumulatedTime += dt * _currentSpeed;
+    });
 
     final isLate = widget.data.phase == CyclePhase.late;
     _pulseController = AnimationController(vsync: this, duration: Duration(milliseconds: isLate ? 1200 : 2000))..repeat(reverse: true);
@@ -134,18 +147,15 @@ class _NebulaTimerWidgetState extends State<NebulaTimerWidget> with TickerProvid
     }
   }
 
-  // 🔥 ЛОГИКА ТЕКСТОВ ДЛЯ РЕЖИМА TTC
   Map<String, String> _getTTCLabels(int currentDay, int ovulationDay, int totalLength, CyclePhase phase) {
     if (phase == CyclePhase.menstruation) {
       return {"label": "PERIOD", "value": "DAY $currentDay"};
     } else if (phase == CyclePhase.follicular) {
-      // Считаем дни до фертильного окна
       int fertileStart = math.max(1, ovulationDay - 5);
       int daysToFertile = fertileStart - currentDay;
       if (daysToFertile > 0) {
         return {"label": "FERTILE IN", "value": "$daysToFertile DAYS"};
       } else {
-        // Уже в фертильном окне
         int fertileDayNum = currentDay - fertileStart + 1;
         return {"label": "FERTILE WINDOW", "value": "DAY $fertileDayNum"};
       }
@@ -162,9 +172,21 @@ class _NebulaTimerWidgetState extends State<NebulaTimerWidget> with TickerProvid
       if (dpo <= 0) dpo = 1;
       return {"label": "PAST OVULATION", "value": "$dpo DPO"};
     } else {
-      // Late
       int daysLate = currentDay - totalLength;
       return {"label": "CYCLE DELAY", "value": "$daysLate DAYS"};
+    }
+  }
+
+  // 🔥 Получаем целевую скорость в зависимости от фазы
+  double _getSpeedForPhase(CyclePhase phase, bool isCOC) {
+    if (isCOC) return 0.5; // У КОК скорость всегда ровная и медитативная
+
+    switch (phase) {
+      case CyclePhase.menstruation: return 0.2; // Убаюкивающая, медленная (усталость)
+      case CyclePhase.follicular: return 0.7;   // Бодрая (эстроген растет)
+      case CyclePhase.ovulation: return 1.4;    // Очень быстрая (энергетический пик)
+      case CyclePhase.luteal: return 0.4;       // Тягучая (прогестерон заземляет)
+      case CyclePhase.late: return 0.1;         // Почти замершая (невесомость/ожидание)
     }
   }
 
@@ -181,6 +203,9 @@ class _NebulaTimerWidgetState extends State<NebulaTimerWidget> with TickerProvid
       displayPhase = _getPhaseForDay(displayDay, phases);
     }
 
+    // Обновляем целевую скорость при смене фазы (например, при свайпе)
+    _targetSpeed = _getSpeedForPhase(displayPhase, widget.isCOC);
+
     final displayColor = _getColor(displayPhase, widget.isCOC, widget.isTTC);
     final accentColor = _getAccentColor(displayPhase, widget.isCOC, widget.isTTC);
     final displayName = _getName(context, displayPhase, l10n, widget.isCOC, widget.isTTC);
@@ -196,7 +221,6 @@ class _NebulaTimerWidgetState extends State<NebulaTimerWidget> with TickerProvid
     String mainNumberText;
     String labelText;
 
-    // 🔥 РАЗВИЛКА ЛОГИКИ ТЕКСТОВ ТАЙМЕРА
     if (widget.isTTC && _selectedDay == null) {
       final ttcData = _getTTCLabels(widget.data.currentDay, phases[2] - 1, widget.data.totalCycleLength, displayPhase);
       labelText = ttcData['label']!;
@@ -231,7 +255,6 @@ class _NebulaTimerWidgetState extends State<NebulaTimerWidget> with TickerProvid
                 alignment: Alignment.center,
                 children: [
 
-                  // 1. ОРБИТА
                   AnimatedBuilder(
                     animation: _pulseController,
                     builder: (context, child) {
@@ -250,26 +273,24 @@ class _NebulaTimerWidgetState extends State<NebulaTimerWidget> with TickerProvid
                     },
                   ),
 
-                  // 2. ЗАДНИЕ ЧАСТИЦЫ
                   AnimatedBuilder(
                     animation: Listenable.merge([_renderController, _pulseController]),
                     builder: (context, child) {
                       return CustomPaint(
                         size: Size(widgetSize * 0.84375, widgetSize * 0.84375),
                         painter: _NanoParticlePainter(
-                          startTime: _startTime,
+                          time: _accumulatedTime, // 🔥 Передаем накопленное время
                           pulseValue: _pulseController.value,
                           baseColor: displayColor,
                           accentColor: accentColor,
                           particles: _particles,
-                          shape: _currentShape, // 🔥 Авто-выбор формы
+                          shape: _currentShape,
                           isFrontLayer: false,
                         ),
                       );
                     },
                   ),
 
-                  // 3. ЦЕНТРАЛЬНАЯ КНОПКА
                   GestureDetector(
                     onTap: () {
                       if (_selectedDay != null) {
@@ -308,7 +329,7 @@ class _NebulaTimerWidgetState extends State<NebulaTimerWidget> with TickerProvid
                                 Text(
                                   _selectedDay == null ? labelText : dateString.toUpperCase(),
                                   style: GoogleFonts.inter(
-                                      color: isLate ? Colors.orangeAccent.shade700 : AppColors.textSecondary,
+                                      color: isLate ? const Color(0xFFE65100) : AppColors.textSecondary,
                                       fontSize: 10 * scale,
                                       letterSpacing: 1.5,
                                       fontWeight: FontWeight.w800
@@ -324,7 +345,7 @@ class _NebulaTimerWidgetState extends State<NebulaTimerWidget> with TickerProvid
                                     style: GoogleFonts.inter(
                                         fontSize: (isLate && daysLate > 9 ? 48 : 60) * scale,
                                         fontWeight: FontWeight.w200,
-                                        color: isLate ? Colors.orangeAccent.shade700 : AppColors.textPrimary,
+                                        color: isLate ? const Color(0xFFE65100) : AppColors.textPrimary,
                                         height: 1.1,
                                         letterSpacing: -2
                                     ),
@@ -361,7 +382,6 @@ class _NebulaTimerWidgetState extends State<NebulaTimerWidget> with TickerProvid
                     ),
                   ),
 
-                  // 4. ПЕРЕДНИЕ ЧАСТИЦЫ
                   IgnorePointer(
                     child: AnimatedBuilder(
                       animation: Listenable.merge([_renderController, _pulseController]),
@@ -369,7 +389,7 @@ class _NebulaTimerWidgetState extends State<NebulaTimerWidget> with TickerProvid
                         return CustomPaint(
                           size: Size(widgetSize * 0.84375, widgetSize * 0.84375),
                           painter: _NanoParticlePainter(
-                            startTime: _startTime,
+                            time: _accumulatedTime, // 🔥 Передаем накопленное время
                             pulseValue: _pulseController.value,
                             baseColor: displayColor,
                             accentColor: accentColor,
@@ -407,41 +427,35 @@ class _NebulaTimerWidgetState extends State<NebulaTimerWidget> with TickerProvid
   }
 
   Color _getColor(CyclePhase phase, bool isCOC, bool isTTC) {
-    if (isCOC) return phase == CyclePhase.menstruation ? Colors.redAccent : Colors.tealAccent.shade400;
-
-    // 🔥 TTC Акценты
-    if (isTTC && phase == CyclePhase.ovulation) return Colors.purple;
+    if (isCOC) return phase == CyclePhase.menstruation ? const Color(0xFFFF8FA8) : const Color(0xFFB2EBF2);
+    if (isTTC && phase == CyclePhase.ovulation) return const Color(0xFFBCAAA4);
 
     switch (phase) {
-      case CyclePhase.menstruation: return AppColors.menstruation;
-      case CyclePhase.follicular: return AppColors.follicular;
-      case CyclePhase.ovulation: return AppColors.ovulation;
-      case CyclePhase.luteal: return AppColors.luteal;
-      case CyclePhase.late: return Colors.orangeAccent.shade700;
+      case CyclePhase.menstruation: return const Color(0xFFFF8FA8);
+      case CyclePhase.follicular: return const Color(0xFFB2EBF2);
+      case CyclePhase.ovulation: return const Color(0xFFB7D7FF);
+      case CyclePhase.luteal: return const Color(0xFFE1BEE7);
+      case CyclePhase.late: return const Color(0xFFFFE0B2);
     }
   }
 
   Color _getAccentColor(CyclePhase phase, bool isCOC, bool isTTC) {
-    if (isCOC) return Colors.indigoAccent;
-
-    // 🔥 TTC Акценты
-    if (isTTC && phase == CyclePhase.ovulation) return Colors.pinkAccent;
+    if (isCOC) return const Color(0xFF4DD0E1);
+    if (isTTC && phase == CyclePhase.ovulation) return const Color(0xFFE85D75);
 
     switch (phase) {
-      case CyclePhase.menstruation: return Colors.redAccent;
-      case CyclePhase.follicular: return Colors.lightBlueAccent;
-      case CyclePhase.ovulation: return Colors.purpleAccent;
-      case CyclePhase.luteal: return Colors.pinkAccent;
-      case CyclePhase.late: return Colors.redAccent;
+      case CyclePhase.menstruation: return const Color(0xFFE85D75);
+      case CyclePhase.follicular: return const Color(0xFF4DD0E1);
+      case CyclePhase.ovulation: return const Color(0xFF4267B2);
+      case CyclePhase.luteal: return const Color(0xFFBA68C8);
+      case CyclePhase.late: return const Color(0xFFFFB74D);
     }
   }
 
   String _getName(BuildContext context, CyclePhase phase, AppLocalizations l10n, bool isCOC, bool isTTC) {
     if (isCOC) return phase == CyclePhase.menstruation ? l10n.cocBreakPhase : l10n.cocActivePhase;
-
-    // 🔥 TTC Акценты
     if (isTTC && phase == CyclePhase.follicular) return "PREPARING";
-    if (isTTC && phase == CyclePhase.luteal) return "TWW / DPO"; // Two Week Wait / Days Past Ovulation
+    if (isTTC && phase == CyclePhase.luteal) return "TWW / DPO";
 
     switch (phase) {
       case CyclePhase.menstruation: return l10n.phaseMenstruation;
@@ -459,7 +473,7 @@ class _OrbitTicksPainter extends CustomPainter {
   final int? selectedDay;
   final List<int> phases;
   final bool isCOC;
-  final bool isTTC; // 🔥 Добавили проброс параметра
+  final bool isTTC;
   final double pulseValue;
 
   _OrbitTicksPainter({
@@ -477,7 +491,10 @@ class _OrbitTicksPainter extends CustomPainter {
     final center = Offset(size.width / 2, size.height / 2);
     final radius = size.width / 2;
 
-    final Paint trackPaint = Paint()..color = Colors.black.withOpacity(0.02)..style = PaintingStyle.stroke..strokeWidth = 2.0;
+    final Paint trackPaint = Paint()
+      ..color = Colors.black.withOpacity(0.04)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.0;
     final Paint tickPaint = Paint()..style = PaintingStyle.fill;
     final Paint whiteTickPaint = Paint()..color = Colors.white..style = PaintingStyle.fill;
 
@@ -491,8 +508,7 @@ class _OrbitTicksPainter extends CustomPainter {
         double endAngle = (2 * math.pi / totalDays) * (endFertile - 1) - (math.pi / 2);
         double sweepAngle = endAngle - startAngle;
 
-        // 🔥 В TTC режиме делаем свечение дуги ярче (фиолетовое)
-        Color glowColor = isTTC ? Colors.purple.withOpacity(0.35) : AppColors.ovulation.withOpacity(0.25);
+        Color glowColor = isTTC ? const Color(0xFFBCAAA4).withOpacity(0.5) : const Color(0xFFB7D7FF).withOpacity(0.4);
 
         canvas.drawArc(
             Rect.fromCircle(center: center, radius: radius),
@@ -513,16 +529,15 @@ class _OrbitTicksPainter extends CustomPainter {
       bool isFertile = false;
 
       if (isCOC) {
-        tickColor = dayNum <= phases[0] ? Colors.redAccent : Colors.tealAccent.shade400;
+        tickColor = dayNum <= phases[0] ? const Color(0xFFFF8FA8) : const Color(0xFFB2EBF2);
       } else {
-        if (dayNum <= phases[0]) tickColor = AppColors.menstruation;
-        else if (dayNum <= phases[1]) tickColor = AppColors.follicular;
+        if (dayNum <= phases[0]) tickColor = const Color(0xFFFF8FA8);
+        else if (dayNum <= phases[1]) tickColor = const Color(0xFFB2EBF2);
         else if (dayNum <= phases[2]) {
-          // 🔥 В TTC режиме фертильные дни фиолетовые
-          tickColor = isTTC ? Colors.purple : AppColors.ovulation;
+          tickColor = isTTC ? const Color(0xFFBCAAA4) : const Color(0xFFB7D7FF);
           isFertile = true;
         }
-        else tickColor = AppColors.luteal;
+        else tickColor = const Color(0xFFE1BEE7);
       }
 
       final angle = (2 * math.pi / totalDays) * i - (math.pi / 2);
@@ -531,23 +546,33 @@ class _OrbitTicksPainter extends CustomPainter {
 
       canvas.save();
       canvas.translate(x, y);
-      canvas.rotate(angle + math.pi / 2);
 
       if (selectedDay == dayNum) {
-        tickPaint.color = tickColor.withOpacity(0.4);
-        canvas.drawRRect(RRect.fromRectAndRadius(Rect.fromCenter(center: Offset.zero, width: 4.5, height: 16), const Radius.circular(3)), tickPaint);
-        canvas.drawRRect(RRect.fromRectAndRadius(Rect.fromCenter(center: Offset.zero, width: 3.5, height: 14), const Radius.circular(2)), whiteTickPaint);
+        tickPaint.color = tickColor.withOpacity(0.9);
+        canvas.drawCircle(Offset.zero, 8, tickPaint);
+        canvas.drawCircle(Offset.zero, 6.5, whiteTickPaint);
       } else if (currentDay == dayNum && selectedDay == null) {
-        tickPaint.color = tickColor.withOpacity(0.3);
-        canvas.drawRRect(RRect.fromRectAndRadius(Rect.fromCenter(center: Offset.zero, width: 4.5, height: 14 + (pulseValue * 4)), const Radius.circular(3)), tickPaint);
-        canvas.drawRRect(RRect.fromRectAndRadius(Rect.fromCenter(center: Offset.zero, width: 3.5, height: 12 + (pulseValue * 2)), const Radius.circular(2)), whiteTickPaint);
+        tickPaint.color = tickColor.withOpacity(0.85);
+
+        final Paint haloPaint = Paint()..color = tickColor.withOpacity(0.3 * (1 - pulseValue))..style = PaintingStyle.fill;
+        canvas.drawCircle(Offset.zero, 8 + (pulseValue * 5), haloPaint);
+
+        canvas.drawCircle(Offset.zero, 8, tickPaint);
+        canvas.drawCircle(Offset.zero, 6.5, whiteTickPaint);
       } else {
         bool isPast = dayNum < currentDay;
-        double tickWidth = isFertile && !isCOC ? 3.0 : 2.5;
-        double tickHeight = isFertile && !isCOC ? 9.0 : 6.0;
+        double circleRadius = isFertile && !isCOC ? 4.0 : 3.2;
 
-        tickPaint.color = isPast ? tickColor.withOpacity(0.3) : tickColor;
-        canvas.drawRRect(RRect.fromRectAndRadius(Rect.fromCenter(center: Offset.zero, width: tickWidth, height: tickHeight), Radius.circular(tickWidth / 2)), tickPaint);
+        if (isPast) {
+          tickPaint.color = tickColor.withOpacity(0.8);
+          canvas.drawCircle(Offset.zero, circleRadius, tickPaint);
+        } else {
+          final Paint strokePaint = Paint()
+            ..color = tickColor
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 1.8;
+          canvas.drawCircle(Offset.zero, circleRadius, strokePaint);
+        }
       }
       canvas.restore();
     }
@@ -561,7 +586,7 @@ class _OrbitTicksPainter extends CustomPainter {
 }
 
 class _NanoParticlePainter extends CustomPainter {
-  final int startTime;
+  final double time; // 🔥 Теперь принимаем накопленное время, а не стартовое
   final double pulseValue;
   final Color baseColor;
   final Color accentColor;
@@ -570,7 +595,7 @@ class _NanoParticlePainter extends CustomPainter {
   final bool isFrontLayer;
 
   _NanoParticlePainter({
-    required this.startTime,
+    required this.time,
     required this.pulseValue,
     required this.baseColor,
     required this.accentColor,
@@ -583,8 +608,6 @@ class _NanoParticlePainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final center = Offset(size.width / 2, size.height / 2);
     final radius = (size.width / 2 - 20) + (pulseValue * 8);
-
-    final double time = (DateTime.now().millisecondsSinceEpoch - startTime) / 1000.0 * 0.6;
 
     const tilt = math.pi / 9;
     final double cosTilt = math.cos(tilt);
@@ -616,18 +639,15 @@ class _NanoParticlePainter extends CustomPainter {
           break;
 
         case TimerShape.dna:
-        // 🔥 Идеальная ДНК спираль
           double globalTime = time * 1.5;
-          double zRaw = (p.u - 0.5) * 2.0; // от -1 до 1
-          double twist = math.pi * 3.5; // Количество витков
-          double currentR = r * 0.6; // Радиус спирали (уже)
+          double zRaw = (p.u - 0.5) * 2.0;
+          double twist = math.pi * 3.5;
+          double currentR = r * 0.6;
 
-          // 75% частиц - это боковые "хребты" ДНК (две линии)
           if (p.rand1 < 0.75) {
             double strandOffset = p.rand1 < 0.375 ? 0.0 : math.pi;
             double theta = zRaw * twist - globalTime;
 
-            // Трубчатый объем для хребта
             double thickness = 4.0;
             double tubeX = math.cos(p.v * math.pi * 2) * thickness;
             double tubeZ = math.sin(p.v * math.pi * 2) * thickness;
@@ -636,13 +656,12 @@ class _NanoParticlePainter extends CustomPainter {
             y3d = zRaw * r * 0.95 + (p.rand2 - 0.5) * thickness;
             z3d = currentR * math.sin(theta + strandOffset) + tubeZ;
           } else {
-            // 25% частиц - это внутренние "мосты/ступеньки" между хребтами
-            int rungs = 18; // Количество ступенек
+            int rungs = 18;
             double step = (p.u * (rungs - 1)).round() / (rungs - 1);
             double zRung = (step - 0.5) * 2.0;
             double theta = zRung * twist - globalTime;
 
-            double bridgeT = (p.v - 0.5) * 2.0; // от -1 до 1
+            double bridgeT = (p.v - 0.5) * 2.0;
 
             x3d = currentR * bridgeT * math.cos(theta);
             y3d = zRung * r * 0.95;

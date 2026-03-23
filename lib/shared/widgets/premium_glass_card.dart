@@ -1,27 +1,22 @@
-import 'dart:async';
-import 'dart:ui';
-
 import 'package:flutter/material.dart';
-import 'package:sensors_plus/sensors_plus.dart';
-
 import '../../core/theme/app_theme.dart';
 import '../../data/models/cycle_model.dart';
 
-class PremiumGlassCard extends StatefulWidget {
+class PremiumGlassCard extends StatelessWidget {
   final Widget child;
   final double? width;
   final double? height;
   final EdgeInsetsGeometry? padding;
   final double borderRadius;
 
-  /// Optional cycle phase tint
   final CyclePhase? phase;
-
-  /// Disable if a neutral card is needed
   final bool phaseAware;
-
-  /// 0.0 - 1.0, recommended range: 0.06 - 0.18
   final double phaseTintStrength;
+
+  final bool showAccentLine;
+  final bool showAmbientGlow;
+  final bool showAccentOrb;
+  final bool elevated;
 
   const PremiumGlassCard({
     super.key,
@@ -29,128 +24,295 @@ class PremiumGlassCard extends StatefulWidget {
     this.width,
     this.height,
     this.padding,
-    this.borderRadius = 24,
+    this.borderRadius = 28,
     this.phase,
-    this.phaseAware = true,
-    this.phaseTintStrength = 0.14,
+    this.phaseAware = false,
+    this.phaseTintStrength = 0.11,
+    this.showAccentLine = false,
+    this.showAmbientGlow = true,
+    this.showAccentOrb = false,
+    this.elevated = true,
   });
 
   @override
-  State<PremiumGlassCard> createState() => _PremiumGlassCardState();
-}
-
-class _PremiumGlassCardState extends State<PremiumGlassCard> {
-  double _tiltX = 0.0;
-  double _tiltY = 0.0;
-  StreamSubscription<AccelerometerEvent>? _subscription;
-
-  @override
-  void initState() {
-    super.initState();
-
-    _subscription = accelerometerEventStream(
-      samplingPeriod: SensorInterval.uiInterval,
-    ).listen((event) {
-      if (!mounted) return;
-
-      final nextX = (event.x / 18).clamp(-0.45, 0.45);
-      final nextY = (event.y / 18).clamp(-0.45, 0.45);
-
-      if ((nextX - _tiltX).abs() < 0.01 && (nextY - _tiltY).abs() < 0.01) {
-        return;
-      }
-
-      setState(() {
-        _tiltX = nextX;
-        _tiltY = nextY;
-      });
-    });
-  }
-
-  @override
-  void dispose() {
-    _subscription?.cancel();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
-    final bool usePhaseTint = widget.phaseAware && widget.phase != null;
+    final bool usePhaseTint = phaseAware && phase != null;
     final Color phaseColor =
-    usePhaseTint ? AppColors.phaseTint(widget.phase!) : AppColors.primary;
+    usePhaseTint ? AppColors.phaseTint(phase!) : AppColors.primary;
 
-    final Color topColor = Color.lerp(
-      AppColors.glassBase,
-      phaseColor,
-      widget.phaseTintStrength * 0.22,
-    )!;
-    final Color midColor = Color.lerp(
-      AppColors.glassSecondary,
-      phaseColor,
-      widget.phaseTintStrength * 0.38,
-    )!;
-    final Color bottomColor = Color.lerp(
-      AppColors.background,
-      phaseColor,
-      widget.phaseTintStrength * 0.46,
-    )!;
+    final Color baseColor = Color.lerp(
+      AppColors.tintedSurface,
+      AppColors.secondaryBackground,
+      0.55,
+    ) ??
+        AppColors.tintedSurface;
 
-    final borderRadius = BorderRadius.circular(widget.borderRadius);
+    final Color cardBackground = usePhaseTint
+        ? Color.lerp(
+      baseColor,
+      phaseColor.withOpacity(0.16),
+      phaseTintStrength,
+    ) ??
+        baseColor
+        : baseColor;
 
-    return RepaintBoundary(
-      child: ClipRRect(
-        borderRadius: borderRadius,
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-          child: Container(
-            width: widget.width,
-            height: widget.height,
-            decoration: BoxDecoration(
-              borderRadius: borderRadius,
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  topColor.withOpacity(0.84),
-                  midColor.withOpacity(0.68),
-                  bottomColor.withOpacity(0.46),
-                ],
-              ),
-              border: Border.all(
-                color: AppColors.glassBorder.withOpacity(0.68),
-                width: 1,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: Color.lerp(
-                    AppColors.glassShadow,
-                    phaseColor,
-                    0.35,
-                  )!
-                      .withOpacity(usePhaseTint ? 0.18 : 0.12),
-                  blurRadius: 24,
-                  offset: const Offset(0, 10),
+    final Color deepLayer = usePhaseTint
+        ? Color.lerp(
+      AppColors.secondaryBackground,
+      phaseColor.withOpacity(0.12),
+      0.42,
+    ) ??
+        AppColors.secondaryBackground
+        : AppColors.secondaryBackground;
+
+    final Color outerBorder = usePhaseTint
+        ? phaseColor.withOpacity(0.22)
+        : AppColors.divider.withOpacity(0.85);
+
+    final Color innerBorder = usePhaseTint
+        ? phaseColor.withOpacity(0.10)
+        : Colors.white.withOpacity(0.18);
+
+    final Color ambientGlow = usePhaseTint
+        ? phaseColor.withOpacity(0.14)
+        : AppColors.primary.withOpacity(0.09);
+
+    final Color accent = usePhaseTint ? phaseColor : AppColors.primary;
+
+    final double r = borderRadius;
+
+    return Container(
+      width: width,
+      height: height,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(r),
+        boxShadow: elevated
+            ? [
+          BoxShadow(
+            color: AppColors.textPrimary.withOpacity(0.08),
+            blurRadius: 24,
+            offset: const Offset(0, 14),
+            spreadRadius: -8,
+          ),
+          BoxShadow(
+            color: ambientGlow.withOpacity(0.42),
+            blurRadius: 28,
+            offset: const Offset(0, 8),
+            spreadRadius: -12,
+          ),
+        ]
+            : [
+          BoxShadow(
+            color: AppColors.textPrimary.withOpacity(0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+            spreadRadius: -4,
+          ),
+        ],
+      ),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(r),
+          border: Border.all(
+            color: outerBorder,
+            width: 1,
+          ),
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              Color.lerp(cardBackground, Colors.white, 0.10) ?? cardBackground,
+              cardBackground,
+              deepLayer,
+            ],
+            stops: const [0.0, 0.45, 1.0],
+          ),
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(r - 0.5),
+          child: Stack(
+            children: [
+              if (showAmbientGlow)
+                Positioned.fill(
+                  child: IgnorePointer(
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        gradient: RadialGradient(
+                          center: const Alignment(-0.78, -0.92),
+                          radius: 1.08,
+                          colors: [
+                            ambientGlow,
+                            ambientGlow.withOpacity(0.05),
+                            Colors.transparent,
+                          ],
+                          stops: const [0.0, 0.34, 1.0],
+                        ),
+                      ),
+                    ),
+                  ),
                 ),
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.03),
-                  blurRadius: 16,
-                  offset: const Offset(0, 6),
+
+              Positioned.fill(
+                child: IgnorePointer(
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: RadialGradient(
+                        center: const Alignment(0.95, 1.0),
+                        radius: 1.0,
+                        colors: [
+                          Colors.white.withOpacity(0.07),
+                          Colors.transparent,
+                        ],
+                        stops: const [0.0, 1.0],
+                      ),
+                    ),
+                  ),
                 ),
-              ],
-            ),
-            child: CustomPaint(
-              painter: _GlassCardPainter(
-                borderRadius: widget.borderRadius,
-                phaseColor: phaseColor,
-                phaseAware: usePhaseTint,
-                tiltX: _tiltX,
-                tiltY: _tiltY,
               ),
-              child: Padding(
-                padding: widget.padding ?? EdgeInsets.zero,
-                child: widget.child,
+
+              // Верхний мягкий berry sheen
+              Positioned(
+                top: 0,
+                left: 0,
+                right: 0,
+                height: (height ?? 220) * 0.34,
+                child: IgnorePointer(
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          Colors.white.withOpacity(0.16),
+                          accent.withOpacity(0.05),
+                          Colors.transparent,
+                        ],
+                        stops: const [0.0, 0.42, 1.0],
+                      ),
+                    ),
+                  ),
+                ),
               ),
-            ),
+
+              // Глубина снизу
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: 0,
+                height: (height ?? 220) * 0.42,
+                child: IgnorePointer(
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.bottomCenter,
+                        end: Alignment.topCenter,
+                        colors: [
+                          AppColors.textPrimary.withOpacity(0.025),
+                          Colors.transparent,
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+
+              // Внутренняя рамка не белая, а мягкая цветная
+              Positioned.fill(
+                child: IgnorePointer(
+                  child: Container(
+                    margin: const EdgeInsets.all(1.15),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(r - 1.5),
+                      border: Border.all(
+                        color: innerBorder,
+                        width: 0.8,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+
+              // Accent line
+              if (showAccentLine)
+                Positioned(
+                  top: 0,
+                  left: 18,
+                  right: 18,
+                  child: IgnorePointer(
+                    child: Container(
+                      height: 3,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(999),
+                        gradient: LinearGradient(
+                          colors: [
+                            accent.withOpacity(0.10),
+                            accent.withOpacity(0.82),
+                            accent.withOpacity(0.10),
+                          ],
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: accent.withOpacity(0.20),
+                            blurRadius: 10,
+                            spreadRadius: -3,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+
+              if (showAccentOrb)
+                Positioned(
+                  top: 14,
+                  right: 14,
+                  child: IgnorePointer(
+                    child: Container(
+                      width: 12,
+                      height: 12,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        gradient: RadialGradient(
+                          colors: [
+                            Colors.white.withOpacity(0.85),
+                            accent.withOpacity(0.95),
+                            accent.withOpacity(0.45),
+                          ],
+                          stops: const [0.0, 0.42, 1.0],
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: accent.withOpacity(0.28),
+                            blurRadius: 10,
+                            spreadRadius: 1,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+
+              // Silk tint texture
+              Positioned.fill(
+                child: IgnorePointer(
+                  child: Opacity(
+                    opacity: 0.045,
+                    child: CustomPaint(
+                      painter: _SilkTintPainter(
+                        color: accent,
+                        borderRadius: r,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+
+              Padding(
+                padding: padding ?? const EdgeInsets.all(18),
+                child: child,
+              ),
+            ],
           ),
         ),
       ),
@@ -158,19 +320,13 @@ class _PremiumGlassCardState extends State<PremiumGlassCard> {
   }
 }
 
-class _GlassCardPainter extends CustomPainter {
+class _SilkTintPainter extends CustomPainter {
+  final Color color;
   final double borderRadius;
-  final Color phaseColor;
-  final bool phaseAware;
-  final double tiltX;
-  final double tiltY;
 
-  const _GlassCardPainter({
+  const _SilkTintPainter({
+    required this.color,
     required this.borderRadius,
-    required this.phaseColor,
-    required this.phaseAware,
-    required this.tiltX,
-    required this.tiltY,
   });
 
   @override
@@ -184,103 +340,26 @@ class _GlassCardPainter extends CustomPainter {
     canvas.save();
     canvas.clipRRect(rrect);
 
-    _paintTopSoftLight(canvas, size);
-    _paintRadialGlow(canvas, size);
-    _paintMovingSheen(canvas, size);
-    _paintBottomTint(canvas, size);
+    final paint = Paint()
+      ..style = PaintingStyle.stroke
+      ..color = color.withOpacity(0.16)
+      ..strokeWidth = 0.75;
+
+    const gap = 20.0;
+    for (double x = -size.height; x < size.width + size.height; x += gap) {
+      canvas.drawLine(
+        Offset(x, 0),
+        Offset(x + size.height, size.height),
+        paint,
+      );
+    }
 
     canvas.restore();
   }
 
-  void _paintTopSoftLight(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..shader = const LinearGradient(
-        begin: Alignment.topCenter,
-        end: Alignment.bottomCenter,
-        colors: [
-          Color.fromRGBO(255, 255, 255, 0.16),
-          Color.fromRGBO(255, 255, 255, 0.00),
-        ],
-      ).createShader(Rect.fromLTWH(0, 0, size.width, 56));
-
-    canvas.drawRect(Rect.fromLTWH(0, 0, size.width, 56), paint);
-  }
-
-  void _paintRadialGlow(Canvas canvas, Size size) {
-    final glowColor = phaseAware
-        ? phaseColor.withOpacity(0.08)
-        : AppColors.primary.withOpacity(0.05);
-
-    final rect = Rect.fromCircle(
-      center: Offset(size.width * 0.28, size.height * 0.18),
-      radius: size.longestSide * 0.72,
-    );
-
-    final paint = Paint()
-      ..shader = RadialGradient(
-        center: const Alignment(-0.35, -0.55),
-        radius: 1.1,
-        colors: [
-          Colors.white.withOpacity(0.24),
-          glowColor,
-          Colors.transparent,
-        ],
-        stops: const [0.0, 0.48, 1.0],
-      ).createShader(rect);
-
-    canvas.drawRect(Offset.zero & size, paint);
-  }
-
-  void _paintMovingSheen(Canvas canvas, Size size) {
-    final sheenColor = phaseAware
-        ? phaseColor.withOpacity(0.10)
-        : AppColors.primary.withOpacity(0.07);
-
-    final begin = Alignment(-1.0 - tiltX, -0.8 + tiltY);
-    final end = Alignment(1.0 - tiltX, 0.8 + tiltY);
-
-    final paint = Paint()
-      ..shader = LinearGradient(
-        begin: begin,
-        end: end,
-        colors: [
-          Colors.transparent,
-          sheenColor,
-          Colors.white.withOpacity(0.16),
-          Colors.transparent,
-        ],
-        stops: const [0.0, 0.3, 0.55, 1.0],
-      ).createShader(Offset.zero & size);
-
-    canvas.drawRect(Offset.zero & size, paint);
-  }
-
-  void _paintBottomTint(Canvas canvas, Size size) {
-    final tint = phaseAware
-        ? phaseColor.withOpacity(0.12)
-        : AppColors.primary.withOpacity(0.08);
-
-    final h = size.height.clamp(0.0, 72.0);
-
-    final paint = Paint()
-      ..shader = LinearGradient(
-        begin: Alignment.bottomCenter,
-        end: Alignment.topCenter,
-        colors: [
-          tint,
-          Colors.transparent,
-        ],
-      ).createShader(Rect.fromLTWH(0, size.height - h, size.width, h));
-
-    canvas.drawRect(Rect.fromLTWH(0, size.height - h, size.width, h), paint);
-  }
-
   @override
-  bool shouldRepaint(covariant _GlassCardPainter oldDelegate) {
-    return oldDelegate.borderRadius != borderRadius ||
-        oldDelegate.phaseColor != phaseColor ||
-        oldDelegate.phaseAware != phaseAware ||
-        oldDelegate.tiltX != tiltX ||
-        oldDelegate.tiltY != tiltY;
+  bool shouldRepaint(covariant _SilkTintPainter oldDelegate) {
+    return oldDelegate.color != color ||
+        oldDelegate.borderRadius != borderRadius;
   }
 }

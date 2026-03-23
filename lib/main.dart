@@ -312,7 +312,6 @@ class AylaApp extends StatelessWidget {
     return MaterialApp(
       title: 'Ayla',
       debugShowCheckedModeBanner: false,
-      theme: AppTheme.lightTheme,
 
       locale: settings.locale,
 

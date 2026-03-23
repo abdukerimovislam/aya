@@ -777,19 +777,31 @@ class _PeriodInterceptorSheet extends StatelessWidget {
     return _BaseSheet(
       title: l10n.dialogPeriodStartTitle,
       children: [
+        // 🔥 Главное действие - Градиентная кнопка (как основная)
         _SheetOption(
           icon: CupertinoIcons.calendar_today,
           title: l10n.btnToday,
           subtitle: l10n.dialogStartBody,
-          color: AppColors.menstruation,
+          gradient: const LinearGradient(
+            colors: [Color(0xFFFF6FA1), Color(0xFFFF4D79), Color(0xFFE63E6D)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          iconColor: const Color(0xFFE94057),
           onTap: onTodayTap,
         ),
         const SizedBox(height: 12),
+        // Вторичные действия - приглушенные, но тоже премиальные
         _SheetOption(
           icon: CupertinoIcons.arrow_counterclockwise_circle_fill,
           title: l10n.btnYesterday,
           subtitle: l10n.onboardDateTitleCycle,
-          color: AppColors.textSecondary,
+          gradient: const LinearGradient(
+            colors: [Color(0xFF8B7EC3), Color(0xFF7C6A9A)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          iconColor: const Color(0xFF6B5A93),
           onTap: onYesterdayTap,
         ),
         const SizedBox(height: 12),
@@ -797,7 +809,12 @@ class _PeriodInterceptorSheet extends StatelessWidget {
           icon: CupertinoIcons.calendar,
           title: l10n.btnPickDate,
           subtitle: l10n.pdfTableDate,
-          color: AppColors.textSecondary,
+          gradient: const LinearGradient(
+            colors: [Color(0xFFBCAAA4), Color(0xFF9E8A84)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          iconColor: const Color(0xFF8D7A74),
           onTap: onPickDateTap,
         ),
       ],
@@ -833,7 +850,12 @@ class _ActivePeriodSheet extends StatelessWidget {
           icon: CupertinoIcons.add_circled_solid,
           title: l10n.logSymptomsTitle,
           subtitle: l10n.symptomSubHeader,
-          color: AppColors.primary,
+          gradient: const LinearGradient(
+            colors: [Color(0xFF8B7EC3), Color(0xFF6B5A93)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          iconColor: const Color(0xFF6B5A93),
           onTap: onLogTap,
         ),
         const SizedBox(height: 12),
@@ -842,7 +864,12 @@ class _ActivePeriodSheet extends StatelessWidget {
             icon: CupertinoIcons.play_circle_fill,
             title: "Resume period",
             subtitle: "Still bleeding? Continue current period",
-            color: Colors.orange.shade700,
+            gradient: const LinearGradient(
+              colors: [Color(0xFFFF9800), Color(0xFFF57C00)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            iconColor: const Color(0xFFE65100),
             onTap: onResumeTap,
           )
         else
@@ -850,7 +877,12 @@ class _ActivePeriodSheet extends StatelessWidget {
             icon: CupertinoIcons.check_mark_circled_solid,
             title: l10n.btnPeriodEnd,
             subtitle: l10n.dialogEndBody,
-            color: AppColors.textSecondary,
+            gradient: const LinearGradient(
+              colors: [Color(0xFFFF6FA1), Color(0xFFE63E6D)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            iconColor: const Color(0xFFE94057),
             onTap: onEndTap,
           ),
         if (isDayOne) ...[
@@ -859,7 +891,12 @@ class _ActivePeriodSheet extends StatelessWidget {
             icon: CupertinoIcons.trash_circle_fill,
             title: "I made a mistake",
             subtitle: "Remove period start",
-            color: Colors.redAccent,
+            gradient: const LinearGradient(
+              colors: [Color(0xFFEF5350), Color(0xFFD32F2F)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            iconColor: const Color(0xFFB71C1C),
             onTap: onUndoTap,
           ),
         ],
@@ -887,7 +924,7 @@ class _BaseSheet extends StatelessWidget {
         top: 12,
       ),
       decoration: const BoxDecoration(
-        color: Color(0xFFF8F9FA),
+        color: AppColors.background, // Используем фон из темы
         borderRadius: BorderRadius.vertical(
           top: Radius.circular(_ActionBarConstants.sheetBorderRadius),
         ),
@@ -900,7 +937,7 @@ class _BaseSheet extends StatelessWidget {
               width: _ActionBarConstants.handleWidth,
               height: _ActionBarConstants.handleHeight,
               decoration: BoxDecoration(
-                color: Colors.grey,
+                color: AppColors.textSecondary.withOpacity(0.3),
                 borderRadius: BorderRadius.circular(3),
               ),
             ),
@@ -923,18 +960,21 @@ class _BaseSheet extends StatelessWidget {
   }
 }
 
+// 🔥 ОБНОВЛЕННЫЙ КОМПОНЕНТ ДЛЯ МЕНЮ
 class _SheetOption extends StatelessWidget {
   final IconData icon;
   final String title;
   final String subtitle;
-  final Color color;
+  final Gradient gradient;
+  final Color iconColor;
   final VoidCallback onTap;
 
   const _SheetOption({
     required this.icon,
     required this.title,
     required this.subtitle,
-    required this.color,
+    required this.gradient,
+    required this.iconColor,
     required this.onTap,
   });
 
@@ -945,32 +985,49 @@ class _SheetOption extends StatelessWidget {
         HapticFeedback.lightImpact();
         onTap();
       },
-      borderRadius: BorderRadius.circular(20),
+      borderRadius: BorderRadius.circular(24),
       child: Container(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
         decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(20),
+          gradient: gradient, // Используем градиент как у главной кнопки
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(
+              color: Colors.white.withOpacity(0.18),
+              width: 1.3
+          ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.03),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
+              color: gradient.colors.last.withOpacity(0.3),
+              blurRadius: 16,
+              offset: const Offset(0, 8),
             ),
           ],
         ),
         child: Row(
           children: [
+            // Белый кружок с цветной иконкой (как в главной карточке)
             Container(
-              padding: const EdgeInsets.all(10),
+              width: 50,
+              height: 50,
               decoration: BoxDecoration(
-                color: color.withOpacity(0.1),
+                color: Colors.white,
                 shape: BoxShape.circle,
+                border: Border.all(
+                  color: Colors.white.withOpacity(0.95),
+                  width: 1.2,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.06),
+                    blurRadius: 8,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
               ),
               child: Icon(
                 icon,
-                color: color,
-                size: _ActionBarConstants.optionIconSize,
+                color: iconColor,
+                size: 24,
               ),
             ),
             const SizedBox(width: 16),
@@ -982,8 +1039,9 @@ class _SheetOption extends StatelessWidget {
                     title,
                     style: GoogleFonts.inter(
                       fontSize: 17,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.textPrimary,
+                      fontWeight: FontWeight.w800,
+                      color: Colors.white, // Белый текст
+                      letterSpacing: -0.2,
                     ),
                   ),
                   const SizedBox(height: 2),
@@ -991,8 +1049,8 @@ class _SheetOption extends StatelessWidget {
                     subtitle,
                     style: GoogleFonts.inter(
                       fontSize: 13,
-                      fontWeight: FontWeight.w500,
-                      color: AppColors.textSecondary,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white.withOpacity(0.85), // Белый полупрозрачный подзаголовок
                     ),
                   ),
                 ],
@@ -1000,7 +1058,7 @@ class _SheetOption extends StatelessWidget {
             ),
             Icon(
               CupertinoIcons.chevron_right,
-              color: AppColors.textSecondary.withOpacity(0.4),
+              color: Colors.white.withOpacity(0.8),
               size: 20,
             ),
           ],

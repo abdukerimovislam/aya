@@ -4,7 +4,6 @@ import 'package:hive/hive.dart';
 import '../../core/services/notification_service.dart';
 import '../../core/services/secure_storage_service.dart';
 import '../../core/services/subscription_service.dart';
-import '../../core/theme/app_theme.dart';
 import '../models/timer_design.dart';
 
 class SettingsProvider extends ChangeNotifier {
@@ -16,7 +15,6 @@ class SettingsProvider extends ChangeNotifier {
   static const String _keyDailyLog = 'daily_log_enabled';
   static const String _keyDesign = 'timer_design_index';
   static const String _keyPremium = 'is_premium';
-  static const String _keyTheme = 'app_theme_type';
   static const String _keyLanguage = 'language_code';
 
   static const String _keyUserName = 'user_name';
@@ -37,8 +35,6 @@ class SettingsProvider extends ChangeNotifier {
   TimerDesign _currentDesign = TimerDesign.nebula;
   bool _isPremium = false;
 
-  AppThemeType _currentTheme = AppThemeType.digital;
-
   String _userName = "User";
   String _userAvatar = "👩";
 
@@ -48,7 +44,6 @@ class SettingsProvider extends ChangeNotifier {
   bool get dailyLogEnabled => _dailyLogEnabled;
   TimerDesign get currentDesign => _currentDesign;
   bool get isPremium => _isPremium;
-  AppThemeType get currentTheme => _currentTheme;
 
   String get userName => _userName;
   String get userAvatar => _userAvatar;
@@ -93,14 +88,11 @@ class SettingsProvider extends ChangeNotifier {
       _dailyLogEnabled = false;
       _currentDesign = TimerDesign.nebula;
       _isPremium = false;
-      _currentTheme = AppThemeType.oceanic;
       _userName = "User";
       _userAvatar = "👩";
     } else {
       _notificationsEnabled = await _storageService.getNotificationsEnabled();
       _biometricsEnabled = await _storageService.getBiometricsEnabled();
-
-      // 🔥 isTTCMode удален из SecureStorage, так как режим хранится в Hive (CycleProvider)
 
       _dailyLogEnabled = _box.get(_keyDailyLog, defaultValue: false);
       _isPremium = _box.get(_keyPremium, defaultValue: false);
@@ -113,12 +105,6 @@ class SettingsProvider extends ChangeNotifier {
         if (savedDesignIndex >= 0 && savedDesignIndex < TimerDesign.values.length) {
           _currentDesign = TimerDesign.values[savedDesignIndex];
         }
-      }
-
-      final themeIndex = _box.get(_keyTheme, defaultValue: 0);
-      if (themeIndex >= 0 && themeIndex < AppThemeType.values.length) {
-        _currentTheme = AppThemeType.values[themeIndex];
-        AppTheme.setPalette(_currentTheme);
       }
     }
 
@@ -169,25 +155,15 @@ class SettingsProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> setTheme(AppThemeType theme) async {
-    if (_currentTheme == theme) return;
-    _currentTheme = theme;
-    AppTheme.setPalette(theme);
-    await _box.put(_keyTheme, theme.index);
-    notifyListeners();
-  }
-
   Future<void> _verifyPremiumStatus() async {
     try {
       final bool actualStatus = await SubscriptionService.checkPremium();
 
       if (actualStatus != _isPremium) {
-        debugPrint("💎 SettingsProvider: Premium status changed: $_isPremium -> $actualStatus");
         _isPremium = actualStatus;
         await _box.put(_keyPremium, _isPremium);
 
         if (!_isPremium && _currentDesign.isPremium) {
-          debugPrint("⚠️ SettingsProvider: Premium lost, resetting design to Nebula");
           _currentDesign = TimerDesign.nebula;
           await _box.put(_keyDesign, TimerDesign.nebula.index);
         }
@@ -205,10 +181,8 @@ class SettingsProvider extends ChangeNotifier {
   Future<void> setLocale(Locale locale) async {
     if (_locale == locale) return;
     _locale = locale;
-
     await _box.put(_keyLanguage, locale.languageCode);
     await _storageService.saveLanguage(locale.languageCode);
-
     notifyListeners();
   }
 
@@ -239,21 +213,12 @@ class SettingsProvider extends ChangeNotifier {
   }
 
   Future<bool> setDesign(TimerDesign design) async {
-    if (!design.isPremium) {
+    if (!design.isPremium || (design.isPremium && _isPremium)) {
       _currentDesign = design;
       await _box.put(_keyDesign, design.index);
       notifyListeners();
       return true;
     }
-
-    if (design.isPremium && _isPremium) {
-      _currentDesign = design;
-      await _box.put(_keyDesign, design.index);
-      notifyListeners();
-      return true;
-    }
-
-    debugPrint("🔒 Design locked. Show Paywall.");
     return false;
   }
 

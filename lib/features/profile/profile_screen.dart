@@ -8,7 +8,6 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../l10n/app_localizations.dart';
 import 'premium_paywall_sheet.dart';
-import 'theme_selector_sheet.dart';
 import 'profile_logic_mixin.dart';
 import '../../core/services/backup_service.dart';
 import '../../core/services/pdf_service.dart';
@@ -130,7 +129,6 @@ class ProfileScreen extends StatelessWidget with ProfileLogicMixin {
                     _buildSectionHeader(l10n.settingsGeneral),
                     _buildGlassGroup([
                       ProfileSettingsTile(icon: Icons.language, title: l10n.settingsLanguage, trailing: Row(mainAxisSize: MainAxisSize.min, children: [Text(_getLanguageName(settings.locale.languageCode), style: GoogleFonts.inter(color: AppColors.primary, fontWeight: FontWeight.w700, fontSize: 15)), const SizedBox(width: 6), Icon(Icons.arrow_forward_ios_rounded, size: 14, color: Colors.grey.withOpacity(0.45))]), onTap: () => _showSheet(context, const _LanguageSelectorSheet())),
-                      _buildDivider(), ProfileSettingsTile(icon: Icons.palette_rounded, title: l10n.settingsTheme, trailing: Container(width: 24, height: 24, decoration: BoxDecoration(color: AppColors.primary, shape: BoxShape.circle, border: Border.all(color: Colors.white, width: 2), boxShadow: [BoxShadow(color: AppColors.primary.withOpacity(0.30), blurRadius: 8)])), onTap: () => _showSheet(context, const ThemeSelectorSheet())),
                       _buildDivider(), ProfileSwitchTile(icon: Icons.notifications_active_rounded, title: l10n.settingsNotifs, value: settings.notificationsEnabled, onChanged: (val) async { await settings.setNotificationsEnabled(val); if (context.mounted && val) await context.read<CycleProvider>().rescheduleNotifications(); }),
                       if (settings.notificationsEnabled) ...[_buildDivider(), ProfileSwitchTile(icon: Icons.nights_stay_rounded, title: l10n.settingsDailyLog ?? "Daily Check-in", value: settings.dailyLogEnabled, onChanged: (val) async { await settings.toggleDailyLogReminder(val); if (context.mounted) await context.read<CycleProvider>().rescheduleNotifications(); })],
                       _buildDivider(), ProfileSettingsTile(icon: Icons.mail_outline_rounded, title: l10n.settingsSupport, trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 16, color: Colors.grey), onTap: () => openSupportEmail(context)),

@@ -38,17 +38,13 @@ class _SymptomLogScreenState extends State<SymptomLogScreen> {
   void initState() {
     super.initState();
 
-    // Инициализация выбранной даты (обрезаем время для точности)
     _selectedDate = DateTime(widget.date.year, widget.date.month, widget.date.day);
 
-    // Вычисляем смещение для рулетки
     final today = DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day);
     int initialDiff = today.difference(_selectedDate).inDays;
-    if (initialDiff < 0) initialDiff = 0; // Будущие даты фокусируем на "Сегодня"
+    if (initialDiff < 0) initialDiff = 0;
 
-    // Ширина карточки = 52, отступ = 12. Итого шаг 64.
     _scrollController = ScrollController(initialScrollOffset: initialDiff * 64.0);
-
     _loadLog(_selectedDate);
   }
 
@@ -76,7 +72,6 @@ class _SymptomLogScreenState extends State<SymptomLogScreen> {
     _initialFlow = _log.flow;
     _initialLHPeak = _log.symptoms.contains('LH: Peak');
 
-    // 🔥 РЕШЕНИЕ "АМНЕЗИИ ГРАДУСНИКА": Ищем последнюю известную температуру
     if (_log.temperature == null || _log.temperature == 0.0) {
       double? lastKnownTemp;
       for (int i = 1; i <= 7; i++) {
@@ -97,7 +92,6 @@ class _SymptomLogScreenState extends State<SymptomLogScreen> {
     });
   }
 
-  // Смена даты через Рулетку
   void _handleDateChange(DateTime newDate) {
     if (newDate.year == _selectedDate.year &&
         newDate.month == _selectedDate.month &&
@@ -105,20 +99,21 @@ class _SymptomLogScreenState extends State<SymptomLogScreen> {
       return;
     }
 
-    // Сохраняем текущий день (с проверкой) перед переходом к следующему
     _handleSaveWithProtection(onSuccess: () {
       setState(() => _isSaving = false);
       _loadLog(newDate);
     });
   }
 
-  // 🔥 МАТРИЦА ЗАЩИТЫ МУТАЦИЙ С ПОДДЕРЖКОЙ CALLBACK'ОВ
   Future<void> _handleSaveWithProtection({VoidCallback? onSuccess}) async {
     HapticFeedback.lightImpact();
 
     if (_isFutureDate) {
-      if (onSuccess != null) onSuccess();
-      else Navigator.of(context).pop();
+      if (onSuccess != null) {
+        onSuccess();
+      } else {
+        Navigator.of(context).pop();
+      }
       return;
     }
 
@@ -137,7 +132,6 @@ class _SymptomLogScreenState extends State<SymptomLogScreen> {
     bool shouldForceStartPeriod = false;
     bool shouldConfirmOvulation = false;
 
-    // --- ПРОВЕРКА 1: КРОВЬ ---
     if (!cycle.isCOCEnabled) {
       if (flowChangedToBleeding) {
         final currentStart = cycle.currentData.cycleStartDate;
@@ -192,8 +186,7 @@ class _SymptomLogScreenState extends State<SymptomLogScreen> {
             }
           }
         }
-      }
-      else if (flowRemoved) {
+      } else if (flowRemoved) {
         final currentPhase = cycle.getPhaseForDate(_selectedDate);
         if (currentPhase == CyclePhase.menstruation) {
           final confirm = await _showAsyncDialog(
@@ -209,7 +202,6 @@ class _SymptomLogScreenState extends State<SymptomLogScreen> {
       }
     }
 
-    // --- ПРОВЕРКА 2: ПИК ЛГ (только в TTC) ---
     if (cycle.isTTCMode) {
       if (lhPeakAdded) {
         final confirm = await _showAsyncDialog(
@@ -243,9 +235,9 @@ class _SymptomLogScreenState extends State<SymptomLogScreen> {
     }
 
     await _executeSaveAndClose(
-        forceStartPeriod: shouldForceStartPeriod,
-        confirmOvulation: shouldConfirmOvulation,
-        onSuccess: onSuccess
+      forceStartPeriod: shouldForceStartPeriod,
+      confirmOvulation: shouldConfirmOvulation,
+      onSuccess: onSuccess,
     );
   }
 
@@ -257,7 +249,11 @@ class _SymptomLogScreenState extends State<SymptomLogScreen> {
     });
   }
 
-  Future<void> _executeSaveAndClose({bool forceStartPeriod = false, bool confirmOvulation = false, VoidCallback? onSuccess}) async {
+  Future<void> _executeSaveAndClose({
+    bool forceStartPeriod = false,
+    bool confirmOvulation = false,
+    VoidCallback? onSuccess,
+  }) async {
     setState(() => _isSaving = true);
 
     final wellness = context.read<WellnessProvider>();
@@ -320,22 +316,40 @@ class _SymptomLogScreenState extends State<SymptomLogScreen> {
       context: context,
       barrierDismissible: false,
       builder: (ctx) => AlertDialog(
-        backgroundColor: Colors.white,
+        backgroundColor: AppColors.tintedSurface,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
         title: Row(
           children: [
             Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(color: color.withOpacity(0.1), shape: BoxShape.circle),
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.12),
+                shape: BoxShape.circle,
+                border: Border.all(color: color.withOpacity(0.18)),
+              ),
               child: Icon(icon, color: color),
             ),
             const SizedBox(width: 12),
             Expanded(
-              child: Text(title, style: GoogleFonts.outfit(fontWeight: FontWeight.w800, fontSize: 18, color: AppColors.textPrimary)),
+              child: Text(
+                title,
+                style: GoogleFonts.outfit(
+                  fontWeight: FontWeight.w800,
+                  fontSize: 18,
+                  color: AppColors.textPrimary,
+                ),
+              ),
             ),
           ],
         ),
-        content: Text(message, style: GoogleFonts.inter(fontSize: 14, color: AppColors.textSecondary, height: 1.4)),
+        content: Text(
+          message,
+          style: GoogleFonts.inter(
+            fontSize: 14,
+            color: AppColors.textSecondary,
+            height: 1.45,
+          ),
+        ),
         actionsPadding: const EdgeInsets.only(bottom: 16, right: 16, left: 16),
         actions: [
           TextButton(
@@ -343,83 +357,138 @@ class _SymptomLogScreenState extends State<SymptomLogScreen> {
               HapticFeedback.lightImpact();
               Navigator.pop(ctx, false);
             },
-            child: Text(cancelText, style: GoogleFonts.inter(fontWeight: FontWeight.w600, color: AppColors.textSecondary)),
+            child: Text(
+              cancelText,
+              style: GoogleFonts.inter(
+                fontWeight: FontWeight.w600,
+                color: AppColors.textSecondary,
+              ),
+            ),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
-              backgroundColor: color, elevation: 0,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              backgroundColor: color,
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+              ),
             ),
             onPressed: () {
               HapticFeedback.selectionClick();
               Navigator.pop(ctx, true);
             },
-            child: Text(confirmText, style: GoogleFonts.inter(fontWeight: FontWeight.w700, color: Colors.white)),
+            child: Text(
+              confirmText,
+              style: GoogleFonts.inter(
+                fontWeight: FontWeight.w700,
+                color: Colors.white,
+              ),
+            ),
           ),
         ],
       ),
-    ) ?? false;
+    ) ??
+        false;
   }
 
   void _showConflictWarning(String message) {
     ScaffoldMessenger.of(context).clearSnackBars();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(message, style: GoogleFonts.inter(fontWeight: FontWeight.bold)),
-        backgroundColor: Colors.orange.shade800,
+        content: Text(
+          message,
+          style: GoogleFonts.inter(fontWeight: FontWeight.w700),
+        ),
+        backgroundColor: const Color(0xFFB86A22),
         behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
         duration: const Duration(seconds: 4),
       ),
     );
   }
 
-  // 🔥 ГОРИЗОНТАЛЬНАЯ РУЛЕТКА ДАТ
   Widget _buildDateRoulette(bool isTTC, AppLocalizations? l10n) {
     final activeColor = isTTC ? Colors.purple : AppColors.primary;
     final today = DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day);
 
     return SizedBox(
-      height: 76,
+      height: 84,
       child: ListView.builder(
         controller: _scrollController,
-        reverse: true, // Сегодня будет справа
+        reverse: true,
         scrollDirection: Axis.horizontal,
         physics: const BouncingScrollPhysics(),
-        itemCount: 365, // Позволяем листать на год назад
+        itemCount: 365,
         padding: const EdgeInsets.symmetric(horizontal: 24),
         itemBuilder: (context, index) {
           final date = today.subtract(Duration(days: index));
-          final isSelected = date.year == _selectedDate.year && date.month == _selectedDate.month && date.day == _selectedDate.day;
+          final isSelected = date.year == _selectedDate.year &&
+              date.month == _selectedDate.month &&
+              date.day == _selectedDate.day;
+          final isToday = date.year == today.year &&
+              date.month == today.month &&
+              date.day == today.day;
 
           return GestureDetector(
             onTap: () => _handleDateChange(date),
             child: AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              width: 52,
+              duration: const Duration(milliseconds: 220),
+              curve: Curves.easeOutCubic,
+              width: 58,
               margin: const EdgeInsets.only(right: 12),
               decoration: BoxDecoration(
-                color: isSelected ? activeColor : AppColors.background,
-                borderRadius: BorderRadius.circular(18),
-                border: Border.all(color: isSelected ? activeColor : AppColors.textSecondary.withOpacity(0.15)),
-                boxShadow: isSelected ? [BoxShadow(color: activeColor.withOpacity(0.3), blurRadius: 8, offset: const Offset(0, 4))] : [],
+                color: isSelected
+                    ? activeColor
+                    : isToday
+                    ? activeColor.withOpacity(0.08)
+                    : AppColors.tintedSurface,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: isSelected
+                      ? activeColor
+                      : isToday
+                      ? activeColor.withOpacity(0.28)
+                      : AppColors.divider,
+                ),
+                boxShadow: isSelected
+                    ? [
+                  BoxShadow(
+                    color: activeColor.withOpacity(0.26),
+                    blurRadius: 14,
+                    offset: const Offset(0, 8),
+                    spreadRadius: -4,
+                  )
+                ]
+                    : [
+                  BoxShadow(
+                    color: AppColors.textPrimary.withOpacity(0.03),
+                    blurRadius: 8,
+                    offset: const Offset(0, 4),
+                    spreadRadius: -4,
+                  )
+                ],
               ),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Text(
-                    DateFormat('E', l10n?.localeName).format(date).toUpperCase(),
+                    isToday ? 'TODAY' : DateFormat('E', l10n?.localeName).format(date).toUpperCase(),
                     style: GoogleFonts.inter(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                      color: isSelected ? Colors.white.withOpacity(0.9) : AppColors.textSecondary,
+                      fontSize: isToday ? 9 : 10.5,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0.3,
+                      color: isSelected
+                          ? Colors.white.withOpacity(0.92)
+                          : isToday
+                          ? activeColor
+                          : AppColors.textSecondary,
                     ),
                   ),
-                  const SizedBox(height: 2),
+                  const SizedBox(height: 3),
                   Text(
                     "${date.day}",
                     style: GoogleFonts.outfit(
-                      fontSize: 20,
+                      fontSize: 22,
                       fontWeight: FontWeight.w800,
                       color: isSelected ? Colors.white : AppColors.textPrimary,
                     ),
@@ -439,74 +508,219 @@ class _SymptomLogScreenState extends State<SymptomLogScreen> {
     final cycle = context.watch<CycleProvider>();
     final bool isTTC = cycle.appMode == AppMode.ttc;
     final dateStr = DateFormat('MMMM d, yyyy').format(_selectedDate);
+    final bottomInset = MediaQuery.of(context).padding.bottom;
 
-    final List<String> physicalOptions = ['Cramps', 'Headache', 'Bloating', 'Acne', 'Tender Breasts', 'Backache', 'Nausea', 'Fatigue'];
-    final List<String> mentalOptions = ['Anxious', 'Irritable', 'Crying Spells', 'Brain Fog', 'Happy', 'Focused', 'Calm'];
-    final List<String> otherOptions = ['Spotting', 'Alcohol', 'Travel', 'High Stress', 'Sick', 'Exercise', 'Poor Diet'];
+    final List<String> physicalOptions = [
+      'Cramps',
+      'Headache',
+      'Bloating',
+      'Acne',
+      'Tender Breasts',
+      'Backache',
+      'Nausea',
+      'Fatigue',
+    ];
 
-    final List<String> mucusOptions = ['Dry Mucus', 'Sticky Mucus', 'Creamy Mucus', 'Egg-white Mucus'];
-    final List<String> lhTestOptions = ['LH: Negative', 'LH: High', 'LH: Peak'];
-    final List<String> sexOptions = ['Intimacy', 'High Libido'];
+    final List<String> mentalOptions = [
+      'Anxious',
+      'Irritable',
+      'Crying Spells',
+      'Brain Fog',
+      'Happy',
+      'Focused',
+      'Calm',
+    ];
+
+    final List<String> otherOptions = [
+      'Spotting',
+      'Alcohol',
+      'Travel',
+      'High Stress',
+      'Sick',
+      'Exercise',
+      'Poor Diet',
+    ];
+
+    final List<String> mucusOptions = [
+      'Dry Mucus',
+      'Sticky Mucus',
+      'Creamy Mucus',
+      'Egg-white Mucus',
+    ];
+
+    final List<String> lhTestOptions = [
+      'LH: Negative',
+      'LH: High',
+      'LH: Peak',
+    ];
+
+    final List<String> sexOptions = [
+      'Intimacy',
+      'High Libido',
+    ];
+
+    final Color accent = isTTC ? Colors.purple : AppColors.primary;
 
     return Container(
       decoration: BoxDecoration(
         color: AppColors.background,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(34)),
       ),
       child: Column(
         children: [
           Container(
-            margin: const EdgeInsets.only(top: 12, bottom: 12),
-            width: 48, height: 5,
-            decoration: BoxDecoration(color: AppColors.textSecondary.withOpacity(0.2), borderRadius: BorderRadius.circular(10)),
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(_isFutureDate ? "Future Prediction" : (l10n?.logSymptomsTitle ?? "Daily Log"), style: GoogleFonts.outfit(fontSize: 22, fontWeight: FontWeight.w800, color: AppColors.textPrimary)),
-                    Text(dateStr, style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.textSecondary)),
-                  ],
-                ),
-                _isSaving
-                    ? const Padding(padding: EdgeInsets.only(right: 16), child: CupertinoActivityIndicator())
-                    : CupertinoButton(
-                  padding: EdgeInsets.zero,
-                  onPressed: () => _handleSaveWithProtection(),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    decoration: BoxDecoration(color: isTTC ? Colors.purple : AppColors.primary, borderRadius: BorderRadius.circular(20)),
-                    child: Text("Done", style: GoogleFonts.inter(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
-                  ),
-                ),
-              ],
+            margin: const EdgeInsets.only(top: 12, bottom: 10),
+            width: 52,
+            height: 5,
+            decoration: BoxDecoration(
+              color: AppColors.textSecondary.withOpacity(0.18),
+              borderRadius: BorderRadius.circular(999),
             ),
           ),
 
-          const SizedBox(height: 20),
-          _buildDateRoulette(isTTC, l10n),
-          const SizedBox(height: 16),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 4, 20, 0),
+            child: PremiumGlassCard(
+              padding: const EdgeInsets.fromLTRB(18, 16, 14, 16),
+              borderRadius: 26,
+              showAmbientGlow: true,
+              showAccentLine: false,
+              phaseAware: false,
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    width: 46,
+                    height: 46,
+                    decoration: BoxDecoration(
+                      color: accent.withOpacity(0.12),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: accent.withOpacity(0.18)),
+                    ),
+                    child: Icon(
+                      _isFutureDate ? CupertinoIcons.sparkles : CupertinoIcons.waveform_path_ecg,
+                      color: accent,
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          _isFutureDate
+                              ? "Future Prediction"
+                              : (l10n?.logSymptomsTitle ?? "Daily Log"),
+                          style: GoogleFonts.outfit(
+                            fontSize: 22,
+                            fontWeight: FontWeight.w800,
+                            color: AppColors.textPrimary,
+                            height: 1.05,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          dateStr,
+                          style: GoogleFonts.inter(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  _isSaving
+                      ? const Padding(
+                    padding: EdgeInsets.only(top: 10, right: 6),
+                    child: CupertinoActivityIndicator(),
+                  )
+                      : CupertinoButton(
+                    padding: EdgeInsets.zero,
+                    onPressed: () => _handleSaveWithProtection(),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: accent,
+                        borderRadius: BorderRadius.circular(18),
+                        boxShadow: [
+                          BoxShadow(
+                            color: accent.withOpacity(0.25),
+                            blurRadius: 12,
+                            offset: const Offset(0, 6),
+                            spreadRadius: -4,
+                          ),
+                        ],
+                      ),
+                      child: Text(
+                        "Done",
+                        style: GoogleFonts.inter(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w800,
+                          fontSize: 14,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
 
-          Divider(height: 1, color: AppColors.textSecondary.withOpacity(0.1)),
+          const SizedBox(height: 16),
+          _buildDateRoulette(isTTC, l10n),
+          const SizedBox(height: 14),
+
+          Divider(height: 1, color: AppColors.textSecondary.withOpacity(0.08)),
 
           if (_isFutureDate)
             Expanded(
               child: Center(
                 child: Padding(
-                  padding: const EdgeInsets.all(32.0),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Container(padding: const EdgeInsets.all(24), decoration: BoxDecoration(color: AppColors.primary.withOpacity(0.1), shape: BoxShape.circle), child: Icon(CupertinoIcons.sparkles, size: 48, color: AppColors.primary)),
-                      const SizedBox(height: 24),
-                      Text("The Future is Bright", style: GoogleFonts.outfit(fontSize: 20, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
-                      const SizedBox(height: 12),
-                      Text("You cannot log symptoms for future dates. Select a past date to enter records.", textAlign: TextAlign.center, style: GoogleFonts.inter(fontSize: 15, color: AppColors.textSecondary, height: 1.5)),
-                    ],
+                  padding: const EdgeInsets.all(28),
+                  child: PremiumGlassCard(
+                    padding: const EdgeInsets.all(28),
+                    borderRadius: 28,
+                    showAmbientGlow: true,
+                    showAccentOrb: true,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(22),
+                          decoration: BoxDecoration(
+                            color: AppColors.primary.withOpacity(0.10),
+                            shape: BoxShape.circle,
+                            border: Border.all(color: AppColors.primary.withOpacity(0.16)),
+                          ),
+                          child: Icon(
+                            CupertinoIcons.sparkles,
+                            size: 46,
+                            color: AppColors.primary,
+                          ),
+                        ),
+                        const SizedBox(height: 22),
+                        Text(
+                          "The Future is Bright",
+                          style: GoogleFonts.outfit(
+                            fontSize: 22,
+                            fontWeight: FontWeight.w800,
+                            color: AppColors.textPrimary,
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        Text(
+                          "You cannot log symptoms for future dates. Select a past date to enter records.",
+                          textAlign: TextAlign.center,
+                          style: GoogleFonts.inter(
+                            fontSize: 15,
+                            color: AppColors.textSecondary,
+                            height: 1.5,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -514,148 +728,595 @@ class _SymptomLogScreenState extends State<SymptomLogScreen> {
           else if (_isLoaded)
             Expanded(
               child: ListView(
-                // 🔥 ВОТ ОНО! ИСПРАВЛЕНИЕ СВАЙПА! 🔥
                 physics: const ClampingScrollPhysics(),
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+                padding: EdgeInsets.fromLTRB(18, 18, 18, 28 + bottomInset),
                 children: [
                   if (isTTC) ...[
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(gradient: LinearGradient(colors: [Colors.purple.shade50, Colors.pink.shade50]), borderRadius: BorderRadius.circular(20), border: Border.all(color: Colors.purple.withOpacity(0.3))),
+                    PremiumGlassCard(
+                      padding: const EdgeInsets.all(18),
+                      borderRadius: 24,
+                      showAmbientGlow: true,
+                      showAccentLine: true,
                       child: Row(
                         children: [
-                          Container(padding: const EdgeInsets.all(10), decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle), child: const Icon(CupertinoIcons.heart_circle_fill, color: Colors.purple)),
-                          const SizedBox(width: 16),
-                          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text("TTC AI Intelligence", style: GoogleFonts.outfit(fontWeight: FontWeight.bold, color: Colors.purple.shade900)), Text("Log BBT and LH tests below to maximize conception chances.", style: GoogleFonts.inter(fontSize: 12, color: Colors.purple.shade900, height: 1.3))])),
+                          Container(
+                            padding: const EdgeInsets.all(11),
+                            decoration: BoxDecoration(
+                              color: Colors.purple.withOpacity(0.12),
+                              shape: BoxShape.circle,
+                              border: Border.all(color: Colors.purple.withOpacity(0.18)),
+                            ),
+                            child: const Icon(
+                              CupertinoIcons.heart_circle_fill,
+                              color: Colors.purple,
+                            ),
+                          ),
+                          const SizedBox(width: 14),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  "TTC AI Intelligence",
+                                  style: GoogleFonts.outfit(
+                                    fontWeight: FontWeight.w800,
+                                    fontSize: 16,
+                                    color: AppColors.textPrimary,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  "Log BBT and LH tests below to refine ovulation timing and fertile-window predictions.",
+                                  style: GoogleFonts.inter(
+                                    fontSize: 12.5,
+                                    color: AppColors.textSecondary,
+                                    height: 1.35,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
                         ],
                       ),
                     ),
-                    const SizedBox(height: 32),
+                    const SizedBox(height: 22),
                   ],
 
-                  _buildSectionTitle("Bleeding & Flow"), const SizedBox(height: 12), _buildFlowSelector(), const SizedBox(height: 32),
-                  _buildSectionTitle("Basal Body Temp (BBT)"), const SizedBox(height: 12), _buildBBTInput(), const SizedBox(height: 32),
+                  _buildSectionBlock(
+                    title: "Bleeding & Flow",
+                    subtitle: "Choose the intensity for this day",
+                    icon: CupertinoIcons.drop_fill,
+                    accent: AppColors.menstruation,
+                    child: _buildFlowSelector(),
+                  ),
+                  const SizedBox(height: 18),
+
+                  _buildSectionBlock(
+                    title: "Basal Body Temp (BBT)",
+                    subtitle: "Adjust daily basal temperature",
+                    icon: CupertinoIcons.thermometer,
+                    accent: Colors.redAccent,
+                    child: _buildBBTInput(),
+                  ),
+                  const SizedBox(height: 18),
 
                   if (isTTC) ...[
-                    _buildSectionTitle("Ovulation Tests (OPK)"), const SizedBox(height: 12), _buildSymptomGrid(lhTestOptions, false, isTTC: true, customColor: Colors.purple), const SizedBox(height: 32),
-                    _buildSectionTitle("Cervical Mucus"), const SizedBox(height: 12), _buildSymptomGrid(mucusOptions, false, isTTC: true, customColor: Colors.teal), const SizedBox(height: 32),
-                    _buildSectionTitle("Intercourse & Libido"), const SizedBox(height: 12), _buildSymptomGrid(sexOptions, false, isTTC: true, customColor: Colors.pinkAccent), const SizedBox(height: 32),
+                    _buildSectionBlock(
+                      title: "Ovulation Tests (OPK)",
+                      subtitle: "Only one LH status can be active",
+                      icon: CupertinoIcons.sparkles,
+                      accent: Colors.purple,
+                      child: _buildSymptomGrid(
+                        lhTestOptions,
+                        false,
+                        isTTC: true,
+                        customColor: Colors.purple,
+                      ),
+                    ),
+                    const SizedBox(height: 18),
+
+                    _buildSectionBlock(
+                      title: "Cervical Mucus",
+                      subtitle: "Track the most relevant type",
+                      icon: CupertinoIcons.drop_triangle_fill,
+                      accent: Colors.teal,
+                      child: _buildSymptomGrid(
+                        mucusOptions,
+                        false,
+                        isTTC: true,
+                        customColor: Colors.teal,
+                      ),
+                    ),
+                    const SizedBox(height: 18),
+
+                    _buildSectionBlock(
+                      title: "Intercourse & Libido",
+                      subtitle: "Helpful for fertility insights",
+                      icon: CupertinoIcons.heart_fill,
+                      accent: Colors.pinkAccent,
+                      child: _buildSymptomGrid(
+                        sexOptions,
+                        false,
+                        isTTC: true,
+                        customColor: Colors.pinkAccent,
+                      ),
+                    ),
+                    const SizedBox(height: 18),
                   ],
 
-                  _buildSectionTitle("Vitals"), const SizedBox(height: 12),
-                  _buildVitalSlider("Mood", _log.mood, (v) => setState(() => _log = _log.copyWith(mood: v.toInt())), CupertinoIcons.smiley, isTTC),
-                  _buildVitalSlider("Energy", _log.energy, (v) => setState(() => _log = _log.copyWith(energy: v.toInt())), CupertinoIcons.bolt_fill, isTTC),
-                  _buildVitalSlider("Sleep", _log.sleep, (v) => setState(() => _log = _log.copyWith(sleep: v.toInt())), CupertinoIcons.moon_stars_fill, isTTC),
-                  const SizedBox(height: 32),
+                  _buildSectionBlock(
+                    title: "Vitals",
+                    subtitle: "Quick body check-in for the day",
+                    icon: CupertinoIcons.waveform_path_ecg,
+                    accent: accent,
+                    child: Column(
+                      children: [
+                        _buildVitalSlider(
+                          "Mood",
+                          _log.mood,
+                              (v) => setState(() => _log = _log.copyWith(mood: v.toInt())),
+                          CupertinoIcons.smiley,
+                          isTTC,
+                        ),
+                        _buildVitalSlider(
+                          "Energy",
+                          _log.energy,
+                              (v) => setState(() => _log = _log.copyWith(energy: v.toInt())),
+                          CupertinoIcons.bolt_fill,
+                          isTTC,
+                        ),
+                        _buildVitalSlider(
+                          "Sleep",
+                          _log.sleep,
+                              (v) => setState(() => _log = _log.copyWith(sleep: v.toInt())),
+                          CupertinoIcons.moon_stars_fill,
+                          isTTC,
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 18),
 
-                  _buildSectionTitle("Physical Symptoms"), const SizedBox(height: 12), _buildSymptomGrid(physicalOptions, true, isTTC: false), const SizedBox(height: 32),
-                  _buildSectionTitle("Mental & Emotional"), const SizedBox(height: 12), _buildSymptomGrid(mentalOptions, false, isTTC: false), const SizedBox(height: 32),
-                  _buildSectionTitle("Other Factors"), const SizedBox(height: 12), _buildSymptomGrid(otherOptions, false, isTTC: false), const SizedBox(height: 60),
+                  _buildSectionBlock(
+                    title: "Physical Symptoms",
+                    subtitle: "Body discomfort and physical signs",
+                    icon: CupertinoIcons.bandage_fill,
+                    accent: AppColors.primary,
+                    child: _buildSymptomGrid(
+                      physicalOptions,
+                      true,
+                      isTTC: false,
+                    ),
+                  ),
+                  const SizedBox(height: 18),
+
+                  _buildSectionBlock(
+                    title: "Mental & Emotional",
+                    subtitle: "Mood, focus, and emotional state",
+                    icon: CupertinoIcons.person_crop_circle,
+                    accent: const Color(0xFF8E71C7),
+                    child: _buildSymptomGrid(
+                      mentalOptions,
+                      false,
+                      isTTC: false,
+                    ),
+                  ),
+                  const SizedBox(height: 18),
+
+                  _buildSectionBlock(
+                    title: "Other Factors",
+                    subtitle: "Context that may affect symptoms",
+                    icon: CupertinoIcons.square_grid_2x2_fill,
+                    accent: const Color(0xFF9A7B73),
+                    child: _buildSymptomGrid(
+                      otherOptions,
+                      false,
+                      isTTC: false,
+                    ),
+                  ),
                 ],
               ),
             )
           else
-            const Expanded(child: Center(child: CupertinoActivityIndicator())),
+            const Expanded(
+              child: Center(child: CupertinoActivityIndicator()),
+            ),
         ],
       ),
     );
   }
 
-  Widget _buildSectionTitle(String title) { return Text(title, style: GoogleFonts.outfit(fontSize: 18, fontWeight: FontWeight.w700, color: AppColors.textPrimary)); }
+  Widget _buildSectionBlock({
+    required String title,
+    required String subtitle,
+    required IconData icon,
+    required Color accent,
+    required Widget child,
+  }) {
+    return PremiumGlassCard(
+      padding: const EdgeInsets.all(16),
+      borderRadius: 24,
+      showAmbientGlow: true,
+      showAccentLine: false,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: accent.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: accent.withOpacity(0.16)),
+                ),
+                child: Icon(icon, color: accent, size: 20),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: GoogleFonts.outfit(
+                        fontSize: 17,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      style: GoogleFonts.inter(
+                        fontSize: 12.5,
+                        color: AppColors.textSecondary,
+                        height: 1.25,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          child,
+        ],
+      ),
+    );
+  }
 
   Widget _buildFlowSelector() {
-    final flows = [{'val': FlowIntensity.none, 'icon': CupertinoIcons.drop, 'label': 'None'}, {'val': FlowIntensity.light, 'icon': CupertinoIcons.drop_fill, 'label': 'Light'}, {'val': FlowIntensity.medium, 'icon': CupertinoIcons.drop_fill, 'label': 'Medium'}, {'val': FlowIntensity.heavy, 'icon': CupertinoIcons.drop_fill, 'label': 'Heavy'}];
+    final flows = [
+      {'val': FlowIntensity.none, 'icon': CupertinoIcons.drop, 'label': 'None'},
+      {'val': FlowIntensity.light, 'icon': CupertinoIcons.drop_fill, 'label': 'Light'},
+      {'val': FlowIntensity.medium, 'icon': CupertinoIcons.drop_fill, 'label': 'Medium'},
+      {'val': FlowIntensity.heavy, 'icon': CupertinoIcons.drop_fill, 'label': 'Heavy'},
+    ];
+
     return SingleChildScrollView(
-      scrollDirection: Axis.horizontal, physics: const BouncingScrollPhysics(),
-      child: Row(children: flows.map((f) {
-        final isSelected = _log.flow == f['val'];
-        return GestureDetector(
-          onTap: () {
-            HapticFeedback.selectionClick();
-            setState(() {
-              _log = _log.copyWith(flow: f['val'] as FlowIntensity);
+      scrollDirection: Axis.horizontal,
+      physics: const BouncingScrollPhysics(),
+      child: Row(
+        children: flows.map((f) {
+          final isSelected = _log.flow == f['val'];
 
-              if (_log.flow != FlowIntensity.none) {
-                final s = List<String>.from(_log.symptoms);
-                bool hasConflict = false;
+          return GestureDetector(
+            onTap: () {
+              HapticFeedback.selectionClick();
+              setState(() {
+                _log = _log.copyWith(flow: f['val'] as FlowIntensity);
 
-                if (s.contains('LH: Peak')) {
-                  s.remove('LH: Peak');
-                  hasConflict = true;
+                if (_log.flow != FlowIntensity.none) {
+                  final s = List<String>.from(_log.symptoms);
+                  bool hasConflict = false;
+
+                  if (s.contains('LH: Peak')) {
+                    s.remove('LH: Peak');
+                    hasConflict = true;
+                  }
+
+                  if (s.any((e) => e.contains('Mucus'))) {
+                    s.removeWhere((e) => e.contains('Mucus'));
+                    hasConflict = true;
+                  }
+
+                  if (hasConflict) {
+                    _log = _log.copyWith(symptoms: s);
+                    _showConflictWarning(
+                      "Menstruation logged. Incompatible symptoms (LH Peak / Mucus) removed.",
+                    );
+                  }
                 }
-
-                if (s.any((e) => e.contains('Mucus'))) {
-                  s.removeWhere((e) => e.contains('Mucus'));
-                  hasConflict = true;
-                }
-
-                if (hasConflict) {
-                  _log = _log.copyWith(symptoms: s);
-                  _showConflictWarning("Menstruation logged. Incompatible symptoms (LH Peak / Mucus) removed.");
-                }
-              }
-            });
-          },
-          child: AnimatedContainer(duration: const Duration(milliseconds: 200), margin: const EdgeInsets.only(right: 12), padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12), decoration: BoxDecoration(color: isSelected ? AppColors.menstruation : AppColors.background, border: Border.all(color: isSelected ? AppColors.menstruation : AppColors.textSecondary.withOpacity(0.2)), borderRadius: BorderRadius.circular(20), boxShadow: isSelected ? [BoxShadow(color: AppColors.menstruation.withOpacity(0.3), blurRadius: 8, offset: const Offset(0, 4))] : []), child: Row(children: [Icon(f['icon'] as IconData, size: 16, color: isSelected ? Colors.white : AppColors.textSecondary), const SizedBox(width: 8), Text(f['label'] as String, style: GoogleFonts.inter(fontSize: 14, fontWeight: isSelected ? FontWeight.bold : FontWeight.w500, color: isSelected ? Colors.white : AppColors.textPrimary))])),
-        );
-      }).toList()),
+              });
+            },
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 220),
+              curve: Curves.easeOutCubic,
+              margin: const EdgeInsets.only(right: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+              decoration: BoxDecoration(
+                color: isSelected
+                    ? AppColors.menstruation
+                    : AppColors.secondaryBackground.withOpacity(0.7),
+                border: Border.all(
+                  color: isSelected
+                      ? AppColors.menstruation
+                      : AppColors.textSecondary.withOpacity(0.16),
+                ),
+                borderRadius: BorderRadius.circular(18),
+                boxShadow: isSelected
+                    ? [
+                  BoxShadow(
+                    color: AppColors.menstruation.withOpacity(0.26),
+                    blurRadius: 12,
+                    offset: const Offset(0, 6),
+                    spreadRadius: -3,
+                  )
+                ]
+                    : [],
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    f['icon'] as IconData,
+                    size: 16,
+                    color: isSelected ? Colors.white : AppColors.textSecondary,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    f['label'] as String,
+                    style: GoogleFonts.inter(
+                      fontSize: 14,
+                      fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                      color: isSelected ? Colors.white : AppColors.textPrimary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }).toList(),
+      ),
     );
   }
 
   Widget _buildBBTInput() {
     double currentTemp = _log.temperature ?? 36.60;
     if (currentTemp == 0.0) currentTemp = 36.60;
-    return PremiumGlassCard(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16), borderRadius: 20,
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+      decoration: BoxDecoration(
+        color: AppColors.secondaryBackground.withOpacity(0.65),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: AppColors.divider),
+      ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Row(children: [Container(padding: const EdgeInsets.all(10), decoration: BoxDecoration(color: Colors.redAccent.withOpacity(0.1), shape: BoxShape.circle), child: const Icon(CupertinoIcons.thermometer, color: Colors.redAccent, size: 24)), const SizedBox(width: 16), Text("${currentTemp.toStringAsFixed(2)} °C", style: GoogleFonts.outfit(fontSize: 28, fontWeight: FontWeight.w600, color: AppColors.textPrimary, letterSpacing: -1))]),
-          Row(children: [
-            GestureDetector(onTap: () { HapticFeedback.selectionClick(); setState(() => _log = _log.copyWith(temperature: (currentTemp - 0.05).clamp(35.0, 40.0))); }, child: Container(padding: const EdgeInsets.all(12), decoration: BoxDecoration(color: AppColors.background, borderRadius: BorderRadius.circular(16), border: Border.all(color: Colors.black12)), child: Icon(CupertinoIcons.minus, size: 20, color: AppColors.textSecondary))),
-            const SizedBox(width: 12),
-            GestureDetector(onTap: () { HapticFeedback.selectionClick(); setState(() => _log = _log.copyWith(temperature: (currentTemp + 0.05).clamp(35.0, 40.0))); }, child: Container(padding: const EdgeInsets.all(12), decoration: BoxDecoration(color: Colors.purple.withOpacity(0.1), borderRadius: BorderRadius.circular(16), border: Border.all(color: Colors.purple.withOpacity(0.2))), child: const Icon(CupertinoIcons.add, size: 20, color: Colors.purple))),
-          ])
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(11),
+                decoration: BoxDecoration(
+                  color: Colors.redAccent.withOpacity(0.12),
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.redAccent.withOpacity(0.16)),
+                ),
+                child: const Icon(
+                  CupertinoIcons.thermometer,
+                  color: Colors.redAccent,
+                  size: 22,
+                ),
+              ),
+              const SizedBox(width: 14),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    "${currentTemp.toStringAsFixed(2)} °C",
+                    style: GoogleFonts.outfit(
+                      fontSize: 30,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.textPrimary,
+                      letterSpacing: -1,
+                    ),
+                  ),
+                  Text(
+                    "Basal temperature",
+                    style: GoogleFonts.inter(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          Row(
+            children: [
+              _buildStepperButton(
+                icon: CupertinoIcons.minus,
+                background: AppColors.tintedSurface,
+                borderColor: AppColors.divider,
+                iconColor: AppColors.textSecondary,
+                onTap: () {
+                  HapticFeedback.selectionClick();
+                  setState(() {
+                    _log = _log.copyWith(
+                      temperature: (currentTemp - 0.05).clamp(35.0, 40.0),
+                    );
+                  });
+                },
+              ),
+              const SizedBox(width: 10),
+              _buildStepperButton(
+                icon: CupertinoIcons.add,
+                background: Colors.redAccent.withOpacity(0.10),
+                borderColor: Colors.redAccent.withOpacity(0.18),
+                iconColor: Colors.redAccent,
+                onTap: () {
+                  HapticFeedback.selectionClick();
+                  setState(() {
+                    _log = _log.copyWith(
+                      temperature: (currentTemp + 0.05).clamp(35.0, 40.0),
+                    );
+                  });
+                },
+              ),
+            ],
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildVitalSlider(String label, int value, Function(double) onChanged, IconData icon, bool isTTC) {
+  Widget _buildStepperButton({
+    required IconData icon,
+    required Color background,
+    required Color borderColor,
+    required Color iconColor,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 46,
+        height: 46,
+        decoration: BoxDecoration(
+          color: background,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: borderColor),
+        ),
+        child: Icon(icon, size: 20, color: iconColor),
+      ),
+    );
+  }
+
+  Widget _buildVitalSlider(
+      String label,
+      int value,
+      Function(double) onChanged,
+      IconData icon,
+      bool isTTC,
+      ) {
     final activeColor = isTTC ? Colors.purple : AppColors.primary;
+
     return Padding(
-      padding: const EdgeInsets.only(bottom: 16.0),
-      child: PremiumGlassCard(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12), borderRadius: 20,
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(14, 12, 14, 8),
+        decoration: BoxDecoration(
+          color: AppColors.secondaryBackground.withOpacity(0.58),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: AppColors.divider),
+        ),
         child: Row(
           children: [
-            Container(padding: const EdgeInsets.all(8), decoration: BoxDecoration(color: activeColor.withOpacity(0.1), borderRadius: BorderRadius.circular(12)), child: Icon(icon, color: activeColor, size: 20)), const SizedBox(width: 16),
-            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [Text(label, style: GoogleFonts.inter(fontWeight: FontWeight.w600, color: AppColors.textPrimary)), Text("$value/5", style: GoogleFonts.inter(fontWeight: FontWeight.bold, color: activeColor, fontSize: 12))]), SliderTheme(data: SliderThemeData(trackHeight: 4, activeTrackColor: activeColor, inactiveTrackColor: AppColors.textSecondary.withOpacity(0.1), thumbColor: activeColor, overlayColor: activeColor.withOpacity(0.2), thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 10)), child: Slider(value: value.toDouble(), min: 1, max: 5, divisions: 4, onChanged: (v) { HapticFeedback.selectionClick(); onChanged(v); }))])),
+            Container(
+              padding: const EdgeInsets.all(9),
+              decoration: BoxDecoration(
+                color: activeColor.withOpacity(0.10),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: activeColor.withOpacity(0.12)),
+              ),
+              child: Icon(icon, color: activeColor, size: 19),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          label,
+                          style: GoogleFonts.inter(
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.textPrimary,
+                          ),
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                        decoration: BoxDecoration(
+                          color: activeColor.withOpacity(0.10),
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                        child: Text(
+                          "$value/5",
+                          style: GoogleFonts.inter(
+                            fontWeight: FontWeight.w800,
+                            color: activeColor,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  SliderTheme(
+                    data: SliderThemeData(
+                      trackHeight: 4,
+                      activeTrackColor: activeColor,
+                      inactiveTrackColor: AppColors.textSecondary.withOpacity(0.12),
+                      thumbColor: activeColor,
+                      overlayColor: activeColor.withOpacity(0.16),
+                      thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 9),
+                    ),
+                    child: Slider(
+                      value: value.toDouble(),
+                      min: 1,
+                      max: 5,
+                      divisions: 4,
+                      onChanged: (v) {
+                        HapticFeedback.selectionClick();
+                        onChanged(v);
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildSymptomGrid(List<String> options, bool isPain, {required bool isTTC, Color? customColor}) {
+  Widget _buildSymptomGrid(
+      List<String> options,
+      bool isPain, {
+        required bool isTTC,
+        Color? customColor,
+      }) {
     final selectedList = isPain ? _log.painSymptoms : _log.symptoms;
     final activeColor = customColor ?? (isTTC ? Colors.purple : AppColors.primary);
+
     return Wrap(
-      spacing: 10, runSpacing: 10,
+      spacing: 10,
+      runSpacing: 10,
       children: options.map((symptom) {
         final isSelected = selectedList.contains(symptom);
+
         return GestureDetector(
           onTap: () {
             HapticFeedback.lightImpact();
             setState(() {
               final list = List<String>.from(selectedList);
+
               if (isSelected) {
                 list.remove(symptom);
               } else {
-                if (symptom.startsWith("LH:")) list.removeWhere((e) => e.startsWith("LH:"));
-                if (symptom.contains("Mucus")) list.removeWhere((e) => e.contains("Mucus"));
-
-                // 🔥 Защита от дублей (убираем старые форматы интима при выборе нового)
+                if (symptom.startsWith("LH:")) {
+                  list.removeWhere((e) => e.startsWith("LH:"));
+                }
+                if (symptom.contains("Mucus")) {
+                  list.removeWhere((e) => e.contains("Mucus"));
+                }
                 if (symptom == 'Intimacy') {
                   list.remove('Protected Sex');
                   list.remove('Unprotected Sex');
@@ -665,19 +1326,60 @@ class _SymptomLogScreenState extends State<SymptomLogScreen> {
 
                 if (symptom == 'LH: Peak' && _log.flow != FlowIntensity.none) {
                   _log = _log.copyWith(flow: FlowIntensity.none);
-                  _showConflictWarning("Bleeding removed. Menstruation and ovulation cannot co-occur.");
+                  _showConflictWarning(
+                    "Bleeding removed. Menstruation and ovulation cannot co-occur.",
+                  );
                 }
 
                 if (symptom.contains('Mucus') && _log.flow != FlowIntensity.none) {
                   _log = _log.copyWith(flow: FlowIntensity.none);
-                  _showConflictWarning("Bleeding removed. Cervical mucus is not tracked during menstruation.");
+                  _showConflictWarning(
+                    "Bleeding removed. Cervical mucus is not tracked during menstruation.",
+                  );
                 }
               }
-              if (isPain) _log = _log.copyWith(painSymptoms: list);
-              else _log = _log.copyWith(symptoms: list);
+
+              if (isPain) {
+                _log = _log.copyWith(painSymptoms: list);
+              } else {
+                _log = _log.copyWith(symptoms: list);
+              }
             });
           },
-          child: AnimatedContainer(duration: const Duration(milliseconds: 200), padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10), decoration: BoxDecoration(color: isSelected ? activeColor : Colors.transparent, borderRadius: BorderRadius.circular(20), border: Border.all(color: isSelected ? activeColor : AppColors.textSecondary.withOpacity(0.2))), child: Text(symptom, style: GoogleFonts.inter(fontSize: 14, fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500, color: isSelected ? Colors.white : AppColors.textPrimary))),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 220),
+            curve: Curves.easeOutCubic,
+            padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 11),
+            decoration: BoxDecoration(
+              color: isSelected
+                  ? activeColor
+                  : AppColors.secondaryBackground.withOpacity(0.45),
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(
+                color: isSelected
+                    ? activeColor
+                    : AppColors.textSecondary.withOpacity(0.14),
+              ),
+              boxShadow: isSelected
+                  ? [
+                BoxShadow(
+                  color: activeColor.withOpacity(0.22),
+                  blurRadius: 12,
+                  offset: const Offset(0, 6),
+                  spreadRadius: -4,
+                )
+              ]
+                  : [],
+            ),
+            child: Text(
+              symptom,
+              style: GoogleFonts.inter(
+                fontSize: 14,
+                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
+                color: isSelected ? Colors.white : AppColors.textPrimary,
+              ),
+            ),
+          ),
         );
       }).toList(),
     );

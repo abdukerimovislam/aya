@@ -10,6 +10,7 @@ import '../../data/models/cycle_model.dart';
 import '../../data/providers/coc_provider.dart';
 import '../../data/providers/cycle_provider.dart';
 import '../../data/providers/settings_provider.dart';
+import '../../data/providers/wellness_provider.dart'; // 🔥 Нужно для передачи логов в ИИ
 
 // Общие виджеты
 import '../../l10n/app_localizations.dart';
@@ -18,6 +19,10 @@ import '../../shared/widgets/pill_widget.dart';
 import '../../shared/widgets/premium_glass_card.dart';
 import '../../shared/widgets/live_phase_background.dart';
 import '../../shared/widgets/pill_blister_card.dart';
+
+// 🔥 Импорты для работы с нашим новым AI Окном
+import '../../core/services/ai_oracle_service.dart';
+import '../insights/widgets/ayla_consultation_sheet.dart';
 
 // Фиче-виджеты
 import 'widgets/dashboard_micro_calendar.dart';
@@ -46,8 +51,15 @@ class HomeScreen extends StatelessWidget {
   }
 }
 
-class _BuildUltraModernScreen extends StatelessWidget {
+class _BuildUltraModernScreen extends StatefulWidget {
   const _BuildUltraModernScreen({super.key});
+
+  @override
+  State<_BuildUltraModernScreen> createState() => _BuildUltraModernScreenState();
+}
+
+class _BuildUltraModernScreenState extends State<_BuildUltraModernScreen> {
+  bool _isLoadingAi = false; // 🔥 Флаг загрузки для визуального отклика
 
   void _openLoggerWithHero(BuildContext context, DateTime date, String heroTag) {
     HapticFeedback.mediumImpact();
@@ -68,6 +80,41 @@ class _BuildUltraModernScreen extends StatelessWidget {
     );
   }
 
+  // 🔥 Обновленный метод вызова окна AI с главного экрана
+  Future<void> _openAylaConsultation(BuildContext context) async {
+    if (_isLoadingAi) return; // Предотвращаем двойные клики
+    HapticFeedback.mediumImpact();
+
+    final cycleProvider = context.read<CycleProvider>();
+    final wellnessProvider = context.read<WellnessProvider>();
+
+    setState(() => _isLoadingAi = true); // Показываем лоадер (если кэша нет)
+
+    try {
+      final response = await AiOracleService.generateDailyAdvice(
+        phase: cycleProvider.currentData.phase,
+        logs: [wellnessProvider.getLogForDate(DateTime.now())],
+        isCoc: cycleProvider.isCOCEnabled,
+      );
+
+      if (context.mounted) {
+        setState(() => _isLoadingAi = false); // Скрываем лоадер
+
+        showModalBottomSheet(
+          context: context,
+          backgroundColor: Colors.transparent,
+          isScrollControlled: true,
+          builder: (ctx) => AylaConsultationSheet(
+            insightText: response,
+          ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) setState(() => _isLoadingAi = false);
+      debugPrint("Failed to load AI from Home: $e");
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
@@ -82,7 +129,6 @@ class _BuildUltraModernScreen extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: Colors.white,
-      // 🔥 Настоящий прозрачный AppBar наверху
       extendBodyBehindAppBar: true,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
@@ -115,7 +161,6 @@ class _BuildUltraModernScreen extends StatelessWidget {
                 children: [
                   const SizedBox(height: 8),
 
-                  // 🔥 Наш новый нежный микро-календарь теперь прямо под AppBar
                   if (!isCOC) ...[
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -124,7 +169,6 @@ class _BuildUltraModernScreen extends StatelessWidget {
                     const SizedBox(height: 32),
                   ],
 
-                  // CENTER TIMER
                   SizedBox(
                     width: MediaQuery.of(context).size.width * 0.85,
                     height: MediaQuery.of(context).size.width * 0.85,
@@ -138,12 +182,10 @@ class _BuildUltraModernScreen extends StatelessWidget {
                   if (isCOC) ...[const SizedBox(height: 24), const PillWidget()],
                   const SizedBox(height: 32),
 
-                  // SMART ACTION BAR
                   DashboardActionBar(data: data, isCOC: isCOC, provider: provider, l10n: l10n, onOpenLogger: _openLoggerWithHero),
                   const SizedBox(height: 40),
 
                   if (isCOC) ...[
-                    // РЕЖИМ КОК
                     const Padding(
                       padding: EdgeInsets.symmetric(horizontal: 24),
                       child: PremiumGlassCard(
@@ -155,10 +197,30 @@ class _BuildUltraModernScreen extends StatelessWidget {
                     _COCPackControlCard(provider: provider, l10n: l10n),
                   ]
                   else ...[
-                    // ОБЫЧНЫЙ РЕЖИМ И TTC (Инсайты ИИ)
+                    // 🔥 ОБЫЧНЫЙ РЕЖИМ И TTC (Инсайты ИИ)
                     Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 24),
-                        child: DashboardInsightCard(data: data, l10n: l10n)
+                      padding: const EdgeInsets.symmetric(horizontal: 24),
+                      child: Stack(
+                        children: [
+                          GestureDetector(
+                            onTap: () => _openAylaConsultation(context),
+                            child: DashboardInsightCard(data: data, l10n: l10n),
+                          ),
+                          // 🔥 Легкий лоадер поверх карточки, пока ИИ думает (до появления окна)
+                          if (_isLoadingAi)
+                            Positioned.fill(
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withOpacity(0.5),
+                                  borderRadius: BorderRadius.circular(28), // Скругление как у DashboardInsightCard
+                                ),
+                                child: const Center(
+                                  child: CupertinoActivityIndicator(radius: 12),
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
                     ),
                   ],
 
