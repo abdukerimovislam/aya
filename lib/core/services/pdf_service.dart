@@ -216,7 +216,8 @@ class PdfService {
           border: pw.Border.all(color: PdfColors.grey300),
           borderRadius: pw.BorderRadius.circular(4),
         ),
-        child: pw.Text("${med.iconStr} ${med.name}: ${med.dosage}", style: pw.TextStyle(font: regular, fontSize: 9)),
+        // 🔥 УБРАН med.iconStr ЧТОБЫ ИЗБЕЖАТЬ КРАША ШРИФТА (Emoji fallback error)
+        child: pw.Text("${med.name}: ${med.dosage}", style: pw.TextStyle(font: regular, fontSize: 9)),
       )).toList(),
     );
   }

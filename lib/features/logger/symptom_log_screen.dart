@@ -828,21 +828,22 @@ class _SymptomLogScreenState extends State<SymptomLogScreen> {
                       ),
                     ),
                     const SizedBox(height: 18),
-
-                    _buildSectionBlock(
-                      title: "Intercourse & Libido",
-                      subtitle: "Helpful for fertility insights",
-                      icon: CupertinoIcons.heart_fill,
-                      accent: Colors.pinkAccent,
-                      child: _buildSymptomGrid(
-                        sexOptions,
-                        false,
-                        isTTC: true,
-                        customColor: Colors.pinkAccent,
-                      ),
-                    ),
-                    const SizedBox(height: 18),
                   ],
+
+                  // 🔥 ИНТИМНЫЙ КАЛЕНДАРЬ ТЕПЕРЬ ДОСТУПЕН ВСЕМ (Вынесен из блока if (isTTC))
+                  _buildSectionBlock(
+                    title: "Intercourse & Libido",
+                    subtitle: isTTC ? "Helpful for fertility insights" : "Track your intimacy and desire",
+                    icon: CupertinoIcons.heart_fill,
+                    accent: Colors.pinkAccent,
+                    child: _buildSymptomGrid(
+                      sexOptions,
+                      false,
+                      isTTC: isTTC,
+                      customColor: Colors.pinkAccent,
+                    ),
+                  ),
+                  const SizedBox(height: 18),
 
                   _buildSectionBlock(
                     title: "Vitals",

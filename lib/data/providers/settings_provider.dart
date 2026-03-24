@@ -250,13 +250,18 @@ class SettingsProvider extends ChangeNotifier {
 
   Future<void> wipeData() async {
     await _box.clear();
+
+    // 🔥 Очищаем Secure Storage
+    await _storageService.saveBiometricsEnabled(false);
+    await _storageService.saveNotificationsEnabled(false);
+
     _notificationsEnabled = false;
     _biometricsEnabled = false;
     _dailyLogEnabled = false;
     _currentDesign = TimerDesign.nebula;
     _isPremium = false;
     _userName = "User";
-    _userAvatar = "👩";
+    _userAvatar = "束";
 
     await _loadSettings();
     notifyListeners();

@@ -6,7 +6,6 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:table_calendar/table_calendar.dart';
 import 'package:intl/intl.dart';
 
-import '../../core/theme/app_theme.dart';
 import '../../data/providers/cycle_provider.dart';
 import '../../data/providers/wellness_provider.dart';
 import '../../shared/widgets/live_phase_background.dart';
@@ -21,9 +20,52 @@ class IntimacyCalendarScreen extends StatefulWidget {
 class _IntimacyCalendarScreenState extends State<IntimacyCalendarScreen> {
   DateTime _focusedDate = DateTime.now();
 
-  // 🔥 Премиальные градиенты и свечения
-  final LinearGradient _heartGradient = const LinearGradient(
-    colors: [Color(0xFFFF0844), Color(0xFFFFB199)], // Малиновый в персиковый
+  // Independent palette for this screen only
+  static const Color _bgBase = Color(0xFFF8F3F7);
+  static const Color _mist = Color(0xFFFFFBFD);
+  static const Color _textPrimary = Color(0xFF2B2230);
+  static const Color _textSecondary = Color(0xFF7C6A78);
+
+  static const Color _sexPink = Color(0xFFE94B7B);
+  static const Color _sexPinkSoft = Color(0xFFF6A2BB);
+  static const Color _protectedGreen = Color(0xFF18B47A);
+  static const Color _warningRed = Color(0xFFE05A5A);
+  static const Color _plum = Color(0xFF7A5874);
+  static const Color _lavenderMist = Color(0xFFE8DFF0);
+  static const Color _pearl = Color(0xFFFFF9FC);
+
+  final LinearGradient _heroGradient = const LinearGradient(
+    colors: [
+      Color(0xFFFFFFFF),
+      Color(0xFFFCEEF4),
+    ],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
+
+  final LinearGradient _surfaceGradient = const LinearGradient(
+    colors: [
+      Color(0xFFFFFFFF),
+      Color(0xFFFFF7FA),
+    ],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
+
+  final LinearGradient _eventGradient = const LinearGradient(
+    colors: [
+      _sexPink,
+      _sexPinkSoft,
+    ],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
+
+  final LinearGradient _chipGradient = const LinearGradient(
+    colors: [
+      Color(0xFFFBE8EF),
+      Color(0xFFFFF8FB),
+    ],
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
   );
@@ -35,10 +77,9 @@ class _IntimacyCalendarScreenState extends State<IntimacyCalendarScreen> {
     final currentPhase = cycleProvider.currentData.phase;
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: _bgBase,
       body: Stack(
         children: [
-          // 1. Живой анимированный фон с легким романтичным затемнением
           Positioned.fill(
             child: LivePhaseBackground(
               phase: currentPhase,
@@ -46,26 +87,64 @@ class _IntimacyCalendarScreenState extends State<IntimacyCalendarScreen> {
             ),
           ),
           Positioned.fill(
-            child: Container(
-              color: const Color(0xFFE94057).withOpacity(0.03),
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    _mist.withOpacity(0.76),
+                    _mist.withOpacity(0.82),
+                    _bgBase.withOpacity(0.90),
+                  ],
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                ),
+              ),
             ),
           ),
 
-          // 2. Основной контент
+          Positioned(
+            top: -90,
+            right: -50,
+            child: _buildAmbientGlow(
+              size: 230,
+              color: _sexPinkSoft.withOpacity(0.18),
+            ),
+          ),
+          Positioned(
+            top: 180,
+            left: -70,
+            child: _buildAmbientGlow(
+              size: 180,
+              color: _lavenderMist.withOpacity(0.22),
+            ),
+          ),
+          Positioned(
+            bottom: -70,
+            right: -40,
+            child: _buildAmbientGlow(
+              size: 210,
+              color: _sexPink.withOpacity(0.10),
+            ),
+          ),
+
           SafeArea(
             child: Column(
               children: [
                 _buildFloatingHeader(context),
-                const SizedBox(height: 20),
-                _buildTitleSection(),
-                const SizedBox(height: 32),
                 Expanded(
                   child: SingleChildScrollView(
                     physics: const BouncingScrollPhysics(),
+                    padding: const EdgeInsets.fromLTRB(20, 8, 20, 44),
                     child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        _buildHeroSection(),
+                        const SizedBox(height: 20),
+                        _buildLegendCard(),
+                        const SizedBox(height: 20),
                         _buildGlassCalendar(wellnessProvider),
-                        const SizedBox(height: 60),
+                        const SizedBox(height: 18),
+                        _buildBottomHint(),
                       ],
                     ),
                   ),
@@ -78,28 +157,74 @@ class _IntimacyCalendarScreenState extends State<IntimacyCalendarScreen> {
     );
   }
 
-  // Парящая кнопка назад
+  Widget _buildAmbientGlow({
+    required double size,
+    required Color color,
+  }) {
+    return IgnorePointer(
+      child: Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          boxShadow: [
+            BoxShadow(
+              color: color,
+              blurRadius: 90,
+              spreadRadius: 28,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildFloatingHeader(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
       child: Row(
         children: [
-          GestureDetector(
+          _buildGlassIconButton(
+            icon: CupertinoIcons.back,
             onTap: () => Navigator.pop(context),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(16),
-              child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                child: Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: Colors.white.withOpacity(0.3), width: 1.5),
-                  ),
-                  child: Icon(CupertinoIcons.back, color: AppColors.textPrimary, size: 24),
-                ),
+          ),
+          const Spacer(),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            decoration: BoxDecoration(
+              gradient: _chipGradient,
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(
+                color: Colors.white.withOpacity(0.78),
+                width: 1.2,
               ),
+              boxShadow: [
+                BoxShadow(
+                  color: _sexPinkSoft.withOpacity(0.15),
+                  blurRadius: 18,
+                  offset: const Offset(0, 8),
+                ),
+              ],
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  CupertinoIcons.heart_fill,
+                  size: 14,
+                  color: _sexPink,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'SEX CALENDAR',
+                  style: GoogleFonts.inter(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 1.2,
+                    color: _sexPink,
+                  ),
+                ),
+              ],
             ),
           ),
         ],
@@ -107,107 +232,336 @@ class _IntimacyCalendarScreenState extends State<IntimacyCalendarScreen> {
     );
   }
 
-  // Элегантный заголовок
-  Widget _buildTitleSection() {
-    return Column(
-      children: [
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          decoration: BoxDecoration(
-            color: const Color(0xFFFF0844).withOpacity(0.1),
-            borderRadius: BorderRadius.circular(20),
+  Widget _buildGlassIconButton({
+    required IconData icon,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(18),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+          child: Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.26),
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(
+                color: Colors.white.withOpacity(0.60),
+                width: 1.2,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: _plum.withOpacity(0.06),
+                  blurRadius: 18,
+                  offset: const Offset(0, 8),
+                ),
+              ],
+            ),
+            child: Icon(
+              icon,
+              color: _textPrimary,
+              size: 22,
+            ),
           ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHeroSection() {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(30),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.fromLTRB(22, 22, 22, 22),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(30),
+            gradient: _heroGradient,
+            border: Border.all(
+              color: Colors.white.withOpacity(0.76),
+              width: 1.3,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: _sexPinkSoft.withOpacity(0.18),
+                blurRadius: 28,
+                offset: const Offset(0, 16),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Icon(CupertinoIcons.heart_fill, color: Color(0xFFFF0844), size: 14),
-              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 9),
+                decoration: BoxDecoration(
+                  color: _sexPink.withOpacity(0.10),
+                  borderRadius: BorderRadius.circular(18),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(
+                      CupertinoIcons.heart_fill,
+                      color: _sexPink,
+                      size: 14,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      'INTIMACY TRACKER',
+                      style: GoogleFonts.inter(
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 1.4,
+                        fontSize: 11,
+                        color: _sexPink,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 18),
               Text(
-                "PRIVATE TIMELINE",
-                style: GoogleFonts.inter(
+                'Your sex\ncalendar',
+                style: GoogleFonts.outfit(
+                  fontSize: 34,
+                  height: 1.02,
                   fontWeight: FontWeight.w800,
-                  letterSpacing: 2.0,
-                  fontSize: 11,
-                  color: const Color(0xFFFF0844),
+                  letterSpacing: -1.2,
+                  color: _textPrimary,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'Track intimacy, protected sex and unprotected sex in one clear calendar view.',
+                style: GoogleFonts.inter(
+                  fontSize: 14,
+                  height: 1.55,
+                  fontWeight: FontWeight.w500,
+                  color: _textSecondary.withOpacity(0.96),
                 ),
               ),
             ],
           ),
         ),
-        const SizedBox(height: 16),
+      ),
+    );
+  }
+
+  Widget _buildLegendCard() {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(26),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 18),
+          decoration: BoxDecoration(
+            gradient: _surfaceGradient,
+            borderRadius: BorderRadius.circular(26),
+            border: Border.all(
+              color: Colors.white.withOpacity(0.78),
+              width: 1.1,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: _sexPinkSoft.withOpacity(0.12),
+                blurRadius: 20,
+                offset: const Offset(0, 10),
+              ),
+            ],
+          ),
+          child: Wrap(
+            spacing: 18,
+            runSpacing: 14,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              _buildLegendItem(
+                icon: CupertinoIcons.heart_fill,
+                color: _sexPink,
+                label: 'Intimacy',
+              ),
+              _buildLegendItem(
+                icon: CupertinoIcons.lock_fill,
+                color: _protectedGreen,
+                label: 'Protected sex',
+              ),
+              _buildLegendItem(
+                icon: CupertinoIcons.exclamationmark_triangle_fill,
+                color: _warningRed,
+                label: 'Unprotected sex',
+              ),
+              _buildLegendItem(
+                icon: CupertinoIcons.circle_fill,
+                color: _plum.withOpacity(0.55),
+                label: 'Today',
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLegendItem({
+    required IconData icon,
+    required Color color,
+    required String label,
+  }) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 14, color: color),
+        const SizedBox(width: 8),
         Text(
-          "Your Intimacy",
-          style: GoogleFonts.outfit(
-            fontSize: 36,
-            fontWeight: FontWeight.w900,
-            color: AppColors.textPrimary,
-            letterSpacing: -1.0,
+          label,
+          style: GoogleFonts.inter(
+            fontSize: 13,
+            fontWeight: FontWeight.w700,
+            color: _textSecondary,
           ),
         ),
       ],
     );
   }
 
-  // Роскошный стеклянный календарь без лишних рамок
   Widget _buildGlassCalendar(WellnessProvider wellness) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(40),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 24),
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.4),
-              borderRadius: BorderRadius.circular(40),
-              border: Border.all(color: Colors.white.withOpacity(0.6), width: 2),
-              boxShadow: [
-                BoxShadow(
-                  color: const Color(0xFFFF0844).withOpacity(0.05),
-                  blurRadius: 40,
-                  spreadRadius: 10,
-                )
-              ],
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(34),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 22, sigmaY: 22),
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(12, 16, 12, 18),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(34),
+            gradient: _surfaceGradient,
+            border: Border.all(
+              color: Colors.white.withOpacity(0.82),
+              width: 1.4,
             ),
-            child: TableCalendar(
-              firstDay: DateTime(2020, 1, 1),
-              lastDay: DateTime(2035, 12, 31),
-              focusedDay: _focusedDate,
-              startingDayOfWeek: StartingDayOfWeek.monday,
-              availableGestures: AvailableGestures.horizontalSwipe,
-              rowHeight: 56, // Увеличили высоту ячеек для "воздуха"
-              onPageChanged: (focusedDay) {
-                setState(() {
-                  _focusedDate = focusedDay;
-                });
-              },
-              headerStyle: HeaderStyle(
-                formatButtonVisible: false,
-                titleCentered: true,
-                titleTextStyle: GoogleFonts.outfit(
-                  fontSize: 22,
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.textPrimary,
+            boxShadow: [
+              BoxShadow(
+                color: _sexPinkSoft.withOpacity(0.16),
+                blurRadius: 32,
+                offset: const Offset(0, 18),
+              ),
+              BoxShadow(
+                color: _plum.withOpacity(0.04),
+                blurRadius: 18,
+                offset: const Offset(0, 10),
+              ),
+            ],
+          ),
+          child: TableCalendar(
+            firstDay: DateTime(2020, 1, 1),
+            lastDay: DateTime(2035, 12, 31),
+            focusedDay: _focusedDate,
+            startingDayOfWeek: StartingDayOfWeek.monday,
+            availableGestures: AvailableGestures.horizontalSwipe,
+            rowHeight: 62,
+            headerVisible: true,
+            onPageChanged: (focusedDay) {
+              setState(() {
+                _focusedDate = focusedDay;
+              });
+            },
+            calendarFormat: CalendarFormat.month,
+            daysOfWeekHeight: 38,
+            headerStyle: HeaderStyle(
+              formatButtonVisible: false,
+              titleCentered: true,
+              titleTextFormatter: (date, locale) =>
+                  DateFormat('MMMM yyyy').format(date),
+              titleTextStyle: GoogleFonts.outfit(
+                fontSize: 24,
+                fontWeight: FontWeight.w800,
+                color: _textPrimary,
+                letterSpacing: -0.5,
+              ),
+              leftChevronIcon: Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.84),
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: _plum.withOpacity(0.05),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
                 ),
-                leftChevronIcon: Icon(CupertinoIcons.chevron_left, color: AppColors.textPrimary, size: 24),
-                rightChevronIcon: Icon(CupertinoIcons.chevron_right, color: AppColors.textPrimary, size: 24),
+                child: const Icon(
+                  CupertinoIcons.chevron_left,
+                  size: 18,
+                  color: _textPrimary,
+                ),
               ),
-              daysOfWeekHeight: 40,
-              daysOfWeekStyle: DaysOfWeekStyle(
-                weekdayStyle: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w800, color: AppColors.textSecondary.withOpacity(0.6)),
-                weekendStyle: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w800, color: AppColors.textSecondary.withOpacity(0.4)),
+              rightChevronIcon: Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.84),
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: _plum.withOpacity(0.05),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: const Icon(
+                  CupertinoIcons.chevron_right,
+                  size: 18,
+                  color: _textPrimary,
+                ),
               ),
-              calendarStyle: const CalendarStyle(
-                defaultTextStyle: TextStyle(color: Colors.transparent),
-                weekendTextStyle: TextStyle(color: Colors.transparent),
-                todayTextStyle: TextStyle(color: Colors.transparent),
-                outsideDaysVisible: false,
+              headerPadding: const EdgeInsets.fromLTRB(6, 4, 6, 12),
+            ),
+            daysOfWeekStyle: DaysOfWeekStyle(
+              weekdayStyle: GoogleFonts.inter(
+                fontSize: 12,
+                fontWeight: FontWeight.w800,
+                color: _textSecondary.withOpacity(0.92),
+                letterSpacing: 0.2,
               ),
-              calendarBuilders: CalendarBuilders(
-                defaultBuilder: (context, day, focusedDay) => _buildDayCell(day, wellness, isToday: false),
-                todayBuilder: (context, day, focusedDay) => _buildDayCell(day, wellness, isToday: true),
+              weekendStyle: GoogleFonts.inter(
+                fontSize: 12,
+                fontWeight: FontWeight.w800,
+                color: _textSecondary.withOpacity(0.60),
+                letterSpacing: 0.2,
               ),
+            ),
+            calendarStyle: const CalendarStyle(
+              outsideDaysVisible: false,
+              defaultTextStyle: TextStyle(color: Colors.transparent),
+              weekendTextStyle: TextStyle(color: Colors.transparent),
+              todayTextStyle: TextStyle(color: Colors.transparent),
+            ),
+            calendarBuilders: CalendarBuilders(
+              defaultBuilder: (context, day, focusedDay) {
+                return _buildDayCell(
+                  day,
+                  wellness,
+                  isToday: false,
+                );
+              },
+              todayBuilder: (context, day, focusedDay) {
+                return _buildDayCell(
+                  day,
+                  wellness,
+                  isToday: true,
+                );
+              },
+              outsideBuilder: (context, day, focusedDay) {
+                return const SizedBox.shrink();
+              },
             ),
           ),
         ),
@@ -215,83 +569,142 @@ class _IntimacyCalendarScreenState extends State<IntimacyCalendarScreen> {
     );
   }
 
-  Widget _buildDayCell(DateTime day, WellnessProvider wellness, {bool isToday = false}) {
+  Widget _buildDayCell(
+      DateTime day,
+      WellnessProvider wellness, {
+        bool isToday = false,
+      }) {
     final hasLogs = wellness.hasLogForDate(day);
-    bool hasSex = false;
+
+    String? sexType; // intimacy / protected / unprotected
+    IconData? eventIcon;
+    Color? eventColor;
 
     if (hasLogs) {
       final log = wellness.getLogForDate(day);
-      if (log.symptoms.contains('Intimacy') ||
-          log.symptoms.contains('Unprotected Sex') ||
-          log.symptoms.contains('Protected Sex')) {
-        hasSex = true;
+
+      if (log.symptoms.contains('Unprotected Sex')) {
+        sexType = 'unprotected';
+        eventIcon = CupertinoIcons.exclamationmark_triangle_fill;
+        eventColor = _warningRed;
+      } else if (log.symptoms.contains('Protected Sex')) {
+        sexType = 'protected';
+        eventIcon = CupertinoIcons.lock_fill;
+        eventColor = _protectedGreen;
+      } else if (log.symptoms.contains('Intimacy')) {
+        sexType = 'intimacy';
+        eventIcon = CupertinoIcons.heart_fill;
+        eventColor = _sexPink;
       }
     }
 
-    // 🔥 ЕСЛИ БЫЛ ИНТИМ: Рисуем градиентное сердце со свечением
-    if (hasSex) {
-      return Container(
-        margin: const EdgeInsets.all(4),
+    final now = DateTime.now();
+    final bool isFuture = day.isAfter(
+      DateTime(now.year, now.month, now.day, 23, 59, 59),
+    );
+
+    final bool hasSexEvent = sexType != null;
+
+    return Center(
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 220),
+        curve: Curves.easeOut,
+        width: 48,
+        height: 48,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          gradient: hasSexEvent && sexType == 'intimacy' ? _eventGradient : null,
+          color: hasSexEvent
+              ? (sexType == 'intimacy'
+              ? null
+              : eventColor!.withOpacity(0.14))
+              : isToday
+              ? Colors.white.withOpacity(0.98)
+              : Colors.white.withOpacity(0.56),
+          border: Border.all(
+            color: hasSexEvent
+                ? eventColor!.withOpacity(sexType == 'intimacy' ? 0.10 : 0.28)
+                : isToday
+                ? _plum.withOpacity(0.24)
+                : _plum.withOpacity(0.10),
+            width: isToday ? 1.5 : 1.0,
+          ),
+          boxShadow: [
+            if (hasSexEvent)
+              BoxShadow(
+                color: eventColor!.withOpacity(0.22),
+                blurRadius: 16,
+                spreadRadius: 1,
+                offset: const Offset(0, 8),
+              ),
+            if (isToday && !hasSexEvent)
+              BoxShadow(
+                color: _sexPinkSoft.withOpacity(0.16),
+                blurRadius: 14,
+                offset: const Offset(0, 6),
+              ),
+          ],
+        ),
         child: Stack(
           alignment: Alignment.center,
           children: [
-            // Мягкое неоновое свечение позади сердца
-            Container(
-              width: 36,
-              height: 36,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                boxShadow: [
-                  BoxShadow(
-                    color: const Color(0xFFFF0844).withOpacity(0.4),
-                    blurRadius: 12,
-                    spreadRadius: 2,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
-            ),
-
-            // Сердце с градиентом
-            ShaderMask(
-              shaderCallback: (bounds) => _heartGradient.createShader(bounds),
-              child: const Icon(
-                CupertinoIcons.heart_fill,
-                size: 46, // Огромное сердце, перекрывающее ячейку
-                color: Colors.white, // Цвет-основа для ShaderMask
-              ),
-            ),
-
-            // Дата поверх сердца
             Text(
               '${day.day}',
               style: GoogleFonts.inter(
-                fontSize: 14,
-                fontWeight: FontWeight.w900,
-                color: Colors.white,
+                fontSize: 15,
+                fontWeight: hasSexEvent
+                    ? FontWeight.w900
+                    : isToday
+                    ? FontWeight.w800
+                    : FontWeight.w700,
+                color: hasSexEvent
+                    ? (sexType == 'intimacy' ? Colors.white : eventColor)
+                    : isFuture
+                    ? _textPrimary.withOpacity(0.34)
+                    : _textPrimary.withOpacity(0.90),
               ),
             ),
+
+            if (hasSexEvent)
+              Positioned(
+                bottom: 3,
+                child: Icon(
+                  eventIcon,
+                  size: sexType == 'unprotected' ? 13 : 12,
+                  color: sexType == 'intimacy'
+                      ? Colors.white.withOpacity(0.96)
+                      : eventColor,
+                ),
+              ),
+
+            if (isToday && !hasSexEvent)
+              Positioned(
+                top: 6,
+                right: 6,
+                child: Container(
+                  width: 6,
+                  height: 6,
+                  decoration: BoxDecoration(
+                    color: _plum.withOpacity(0.75),
+                    shape: BoxShape.circle,
+                  ),
+                ),
+              ),
           ],
         ),
-      );
-    }
-
-    // ОБЫЧНАЯ ЯЧЕЙКА (Если интима не было)
-    return Container(
-      margin: const EdgeInsets.all(6),
-      decoration: BoxDecoration(
-        color: isToday ? AppColors.textPrimary.withOpacity(0.05) : Colors.transparent,
-        shape: BoxShape.circle,
-        border: isToday ? Border.all(color: AppColors.textPrimary.withOpacity(0.2), width: 1.5) : null,
       ),
-      child: Center(
-        child: Text(
-          '${day.day}',
-          style: GoogleFonts.inter(
-            fontSize: 16,
-            fontWeight: isToday ? FontWeight.w800 : FontWeight.w600,
-            color: isToday ? AppColors.textPrimary : AppColors.textPrimary.withOpacity(0.8),
-          ),
+    );
+  }
+
+  Widget _buildBottomHint() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 4),
+      child: Text(
+        'Swipe horizontally to move between months.',
+        style: GoogleFonts.inter(
+          fontSize: 13,
+          fontWeight: FontWeight.w600,
+          color: _textSecondary.withOpacity(0.82),
         ),
       ),
     );

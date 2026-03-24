@@ -13,7 +13,7 @@ class WellnessProvider extends ChangeNotifier {
 
   void _init() {
     try {
-      if (!_logsBox.isOpen) return; // Защита
+      if (!_logsBox.isOpen) return;
 
       for (var key in _logsBox.keys) {
         final log = _logsBox.get(key);
@@ -62,7 +62,6 @@ class WellnessProvider extends ChangeNotifier {
     return _logsCache.values.toList();
   }
 
-  // 🔥 ИСПРАВЛЕНИЕ: Мусоросборщик. Если лог пустой, удаляем его из базы!
   Future<void> saveLog(SymptomLog log) async {
     final key = _dateKey(log.date);
 
@@ -76,7 +75,6 @@ class WellnessProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  // 🔥 ИСПРАВЛЕНИЕ: Форматирование дат с нулями для идеальной сортировки
   String _dateKey(DateTime date) {
     return "${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}";
   }
@@ -85,7 +83,14 @@ class WellnessProvider extends ChangeNotifier {
 
   List<MapEntry<DateTime, double>> getTemperatureHistory() {
     final entries = _logsCache.values
-        .where((log) => log.temperature != null && log.temperature! > 35.0 && log.temperature! < 42.0)
+        .where((log) {
+      if (log.temperature == null) return false;
+      final t = log.temperature!;
+      // 🔥 ИСПРАВЛЕНИЕ: Пропускаем и Цельсий (35-42), и Фаренгейт (95-108)
+      final isCelsius = t > 35.0 && t < 42.0;
+      final isFahrenheit = t > 95.0 && t < 108.0;
+      return isCelsius || isFahrenheit;
+    })
         .map((log) => MapEntry(log.date, log.temperature!))
         .toList();
 
@@ -119,7 +124,9 @@ class WellnessProvider extends ChangeNotifier {
       final phase = cycle.getPhaseForDate(log.date);
       if (phase == CyclePhase.follicular || phase == CyclePhase.ovulation) {
         follLogs.add(log);
-      } else if (phase == CyclePhase.luteal || phase == CyclePhase.menstruation) {
+      }
+      // 🔥 ИСПРАВЛЕНИЕ: Добавили фазу Late (задержка), чтобы логи не пропадали
+      else if (phase == CyclePhase.luteal || phase == CyclePhase.menstruation || phase == CyclePhase.late) {
         lutLogs.add(log);
       }
     }
@@ -157,7 +164,6 @@ class WellnessProvider extends ChangeNotifier {
     final now = DateTime.now();
 
     for (int i = 29; i >= 0; i--) {
-      // 🔥 ИСПРАВЛЕНИЕ: Безопасно от DST (Daylight Saving Time)
       final date = DateTime(now.year, now.month, now.day - i);
       if (hasLogForDate(date)) {
         double val = getLogForDate(date).mood.toDouble();
@@ -209,18 +215,14 @@ class WellnessProvider extends ChangeNotifier {
         if (log.symptoms.contains(factor)) {
           factorCount++;
 
-          // Складываем симптомы за 2 дня в Set, чтобы избежать двойного счета
           final Set<String> incidentPains = {};
           incidentPains.addAll(log.painSymptoms);
 
-          // 🔥 ИСПРАВЛЕНИЕ: Безопасное прибавление дня с защитой от DST
           final nextDay = DateTime(log.date.year, log.date.month, log.date.day + 1);
-
           if (hasLogForDate(nextDay)) {
             incidentPains.addAll(getLogForDate(nextDay).painSymptoms);
           }
 
-          // Увеличиваем счетчики корректно
           for (var pain in incidentPains) {
             painCounts[pain] = (painCounts[pain] ?? 0) + 1;
           }
@@ -250,7 +252,6 @@ class WellnessProvider extends ChangeNotifier {
     final List<double?> temps = [];
     final now = DateTime.now();
     for (int i = 13; i >= 0; i--) {
-      // 🔥 ИСПРАВЛЕНИЕ: Безопасно от DST (Daylight Saving Time)
       final date = DateTime(now.year, now.month, now.day - i);
       final log = getLogForDate(date);
       temps.add(log.temperature);

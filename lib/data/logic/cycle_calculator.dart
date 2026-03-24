@@ -73,7 +73,10 @@ class CycleCalculator {
       final prevTemps = temps.sublist(i - 6, i);
 
       final baseline = prevTemps.map((e) => e.value).reduce((a, b) => a + b) / 6;
-      final threshold = baseline + 0.20;
+
+      // 🔥 ИСПРАВЛЕНИЕ: Умное определение Фаренгейта (Американская система)
+      final isFahrenheit = baseline > 90.0;
+      final threshold = baseline + (isFahrenheit ? 0.40 : 0.20);
 
       final temp1 = temps[i + 1].value;
       final temp2 = temps[i + 2].value;

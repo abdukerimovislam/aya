@@ -57,44 +57,44 @@ class _CalendarScreenState extends State<CalendarScreen> {
         centerTitle: true,
         title: _buildViewToggle(),
         actions: [
-          if (isTTC)
-            Padding(
-              padding: const EdgeInsets.only(right: 10),
-              child: IconButton(
-                onPressed: () {
-                  HapticFeedback.lightImpact();
-                  Navigator.push(
-                    context,
-                    CupertinoPageRoute(
-                      builder: (context) => const IntimacyCalendarScreen(),
-                    ),
-                  );
-                },
-                icon: Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    gradient: LinearGradient(
-                      colors: [
-                        AppColors.intimacy.withOpacity(0.18),
-                        AppColors.intimacy.withOpacity(0.08),
-                      ],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                    border: Border.all(
-                      color: Colors.white.withOpacity(0.28),
-                    ),
+          // 🔥 ИСПРАВЛЕНИЕ: Убрали if (isTTC), теперь кнопка интимного календаря доступна всем
+          Padding(
+            padding: const EdgeInsets.only(right: 10),
+            child: IconButton(
+              onPressed: () {
+                HapticFeedback.lightImpact();
+                Navigator.push(
+                  context,
+                  CupertinoPageRoute(
+                    builder: (context) => const IntimacyCalendarScreen(),
                   ),
-                  child: const Icon(
-                    CupertinoIcons.heart_fill,
-                    color: AppColors.intimacy,
-                    size: 18,
+                );
+              },
+              icon: Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: LinearGradient(
+                    colors: [
+                      AppColors.intimacy.withOpacity(0.18),
+                      AppColors.intimacy.withOpacity(0.08),
+                    ],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
                   ),
+                  border: Border.all(
+                    color: Colors.white.withOpacity(0.28),
+                  ),
+                ),
+                child: const Icon(
+                  CupertinoIcons.heart_fill, // Красивое сердечко
+                  color: AppColors.intimacy,
+                  size: 18,
                 ),
               ),
             ),
+          ),
         ],
       ),
       body: Stack(

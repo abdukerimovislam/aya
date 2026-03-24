@@ -11,7 +11,6 @@ class PartnerSyncService {
   static final FirebaseFirestore _db = FirebaseFirestore.instance;
   static final FirebaseAuth _auth = FirebaseAuth.instance;
 
-  // 🔥 НОВЫЙ МЕТОД: Тихая анонимная авторизация
   static Future<User> _ensureAuthenticated() async {
     User? user = _auth.currentUser;
     if (user == null) {
@@ -27,27 +26,22 @@ class PartnerSyncService {
 
   static Future<String?> generateInviteCode() async {
     try {
-      // 🔥 Запрашиваем юзера (если нет - логиним анонимно)
       final user = await _ensureAuthenticated();
 
-      // Генерируем красивый 6-значный код (например: 492-817)
       final rng = Random();
       final code = "${rng.nextInt(900) + 100}-${rng.nextInt(900) + 100}";
       final expiresAt = DateTime.now().add(const Duration(hours: 24));
 
-      // Ищем, есть ли уже пара у этой девушки
       final query = await _db.collection('couples').where('female_uid', isEqualTo: user.uid).get();
 
       String coupleId;
       if (query.docs.isNotEmpty) {
-        // Обновляем существующий документ
         coupleId = query.docs.first.id;
         await _db.collection('couples').doc(coupleId).update({
           'invite_code': code,
           'code_expires_at': Timestamp.fromDate(expiresAt),
         });
       } else {
-        // Создаем новую связку
         final docRef = await _db.collection('couples').add({
           'female_uid': user.uid,
           'partner_uid': null,
@@ -63,7 +57,6 @@ class PartnerSyncService {
         coupleId = docRef.id;
       }
 
-      // Сохраняем ID пары локально, чтобы быстро к нему обращаться
       final box = await Hive.openBox('settings');
       await box.put('couple_id', coupleId);
 
@@ -78,10 +71,8 @@ class PartnerSyncService {
 
   static Future<bool> linkPartner(String inviteCode) async {
     try {
-      // 🔥 Тихая авторизация для партнера
       final user = await _ensureAuthenticated();
 
-      // Ищем пару по активному коду
       final query = await _db.collection('couples')
           .where('invite_code', isEqualTo: inviteCode)
           .where('code_expires_at', isGreaterThan: Timestamp.now())
@@ -94,14 +85,12 @@ class PartnerSyncService {
 
       final coupleDoc = query.docs.first;
 
-      // Привязываем партнера
       await _db.collection('couples').doc(coupleDoc.id).update({
         'partner_uid': user.uid,
-        'invite_code': null, // Аннулируем код после использования
+        'invite_code': null,
         'linked_at': FieldValue.serverTimestamp(),
       });
 
-      // Сохраняем локально для партнера
       final box = await Hive.openBox('settings');
       await box.put('couple_id', coupleDoc.id);
       await box.put('is_partner_mode', true);
@@ -127,12 +116,10 @@ class PartnerSyncService {
       final box = await Hive.openBox('settings');
       final coupleId = box.get('couple_id');
 
-      if (coupleId == null) return; // Не синхронизируем, если нет пары
+      if (coupleId == null) return;
 
-      // Убеждаемся, что авторизованы, прежде чем писать в облако
       await _ensureAuthenticated();
 
-      // Получаем текущие разрешения
       final coupleDoc = await _db.collection('couples').doc(coupleId).get();
       if (!coupleDoc.exists) return;
 
@@ -141,7 +128,6 @@ class PartnerSyncService {
       final shareMood = permissions['share_mood'] ?? false;
       final shareTtc = permissions['share_ttc'] ?? false;
 
-      // Формируем безопасный "Слепок" состояния
       final Map<String, dynamic> safeState = {
         'phase': phase.toString().split('.').last,
         'cycle_day': cycleDay,
@@ -157,7 +143,6 @@ class PartnerSyncService {
         safeState['fertility_chance'] = fertilityChance.toString().split('.').last;
       }
 
-      // Отправляем в облако
       await _db.collection('couples').doc(coupleId).update({
         'shared_state': safeState,
       });
@@ -196,15 +181,20 @@ class PartnerSyncService {
   // --- 6. ОТКЛЮЧЕНИЕ ПАРТНЕРА ---
   static Future<void> unlinkPartner() async {
     try {
-      final box = Hive.box('settings');
+      final box = await Hive.openBox('settings');
       final coupleId = box.get('couple_id');
 
       if (coupleId != null) {
         await _ensureAuthenticated();
 
-        // Удаляем связку из облака
-        await _db.collection('couples').doc(coupleId).delete();
+        // Удаляем связку из облака (оборачиваем в try-catch на случай, если второй уже удалил)
+        try {
+          await _db.collection('couples').doc(coupleId).delete();
+        } catch (_) {}
+
+        // 🔥 ИСПРАВЛЕНИЕ: Тотальная зачистка локальных ключей для обоих (и девушки, и парня)
         await box.delete('couple_id');
+        await box.put('is_partner_mode', false); // Выключаем режим партнера, чтобы UI вернулся к нормальному виду
       }
     } catch (e) {
       if (kDebugMode) debugPrint("🔥 Error unlinking partner: $e");

@@ -12,17 +12,14 @@ class COCProvider with ChangeNotifier {
   bool _isEnabled = false;
   TimeOfDay _reminderTime = const TimeOfDay(hour: 20, minute: 0);
 
-  // History of actions
-  List<DateTime> _history = []; // Taken pills
-  List<DateTime> _missed = [];  // Missed pills (forgot to take)
+  List<DateTime> _history = [];
+  List<DateTime> _missed = [];
 
-  // Pack Data
   DateTime _startDate = DateTime.now();
   int _activePillCount = 21;
   int _breakDays = 7;
-  int _packFormatCode = 21; // Сохраняем код формата (21, 24, 28, 0) для UI
+  int _packFormatCode = 21;
 
-  // 🔑 Keys
   static const String _keyEnabled = 'coc_enabled';
   static const String _keyPillCount = 'coc_active_count';
   static const String _keyBreakDays = 'coc_break_days';
@@ -57,7 +54,6 @@ class COCProvider with ChangeNotifier {
     final m = _box.get(_keyTimeMinute, defaultValue: 0);
     _reminderTime = TimeOfDay(hour: h, minute: m);
 
-    // Load Taken History
     final rawHistory = _box.get(_keyHistory, defaultValue: []);
     if (rawHistory is List) {
       _history = rawHistory.map((e) {
@@ -67,7 +63,6 @@ class COCProvider with ChangeNotifier {
     }
     _history.sort();
 
-    // Load Missed History
     final rawMissed = _box.get(_keyMissed, defaultValue: []);
     if (rawMissed is List) {
       _missed = rawMissed.map((e) {
@@ -111,9 +106,8 @@ class COCProvider with ChangeNotifier {
 
   // --- Smart Logic ---
 
-  /// Проверяет, является ли указанная дата днем перерыва относительно текущей пачки
   bool isBreakDay(DateTime date) {
-    if (_breakDays == 0) return false; // Если непрерывный прием (0 дней перерыва)
+    if (_breakDays == 0) return false;
 
     final normDate = _normalizeDate(date);
     final start = _normalizeDate(_startDate);
@@ -144,7 +138,6 @@ class COCProvider with ChangeNotifier {
       final d = today.subtract(Duration(days: i));
       if (d.isBefore(_normalizeDate(_startDate))) break;
 
-      // 🔥 ИСПРАВЛЕНО 1: Игнорируем дни перерыва, в эти дни статус Pending не имеет смысла!
       if (isBreakDay(d)) continue;
 
       if (getPillStatus(d) == PillStatus.pending) {
@@ -156,7 +149,6 @@ class COCProvider with ChangeNotifier {
 
   // --- Actions ---
 
-  // 🔥 ИСПРАВЛЕНО 2: Сдвигаем якорь, но не стираем данные (Амнезия пачки)
   Future<void> startNewPack({required DateTime startDate}) async {
     _startDate = _normalizeDate(startDate);
     await _box.put(_keyStartDate, _startDate.millisecondsSinceEpoch);
@@ -229,8 +221,13 @@ class COCProvider with ChangeNotifier {
   Future<void> setPackData(int active, int brk) async {
     _activePillCount = active;
     _breakDays = brk;
+
+    // 🔥 ИСПРАВЛЕНИЕ: Корректно вычисляем и сохраняем код формата, чтобы UI не ломался
+    _packFormatCode = (brk == 0) ? 0 : (active + brk);
+
     await _box.put(_keyPillCount, active);
     await _box.put(_keyBreakDays, brk);
+    await _box.put(_keyPackFormat, _packFormatCode); // Синхронизируем код
     notifyListeners();
   }
 
@@ -264,8 +261,6 @@ class COCProvider with ChangeNotifier {
     _history.add(normDate);
     _history.sort();
 
-    // 🔥 ИСПРАВЛЕНО 3: Больше не удаляем данные, которым больше 90 дней! Храним всю историю.
-
     await _saveHistory();
     notifyListeners();
   }
@@ -281,8 +276,6 @@ class COCProvider with ChangeNotifier {
 
     _missed.add(normDate);
     _missed.sort();
-
-    // 🔥 ИСПРАВЛЕНО 3: Больше не удаляем данные.
 
     await _saveHistory();
     notifyListeners();
@@ -310,8 +303,6 @@ class COCProvider with ChangeNotifier {
   // --- Helpers ---
 
   DateTime _normalizeDate(DateTime d) {
-    // 🔥 ФИКС ЧАСОВЫХ ПОЯСОВ: Сохраняем дату в UTC Полдень.
-    // Перелеты в другие страны больше не сдвинут дни цикла!
     return DateTime.utc(d.year, d.month, d.day, 12, 0, 0);
   }
 

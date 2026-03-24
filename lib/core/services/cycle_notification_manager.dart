@@ -7,9 +7,6 @@ import 'notification_service.dart';
 import '../../l10n/app_localizations.dart';
 
 class CycleNotificationManager {
-  // 🔥 БЕЗОПАСНЫЙ РЕЕСТР ID
-  // Мы перечисляем только те ID, которые относятся к фазам цикла и журналу.
-  // Это гарантирует, что мы не удалим пуш таблеток КОК (у него свой ID в COCProvider).
   static const List<int> _cycleNotificationIds = [100, 101, 201, 202, 203, 204, 205, 206, 300];
 
   static Future<void> rescheduleNotifications({
@@ -27,13 +24,12 @@ class CycleNotificationManager {
       final box = await Hive.openBox('settings');
       final notificationsEnabled = box.get('notifications_enabled', defaultValue: true) as bool;
 
-      // Очищаем только старые цикловые уведомления перед тем, как поставить новые
       for (int id in _cycleNotificationIds) {
         await notificationService.cancelNotification(id);
       }
 
       if (!notificationsEnabled) {
-        return; // Если пуши выключены глобально, просто выходим
+        return;
       }
 
       Locale targetLocale;
@@ -47,19 +43,19 @@ class CycleNotificationManager {
       final l10n = await AppLocalizations.delegate.load(targetLocale);
       final nextPeriodStart = cycleStartDate.add(Duration(days: cycleLength));
 
-      // 1. 🔥 ЕЖЕДНЕВНЫЙ ЖУРНАЛ СИМПТОМОВ (Ежедневный рекуррентный пуш)
+      // 1. 🔥 ЕЖЕДНЕВНЫЙ ЖУРНАЛ СИМПТОМОВ
       final dailyLogEnabled = box.get('daily_log_enabled', defaultValue: true) as bool;
       if (dailyLogEnabled) {
         await notificationService.scheduleDailyNotification(
           id: 300,
           title: l10n.notifCheckinTitle,
           body: l10n.notifCheckinBody,
-          time: const TimeOfDay(hour: 20, minute: 0), // В 20:00 каждый вечер
+          time: const TimeOfDay(hour: 20, minute: 0),
           payload: "screen_calendar",
         );
       }
 
-      // 2. 💊 РЕЖИМ ТАБЛЕТОК (Фазы не скачут, ставим только уведомления о пачке)
+      // 2. 💊 РЕЖИМ ТАБЛЕТОК
       if (isCOCEnabled) {
         await _scheduleIfFuture(notificationService, 100, nextPeriodStart, l10n.notifNewPackTitle, l10n.notifNewPackBody, payload: "screen_coc");
         final breakDate = cycleStartDate.add(Duration(days: cocActivePills));
@@ -67,7 +63,7 @@ class CycleNotificationManager {
         return;
       }
 
-      // 3. 🌙 СТАНДАРТНЫЙ ЦИКЛ (Фазы, Овуляция, ПМС и задержка)
+      // 3. 🌙 СТАНДАРТНЫЙ ЦИКЛ
       final day7 = cycleStartDate.add(const Duration(days: 6));
       await _scheduleIfFuture(notificationService, 201, day7, l10n.notifFollTitle, l10n.notifFollBody, payload: "screen_calendar");
 
@@ -104,10 +100,24 @@ class CycleNotificationManager {
   }
 
   static Future<void> _scheduleIfFuture(NotificationService service, int id, DateTime date, String title, String body, {String? payload}) async {
-    // Ставим все одноразовые уведомления (о фазах) на 09:00 утра
+    final now = DateTime.now();
     DateTime scheduleTime = DateTime(date.year, date.month, date.day, 9, 0);
-    if (scheduleTime.isAfter(DateTime.now())) {
-      await service.scheduleNotification(id: id, title: title, body: body, scheduledDate: scheduleTime, payload: payload ?? 'screen_calendar');
+
+    // 🔥 ИСПРАВЛЕНИЕ: Если событие СЕГОДНЯ, но 09:00 уже прошло, ставим пуш через 5 секунд!
+    if (scheduleTime.year == now.year && scheduleTime.month == now.month && scheduleTime.day == now.day) {
+      if (now.hour >= 9) {
+        scheduleTime = now.add(const Duration(seconds: 5));
+      }
+    }
+
+    if (scheduleTime.isAfter(now)) {
+      await service.scheduleNotification(
+          id: id,
+          title: title,
+          body: body,
+          scheduledDate: scheduleTime,
+          payload: payload ?? 'screen_calendar'
+      );
     }
   }
 }

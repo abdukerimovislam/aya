@@ -2,18 +2,19 @@ import 'package:flutter/foundation.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:intl/intl.dart';
 
-// Модель нашего препарата
 class MedicationItem {
   final String id;
   final String name;
   final String dosage;
-  final String iconStr; // Например: 💊, 💧, 🌿, ☀️
+  final String iconStr;
+  final bool isArchived; // 🔥 НОВОЕ: Защита от потери истории
 
   MedicationItem({
     required this.id,
     required this.name,
     required this.dosage,
     required this.iconStr,
+    this.isArchived = false,
   });
 
   Map<String, dynamic> toMap() => {
@@ -21,6 +22,7 @@ class MedicationItem {
     'name': name,
     'dosage': dosage,
     'iconStr': iconStr,
+    'isArchived': isArchived,
   };
 
   factory MedicationItem.fromMap(Map<dynamic, dynamic> map) => MedicationItem(
@@ -28,6 +30,11 @@ class MedicationItem {
     name: map['name'],
     dosage: map['dosage'],
     iconStr: map['iconStr'] ?? '💊',
+    isArchived: map['isArchived'] ?? false,
+  );
+
+  MedicationItem copyWithArchive() => MedicationItem(
+    id: id, name: name, dosage: dosage, iconStr: iconStr, isArchived: true,
   );
 }
 
@@ -39,7 +46,10 @@ class MedicationProvider extends ChangeNotifier {
   bool _isLoaded = false;
 
   bool get isLoaded => _isLoaded;
-  List<MedicationItem> get activeMedications => List.unmodifiable(_medications);
+
+  // 🔥 Выдаем в UI только активные
+  List<MedicationItem> get activeMedications =>
+      List.unmodifiable(_medications.where((m) => !m.isArchived));
 
   MedicationProvider() {
     _init();
@@ -60,8 +70,6 @@ class MedicationProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  // --- УПРАВЛЕНИЕ СПИСКОМ ПРЕПАРАТОВ ---
-
   Future<void> addMedication(String name, String dosage, String iconStr) async {
     final newItem = MedicationItem(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
@@ -74,8 +82,12 @@ class MedicationProvider extends ChangeNotifier {
   }
 
   Future<void> removeMedication(String id) async {
-    _medications.removeWhere((e) => e.id == id);
-    await _saveRegistry();
+    // 🔥 SOFT DELETE: Архивация вместо удаления
+    final index = _medications.indexWhere((e) => e.id == id);
+    if (index != -1) {
+      _medications[index] = _medications[index].copyWithArchive();
+      await _saveRegistry();
+    }
   }
 
   Future<void> _saveRegistry() async {
@@ -84,8 +96,6 @@ class MedicationProvider extends ChangeNotifier {
     }
     notifyListeners();
   }
-
-  // --- ЛОГИРОВАНИЕ ПРИЕМА (КАЖДЫЙ ДЕНЬ) ---
 
   String _dateKey(DateTime date) => DateFormat('yyyy-MM-dd').format(date);
 
@@ -103,9 +113,9 @@ class MedicationProvider extends ChangeNotifier {
     List<String> taken = getTakenForDay(date).toList();
 
     if (taken.contains(medId)) {
-      taken.remove(medId); // Убираем галочку
+      taken.remove(medId);
     } else {
-      taken.add(medId); // Ставим галочку
+      taken.add(medId);
     }
 
     if (taken.isEmpty) {
@@ -117,7 +127,7 @@ class MedicationProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  // Метод для AI и PDF: получить красивый список выпитого за день
+  // 🔥 Ищет по ВСЕМ препаратам (включая архивные), чтобы PDF не был пустым
   List<String> getTakenNamesForDay(DateTime date) {
     final takenIds = getTakenForDay(date);
     return _medications
