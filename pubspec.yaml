@@ -27,7 +27,7 @@ dependencies:
   # Функционал
   local_auth: ^2.1.6        # Биометрия
   table_calendar: ^3.1.0
-  flutter_local_notifications: ^17.0.0
+  flutter_local_notifications: ^18.0.1
 
   # PDF и Файлы
   pdf: ^3.10.4
@@ -54,6 +54,14 @@ dependencies:
   googleai_dart: ^3.0.0
   http: ^1.6.0
   firebase_remote_config: ^6.2.0
+  health: ^13.3.1
+  permission_handler: ^12.0.1
+  cloud_firestore: ^6.2.0
+  firebase_auth: ^6.3.0
+  firebase_crashlytics: ^5.1.0
+  firebase_analytics: ^12.2.0
+  connectivity_plus: ^7.0.0
+  firebase_messaging: ^16.1.3
 
 dev_dependencies:
   flutter_test:

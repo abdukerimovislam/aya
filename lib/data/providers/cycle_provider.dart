@@ -5,10 +5,14 @@ import 'package:intl/intl.dart';
 import 'dart:math' as math;
 
 import '../../core/services/notification_service.dart';
-import '../../core/services/secure_storage_service.dart'; // 🔥 ИМПОРТ ДЛЯ GUARD'А УВЕДОМЛЕНИЙ
+import '../../core/services/cycle_notification_manager.dart';
+import '../../core/services/secure_storage_service.dart';
+import '../../core/services/health_service.dart'; // 🔥 ИМПОРТ HEALTH СЕРВИСА
+import '../../core/services/partner_sync_service.dart'; // 🔥 ИМПОРТ PARTNER SYNC
 import '../../l10n/app_localizations.dart';
 import '../models/cycle_model.dart';
 import '../logic/cycle_ai_engine.dart';
+import '../logic/cycle_calculator.dart';
 
 enum AppMode { standard, coc, ttc }
 
@@ -135,10 +139,6 @@ class CycleProvider with ChangeNotifier {
     if (!_cycleBox.isOpen) _cycleBox = await Hive.openBox(_cycleBox.name);
   }
 
-  DateTime _normalizeDate(DateTime d) {
-    return DateTime.utc(d.year, d.month, d.day, 12, 0, 0);
-  }
-
   void _loadOverrides() {
     try {
       final ovMs = _settingsBox.get('current_ovulation_override') as int?;
@@ -204,8 +204,6 @@ class CycleProvider with ChangeNotifier {
     final bool isSameMode = _appMode == newMode;
     if (isSameMode && packStartDate == null) return;
 
-    // final bool wasCOC = _appMode == AppMode.coc; // УБРАНО ДЛЯ БЕЗОПАСНОСТИ
-
     _appMode = newMode;
     await _settingsBox.put('app_mode', _appMode.index);
 
@@ -215,14 +213,12 @@ class CycleProvider with ChangeNotifier {
     }
 
     if (newMode == AppMode.coc) {
-      DateTime effectiveStart = packStartDate ?? (isSameMode ? _currentData.cycleStartDate : _normalizeDate(DateTime.now()));
+      DateTime effectiveStart = packStartDate ?? (isSameMode ? _currentData.cycleStartDate : CycleCalculator.normalizeDate(DateTime.now()));
       final active = _settingsBox.get('coc_active_count', defaultValue: 21);
       final brk = _settingsBox.get('coc_break_days', defaultValue: 7);
       await _updateCurrentData(effectiveStart, active + brk, brk);
     } else {
       if (!isSameMode) {
-        // 🔥 ИСПРАВЛЕНИЕ: Больше не форсируем ложное начало месячных при отключении КОК.
-        // Просто пересчитываем движок на основе существующих данных.
         await _recalculateEngine();
       }
     }
@@ -233,7 +229,7 @@ class CycleProvider with ChangeNotifier {
 
   Future<void> setCOCMode(bool enabled, {int currentPillNumber = 1, DateTime? packStartDate}) async {
     if (enabled) {
-      DateTime effectiveStart = packStartDate ?? _normalizeDate(DateTime.now()).subtract(Duration(days: currentPillNumber > 1 ? currentPillNumber - 1 : 0));
+      DateTime effectiveStart = packStartDate ?? CycleCalculator.normalizeDate(DateTime.now()).subtract(Duration(days: currentPillNumber > 1 ? currentPillNumber - 1 : 0));
       await setAppMode(AppMode.coc, packStartDate: effectiveStart);
     } else {
       await setAppMode(AppMode.standard);
@@ -390,8 +386,8 @@ class CycleProvider with ChangeNotifier {
 
   Future<void> _updateCurrentData(DateTime startDate, int avgLen, int periodLen, {bool notify = true}) async {
     final now = DateTime.now();
-    final normalizedNow = _normalizeDate(now);
-    final safeStart = _normalizeDate(startDate);
+    final normalizedNow = CycleCalculator.normalizeDate(now);
+    final safeStart = CycleCalculator.normalizeDate(startDate);
 
     final diff = normalizedNow.difference(safeStart).inDays;
     int currentDay = diff + 1;
@@ -408,20 +404,26 @@ class CycleProvider with ChangeNotifier {
       effectiveCycleLen = _settingsBox.get('coc_active_count', defaultValue: 21) + _settingsBox.get('coc_break_days', defaultValue: 7);
       predictedOvulation = safeStart.add(const Duration(days: 14));
     } else if (_ovulationOverride != null) {
-      predictedOvulation = _normalizeDate(_ovulationOverride!);
+      predictedOvulation = CycleCalculator.normalizeDate(_ovulationOverride!);
       effectiveCycleLen = predictedOvulation.difference(safeStart).inDays + 14;
     } else {
       effectiveCycleLen = avgLen.clamp(12, 180);
       predictedOvulation = safeStart.add(Duration(days: effectiveCycleLen - 14));
     }
 
-    final phase = _calculatePhase(
+    final phase = CycleCalculator.calculatePhase(
       day: currentDay,
       length: effectiveCycleLen,
       dateToCheck: normalizedNow,
       isCOC: isCOCEnabled,
+      cocActivePills: _settingsBox.get('coc_active_count', defaultValue: 21),
+      cocBreakDays: _settingsBox.get('coc_break_days', defaultValue: 7),
       cycleStart: safeStart,
       ovulationDate: predictedOvulation,
+      bleedingTimestamps: (_settingsBox.get('bleeding_days') as List?)?.cast<int>() ?? [],
+      history: _history,
+      avgPeriodDuration: periodLen,
+      isPeriodEndedExplicitly: _settingsBox.get('current_period_ended', defaultValue: false),
     );
 
     final ovDayIndex = predictedOvulation.difference(safeStart).inDays + 1;
@@ -455,18 +457,32 @@ class CycleProvider with ChangeNotifier {
       lastPeriodDate: safeStart,
     );
 
+    // 🔥 ОБНОВЛЕНИЕ ВИДЖЕТОВ
+    String phaseStr = phase.toString().split('.').last;
+    String widgetTitle = isCOCEnabled ? "Pill Pack" : "Current Cycle";
+
+
+    // 🔥 СИНХРОНИЗАЦИЯ С ПАРТНЕРОМ
+    PartnerSyncService.syncStateToCloud(
+      phase: phase,
+      cycleDay: currentDay,
+      daysUntilNextPeriod: daysUntilNext,
+      isCoc: isCOCEnabled,
+      fertilityChance: isTTCMode ? conceptionChance : null,
+    );
+
     if (notify) notifyListeners();
   }
 
   CycleModel? _getCycleForDate(DateTime date) {
-    final normDate = _normalizeDate(date);
-    final normStart = _normalizeDate(_currentData.cycleStartDate);
+    final normDate = CycleCalculator.normalizeDate(date);
+    final normStart = CycleCalculator.normalizeDate(_currentData.cycleStartDate);
 
     if (!normDate.isBefore(normStart)) return null;
 
     for (var cycle in _history) {
-      final cStart = _normalizeDate(cycle.startDate);
-      final cEnd = cycle.endDate != null ? _normalizeDate(cycle.endDate!) : normStart.subtract(const Duration(days: 1));
+      final cStart = CycleCalculator.normalizeDate(cycle.startDate);
+      final cEnd = cycle.endDate != null ? CycleCalculator.normalizeDate(cycle.endDate!) : normStart.subtract(const Duration(days: 1));
 
       if (!normDate.isBefore(cStart) && !normDate.isAfter(cEnd)) {
         return cycle;
@@ -488,7 +504,7 @@ class CycleProvider with ChangeNotifier {
     if (histCycle != null && !isCOCEnabled) {
       int cLen = histCycle.length ?? _avgCycleLength;
       ovDay = histCycle.ovulationOverrideDate != null
-          ? _normalizeDate(histCycle.ovulationOverrideDate!).difference(_normalizeDate(histCycle.startDate)).inDays + 1
+          ? CycleCalculator.normalizeDate(histCycle.ovulationOverrideDate!).difference(CycleCalculator.normalizeDate(histCycle.startDate)).inDays + 1
           : math.max(1, cLen - 14);
     }
 
@@ -501,8 +517,8 @@ class CycleProvider with ChangeNotifier {
 
   int getCycleDayFromDate(DateTime date) {
     if (_history.isEmpty) return 1;
-    final normDate = _normalizeDate(date);
-    final normStart = _normalizeDate(_currentData.cycleStartDate);
+    final normDate = CycleCalculator.normalizeDate(date);
+    final normStart = CycleCalculator.normalizeDate(_currentData.cycleStartDate);
 
     if (!normDate.isBefore(normStart)) {
       return normDate.difference(normStart).inDays + 1;
@@ -510,110 +526,82 @@ class CycleProvider with ChangeNotifier {
 
     final histCycle = _getCycleForDate(date);
     if (histCycle != null) {
-      return normDate.difference(_normalizeDate(histCycle.startDate)).inDays + 1;
+      return normDate.difference(CycleCalculator.normalizeDate(histCycle.startDate)).inDays + 1;
     }
 
     return 1;
   }
 
-  CyclePhase _calculatePhase({
-    required int day,
-    required int length,
-    required DateTime dateToCheck,
-    required bool isCOC,
-    required DateTime cycleStart,
-    required DateTime ovulationDate,
-  }) {
-    if (isCOC) {
-      final activePills = _settingsBox.get('coc_active_count', defaultValue: 21);
-      final breakDays = _settingsBox.get('coc_break_days', defaultValue: 7);
-      final totalPills = activePills + breakDays;
-
-      if (day <= activePills) return CyclePhase.follicular;
-      if (day <= totalPills) return CyclePhase.menstruation;
-      return CyclePhase.late;
-    }
-
-    List<int> timestamps = (_settingsBox.get('bleeding_days') as List?)?.cast<int>() ?? [];
-    if (timestamps.contains(dateToCheck.millisecondsSinceEpoch)) return CyclePhase.menstruation;
-
-    if (_history.isNotEmpty) {
-      final latestCycle = _history.first;
-      final cycleEnd = latestCycle.startDate.add(Duration(days: (latestCycle.periodDuration ?? 1) - 1));
-
-      if (!dateToCheck.isBefore(latestCycle.startDate) && !dateToCheck.isAfter(cycleEnd)) return CyclePhase.menstruation;
-
-      bool isEndedExplicitly = _settingsBox.get('current_period_ended', defaultValue: false);
-      if (!isEndedExplicitly && dateToCheck.isAfter(cycleEnd) && dateToCheck.difference(cycleEnd).inDays <= 1) {
-        if (dateToCheck.difference(latestCycle.startDate).inDays < 14) {
-          return CyclePhase.menstruation;
-        }
-      }
-    }
-
-    bool isEndedExplicitly = _settingsBox.get('current_period_ended', defaultValue: false);
-    if (!isEndedExplicitly && day <= _avgPeriodDuration && day > 0) return CyclePhase.menstruation;
-
-    final ovDayIndex = ovulationDate.difference(cycleStart).inDays + 1;
-    if (day >= ovDayIndex - 2 && day <= ovDayIndex + 1) return CyclePhase.ovulation;
-    if (day < ovDayIndex - 2) return CyclePhase.follicular;
-    if (day > length) return CyclePhase.late;
-
-    return CyclePhase.luteal;
-  }
-
   CyclePhase? getPhaseForDate(DateTime date) {
-    final normDate = _normalizeDate(date);
-    final normStart = _normalizeDate(_currentData.cycleStartDate);
+    final normDate = CycleCalculator.normalizeDate(date);
+    final normStart = CycleCalculator.normalizeDate(_currentData.cycleStartDate);
 
     if (isCOCEnabled) {
       int day = getCycleDayFromDate(date);
-      return _calculatePhase(
+      return CycleCalculator.calculatePhase(
         day: day,
         length: _currentData.totalCycleLength,
         dateToCheck: normDate,
         isCOC: true,
+        cocActivePills: _settingsBox.get('coc_active_count', defaultValue: 21),
+        cocBreakDays: _settingsBox.get('coc_break_days', defaultValue: 7),
         cycleStart: normStart,
         ovulationDate: normDate,
+        bleedingTimestamps: (_settingsBox.get('bleeding_days') as List?)?.cast<int>() ?? [],
+        history: _history,
+        avgPeriodDuration: _avgPeriodDuration,
+        isPeriodEndedExplicitly: _settingsBox.get('current_period_ended', defaultValue: false),
       );
     }
 
     final histCycle = _getCycleForDate(date);
 
     if (histCycle != null) {
-      int day = normDate.difference(_normalizeDate(histCycle.startDate)).inDays + 1;
+      int day = normDate.difference(CycleCalculator.normalizeDate(histCycle.startDate)).inDays + 1;
       int cLen = histCycle.length ?? _avgCycleLength;
 
       int hOvDay = histCycle.ovulationOverrideDate != null
-          ? _normalizeDate(histCycle.ovulationOverrideDate!).difference(_normalizeDate(histCycle.startDate)).inDays + 1
+          ? CycleCalculator.normalizeDate(histCycle.ovulationOverrideDate!).difference(CycleCalculator.normalizeDate(histCycle.startDate)).inDays + 1
           : math.max(1, cLen - 14);
 
-      return _calculatePhase(
+      return CycleCalculator.calculatePhase(
         day: day,
         length: cLen,
         dateToCheck: normDate,
         isCOC: false,
-        cycleStart: _normalizeDate(histCycle.startDate),
-        ovulationDate: _normalizeDate(histCycle.startDate).add(Duration(days: hOvDay - 1)),
+        cocActivePills: 21,
+        cocBreakDays: 7,
+        cycleStart: CycleCalculator.normalizeDate(histCycle.startDate),
+        ovulationDate: CycleCalculator.normalizeDate(histCycle.startDate).add(Duration(days: hOvDay - 1)),
+        bleedingTimestamps: (_settingsBox.get('bleeding_days') as List?)?.cast<int>() ?? [],
+        history: _history,
+        avgPeriodDuration: _avgPeriodDuration,
+        isPeriodEndedExplicitly: _settingsBox.get('current_period_ended', defaultValue: false),
       );
     }
 
     int day = normDate.difference(normStart).inDays + 1;
-    return _calculatePhase(
+    return CycleCalculator.calculatePhase(
         day: day,
         length: _currentData.totalCycleLength,
         dateToCheck: normDate,
         isCOC: false,
+        cocActivePills: 21,
+        cocBreakDays: 7,
         cycleStart: normStart,
-        ovulationDate: normStart.add(Duration(days: ovulationDay - 1))
+        ovulationDate: normStart.add(Duration(days: ovulationDay - 1)),
+        bleedingTimestamps: (_settingsBox.get('bleeding_days') as List?)?.cast<int>() ?? [],
+        history: _history,
+        avgPeriodDuration: _avgPeriodDuration,
+        isPeriodEndedExplicitly: _settingsBox.get('current_period_ended', defaultValue: false)
     );
   }
 
   Future<void> togglePeriodDay(DateTime date) async {
     await _ensureBoxOpen();
 
-    final normDate = _normalizeDate(date);
-    if (normDate.isAfter(_normalizeDate(DateTime.now()))) return;
+    final normDate = CycleCalculator.normalizeDate(date);
+    if (normDate.isAfter(CycleCalculator.normalizeDate(DateTime.now()))) return;
 
     List<int> timestamps = (_settingsBox.get('bleeding_days') as List?)?.cast<int>() ?? [];
     List<int> manualStarts = (_settingsBox.get('manual_cycle_starts') as List?)?.cast<int>() ?? [];
@@ -627,7 +615,10 @@ class CycleProvider with ChangeNotifier {
     } else {
       timestamps.add(ms);
 
-      if (!isCOCEnabled && !normDate.isBefore(_normalizeDate(_currentData.cycleStartDate))) {
+      // 🔥 HEALTH SYNC
+      HealthIntegrationService.syncPeriodDay(normDate);
+
+      if (!isCOCEnabled && !normDate.isBefore(CycleCalculator.normalizeDate(_currentData.cycleStartDate))) {
         shouldUnsetPeriodEnded = true;
       }
     }
@@ -655,11 +646,11 @@ class CycleProvider with ChangeNotifier {
     await _ensureBoxOpen();
     if (isCOCEnabled) return CycleLogResult.success;
 
-    final normDate = _normalizeDate(date);
-    if (normDate.isAfter(_normalizeDate(DateTime.now()))) return CycleLogResult.futureDate;
+    final normDate = CycleCalculator.normalizeDate(date);
+    if (normDate.isAfter(CycleCalculator.normalizeDate(DateTime.now()))) return CycleLogResult.futureDate;
 
     if (!isConfirmed) {
-      final currentStart = _normalizeDate(_currentData.cycleStartDate);
+      final currentStart = CycleCalculator.normalizeDate(_currentData.cycleStartDate);
       final diffFromCurrent = normDate.difference(currentStart).inDays;
 
       if (diffFromCurrent > 0 && diffFromCurrent < 21) {
@@ -672,7 +663,7 @@ class CycleProvider with ChangeNotifier {
 
       if (diffFromCurrent < 0) {
         for (var cycle in _history) {
-          final histDiff = normDate.difference(_normalizeDate(cycle.startDate)).inDays.abs();
+          final histDiff = normDate.difference(CycleCalculator.normalizeDate(cycle.startDate)).inDays.abs();
           if (histDiff > 0 && histDiff < 21) {
             return CycleLogResult.suspiciouslyEarly;
           }
@@ -695,7 +686,11 @@ class CycleProvider with ChangeNotifier {
 
     final ms = normDate.millisecondsSinceEpoch;
 
-    if (!timestamps.contains(ms)) timestamps.add(ms);
+    if (!timestamps.contains(ms)) {
+      timestamps.add(ms);
+      // 🔥 HEALTH SYNC
+      HealthIntegrationService.syncPeriodDay(normDate);
+    }
     if (!manualStarts.contains(ms)) manualStarts.add(ms);
 
     await _clearOvulationOverride();
@@ -715,13 +710,12 @@ class CycleProvider with ChangeNotifier {
   Future<CycleLogResult> startNewCycle({bool isConfirmed = false}) async =>
       logActionStartPeriod(DateTime.now(), isConfirmed: isConfirmed);
 
-  // 🔥 ИСПРАВЛЕНИЕ: Безопасное удаление только для текущего цикла (до 15 дней вперед)
   Future<void> endCurrentPeriod({DateTime? endDate}) async {
     await _ensureBoxOpen();
     if (isCOCEnabled) return;
 
-    final end = _normalizeDate(endDate ?? DateTime.now());
-    final start = _normalizeDate(_currentData.cycleStartDate);
+    final end = CycleCalculator.normalizeDate(endDate ?? DateTime.now());
+    final start = CycleCalculator.normalizeDate(_currentData.cycleStartDate);
 
     if (end.isBefore(start)) return;
 
@@ -732,12 +726,12 @@ class CycleProvider with ChangeNotifier {
       if (d.isBefore(end)) {
         if (!timestamps.contains(d.millisecondsSinceEpoch)) {
           timestamps.add(d.millisecondsSinceEpoch);
+          // 🔥 HEALTH SYNC
+          HealthIntegrationService.syncPeriodDay(d);
         }
       }
     }
 
-    // Удаляем логи кровотечений, которые идут ПОСЛЕ конца месячных (end),
-    // НО только в пределах текущего цикла (чтобы не стереть будущие настоящие месячные).
     final maxPeriodEnd = start.add(const Duration(days: 15));
     timestamps.removeWhere((ts) {
       final d = DateTime.fromMillisecondsSinceEpoch(ts);
@@ -758,7 +752,7 @@ class CycleProvider with ChangeNotifier {
 
   Future<void> confirmOvulation(DateTime date, {String source = 'manual'}) async {
     await _ensureBoxOpen();
-    final normDate = _normalizeDate(date);
+    final normDate = CycleCalculator.normalizeDate(date);
 
     if (normDate.isBefore(_currentData.cycleStartDate)) return;
 
@@ -783,64 +777,42 @@ class CycleProvider with ChangeNotifier {
     await _ensureBoxOpen();
     if (_ovulationOverride == null || _ovulationOverrideSource != 'lh') return;
 
-    final expectedOvulation = _normalizeDate(testDate.add(const Duration(days: 1)));
-    if (_normalizeDate(_ovulationOverride!) != expectedOvulation) return;
+    final expectedOvulation = CycleCalculator.normalizeDate(testDate.add(const Duration(days: 1)));
+    if (CycleCalculator.normalizeDate(_ovulationOverride!) != expectedOvulation) return;
 
     await _clearOvulationOverride();
     await _updateCurrentData(_currentData.cycleStartDate, _avgCycleLength, _avgPeriodDuration);
     await rescheduleNotifications();
   }
 
-  // 🔥 ИСПРАВЛЕНИЕ: Ищем 3 подтвержденные температуры из базы
   Future<void> tryAutoConfirmOvulationFromBBT(List<MapEntry<DateTime, double>> tempHistory) async {
     await _ensureBoxOpen();
     if (!isTTCMode || isCOCEnabled || _ovulationOverride != null) return;
 
-    final cycleStart = _normalizeDate(_currentData.cycleStartDate);
+    final cycleStart = CycleCalculator.normalizeDate(_currentData.cycleStartDate);
     final temps = tempHistory
-        .map((e) => MapEntry(_normalizeDate(e.key), e.value))
+        .map((e) => MapEntry(CycleCalculator.normalizeDate(e.key), e.value))
         .where((e) => !e.key.isBefore(cycleStart))
         .toList()..sort((a, b) => a.key.compareTo(b.key));
 
-    if (temps.length < 10) return;
+    final shiftStart = CycleCalculator.detectOvulationShift(temps: temps);
 
-    DateTime? shiftStart;
+    if (shiftStart != null) {
+      final estimatedOvulation = CycleCalculator.normalizeDate(shiftStart.subtract(const Duration(days: 1)));
+      final minOvulation = cycleStart.add(Duration(days: _avgPeriodDuration));
+      if (!estimatedOvulation.isAfter(minOvulation)) return;
 
-    // FAM Алгоритм: ищем 3 подряд температуры, которые выше последних 6
-    for (int i = 6; i < temps.length - 2; i++) {
-      final currentTemp = temps[i];
+      _ovulationOverride = estimatedOvulation;
+      _ovulationOverrideSource = 'bbt';
 
-      // Берем предыдущие 6 значений (существующие в логах)
-      final prevTemps = temps.sublist(i - 6, i);
-      final baseline = prevTemps.map((e) => e.value).reduce((a, b) => a + b) / 6;
-      final threshold = baseline + 0.20;
+      await _settingsBox.putAll({
+        'current_ovulation_override': estimatedOvulation.millisecondsSinceEpoch,
+        'current_ovulation_override_source': 'bbt',
+      });
 
-      // Берем следующие 2 значения (существующие в логах)
-      final temp1 = temps[i + 1].value;
-      final temp2 = temps[i + 2].value;
-
-      if (currentTemp.value >= threshold && temp1 >= threshold && temp2 >= threshold) {
-        shiftStart = currentTemp.key;
-        break;
-      }
+      await _updateCurrentData(_currentData.cycleStartDate, _avgCycleLength, _avgPeriodDuration);
+      await rescheduleNotifications();
     }
-
-    if (shiftStart == null) return;
-
-    final estimatedOvulation = _normalizeDate(shiftStart.subtract(const Duration(days: 1)));
-    final minOvulation = cycleStart.add(Duration(days: _avgPeriodDuration));
-    if (!estimatedOvulation.isAfter(minOvulation)) return;
-
-    _ovulationOverride = estimatedOvulation;
-    _ovulationOverrideSource = 'bbt';
-
-    await _settingsBox.putAll({
-      'current_ovulation_override': estimatedOvulation.millisecondsSinceEpoch,
-      'current_ovulation_override_source': 'bbt',
-    });
-
-    await _updateCurrentData(_currentData.cycleStartDate, _avgCycleLength, _avgPeriodDuration);
-    await rescheduleNotifications();
   }
 
   Future<void> clearOvulationData(DateTime date) async {
@@ -895,7 +867,7 @@ class CycleProvider with ChangeNotifier {
     await _ensureBoxOpen();
     if (isCOCEnabled) return;
 
-    final normDate = _normalizeDate(_currentData.cycleStartDate);
+    final normDate = CycleCalculator.normalizeDate(_currentData.cycleStartDate);
     final ms = normDate.millisecondsSinceEpoch;
 
     List<int> timestamps = (_settingsBox.get('bleeding_days') as List?)?.cast<int>() ?? [];
@@ -915,92 +887,15 @@ class CycleProvider with ChangeNotifier {
   }
 
   Future<void> rescheduleNotifications() async {
-    if (_notificationService == null) return;
-    try {
-      final storage = SecureStorageService();
-      final notificationsEnabled = await storage.getNotificationsEnabled();
-
-      if (!notificationsEnabled) {
-        await _notificationService!.cancelAll();
-        return;
-      }
-
-      await _notificationService!.cancelAll();
-
-      Locale targetLocale;
-      final savedLang = _settingsBox.get('language_code') as String?;
-
-      if (savedLang != null) {
-        targetLocale = Locale(savedLang);
-      } else {
-        final sysCode = Intl.defaultLocale?.split('_')[0] ?? 'en';
-        targetLocale = Locale(sysCode);
-      }
-
-      final l10n = await AppLocalizations.delegate.load(targetLocale);
-      final lastStart = _normalizeDate(_currentData.cycleStartDate);
-      final len = cycleLength;
-
-      final nextPeriodStart = lastStart.add(Duration(days: len));
-
-      if (isCOCEnabled) {
-        final activePills = _settingsBox.get('coc_active_count', defaultValue: 21);
-        await _scheduleIfFuture(100, nextPeriodStart, l10n.notifNewPackTitle, l10n.notifNewPackBody, payload: "screen_coc");
-
-        final breakDate = lastStart.add(Duration(days: activePills));
-        await _scheduleIfFuture(101, breakDate, l10n.notifBreakTitle, l10n.notifBreakBody, payload: "screen_coc");
-        return;
-      }
-
-      final day7 = lastStart.add(const Duration(days: 6));
-      await _scheduleIfFuture(201, day7, l10n.notifFollTitle, l10n.notifFollBody, payload: "screen_calendar");
-
-      final ovDay = ovulationDay;
-      if (ovDay > 1) {
-        final ovDate = lastStart.add(Duration(days: ovDay - 1));
-        await _scheduleIfFuture(202, ovDate, l10n.notifOvulationTitle, l10n.notifOvulationBody, payload: "screen_calendar");
-      }
-
-      final pmsDay = len - 5;
-      if (pmsDay > 10) {
-        final pmsDate = lastStart.add(Duration(days: pmsDay - 1));
-        await _scheduleIfFuture(203, pmsDate, l10n.notifLutealTitle, l10n.notifLutealBody, payload: "screen_calendar");
-      }
-
-      final prePeriodDate = nextPeriodStart.subtract(const Duration(days: 1));
-      await _scheduleIfFuture(204, prePeriodDate, l10n.notifPeriodSoonTitle, l10n.notifPeriodSoonBody, payload: "screen_calendar");
-
-      final lateDay1 = nextPeriodStart.add(const Duration(days: 1));
-      await _scheduleIfFuture(205, lateDay1, l10n.notifLateTitle, l10n.notifLateBody, payload: "screen_calendar");
-
-      final lateDay5 = nextPeriodStart.add(const Duration(days: 5));
-      await _scheduleIfFuture(
-          206,
-          lateDay5,
-          "Period is 5 days late",
-          "Consider taking a pregnancy test if you've been sexually active.",
-          payload: "screen_calendar"
-      );
-
-      final now = DateTime.now();
-      final todayEvening = DateTime(now.year, now.month, now.day, 20, 0);
-      if (todayEvening.isAfter(now)) {
-        await _scheduleIfFuture(300, todayEvening, l10n.notifCheckinTitle, l10n.notifCheckinBody, payload: "screen_calendar");
-      }
-
-    } catch (e) {
-      if (kDebugMode) debugPrint("Reschedule notifications error: $e");
-    }
-  }
-
-  Future<void> _scheduleIfFuture(int id, DateTime date, String title, String body, {String? payload}) async {
-    if (_notificationService == null) return;
-
-    DateTime scheduleTime = DateTime(date.year, date.month, date.day, 9, 0);
-
-    if (scheduleTime.isAfter(DateTime.now())) {
-      await _notificationService!.scheduleNotification(id: id, title: title, body: body, scheduledDate: scheduleTime, payload: payload ?? 'screen_calendar');
-    }
+    await CycleNotificationManager.rescheduleNotifications(
+      notificationService: _notificationService,
+      isCOCEnabled: isCOCEnabled,
+      cycleStartDate: _currentData.cycleStartDate,
+      cycleLength: cycleLength,
+      ovulationDay: ovulationDay,
+      cocActivePills: _settingsBox.get('coc_active_count', defaultValue: 21),
+      savedLanguageCode: _settingsBox.get('language_code'),
+    );
   }
 
   Future<void> reload() async => _init();

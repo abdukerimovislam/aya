@@ -10,8 +10,31 @@ import 'notification_service.dart';
 import '../../data/models/cycle_model.dart';
 
 class AiOracleService {
-  static const String _proxyUrl = 'https://aya-ai-proxy.stopprocrastination16.workers.dev/';
+  // 🔥 Fallback URL на случай, если Firebase недоступен (нет интернета)
+  static const String _defaultProxyUrl = 'https://aya-ai-proxy.stopprocrastination16.workers.dev/';
+
   static String? _inMemoryToken;
+  static String? _inMemoryProxyUrl;
+
+  // 🔥 Получаем динамический URL сервера из облака
+  static Future<String> _getProxyUrl() async {
+    if (_inMemoryProxyUrl != null && _inMemoryProxyUrl!.isNotEmpty) {
+      return _inMemoryProxyUrl!;
+    }
+    try {
+      final remoteConfig = FirebaseRemoteConfig.instance;
+      String url = remoteConfig.getString('aya_api_url');
+
+      if (url.isEmpty) {
+        _inMemoryProxyUrl = _defaultProxyUrl;
+      } else {
+        _inMemoryProxyUrl = url;
+      }
+      return _inMemoryProxyUrl!;
+    } catch (e) {
+      return _defaultProxyUrl;
+    }
+  }
 
   static Future<String> _getSecretToken() async {
     if (_inMemoryToken != null && _inMemoryToken!.isNotEmpty) {
@@ -45,28 +68,27 @@ class AiOracleService {
     }
   }
 
-  // 🔥 ОБНОВЛЕННЫЙ МЕТОД С КЭШИРОВАНИЕМ
   static Future<String> generateDailyAdvice({
     required CyclePhase phase,
     required List<dynamic> logs,
     required bool isCoc,
-    bool forceRefresh = false, // 🔥 Флаг принудительного обновления
+    bool forceRefresh = false,
   }) async {
     try {
       final aiBox = await Hive.openBox('ai_insights');
       final todayStr = DateFormat('yyyy-MM-dd').format(DateTime.now());
 
-      // 1. Проверяем кэш, если не запрошено принудительное обновление
       if (!forceRefresh) {
         final savedDate = aiBox.get('cached_advice_date');
         final savedAdvice = aiBox.get('cached_advice_text');
 
         if (savedDate == todayStr && savedAdvice != null && savedAdvice.toString().isNotEmpty) {
-          return savedAdvice.toString(); // Возвращаем моментально из памяти!
+          return savedAdvice.toString();
         }
       }
 
       final safeToken = await _getSecretToken();
+      final apiUrl = await _getProxyUrl();
 
       String symptomsText = "No specific physical symptoms logged today.";
       if (logs.isNotEmpty && logs.first != null) {
@@ -94,9 +116,11 @@ class AiOracleService {
 
       final String phaseStr = phase.toString().split('.').last;
 
+      // 🔥 Юридически безопасный промпт
       final prompt = '''
-      You are Ayla, an empathetic and highly professional AI endocrinologist and women's health coach.
-      Analyze the user's current state and explain WHY they might be feeling this way based on their hormones.
+      You are Ayla, an empathetic and highly professional Cycle Intelligence Assistant and women's wellness guide.
+      Analyze the user's current state and explain WHY they might be feeling this way based on their cycle.
+      Always remind the user to consult a healthcare provider for any medical concerns.
       
       Context:
       - Current cycle phase: $phaseStr
@@ -104,7 +128,7 @@ class AiOracleService {
       - Today's symptoms/moods: $symptomsText
       
       Task:
-      Provide a short, comforting, and medically accurate explanation (2-4 sentences max) of how their current hormonal profile (e.g., estrogen, progesterone peaks or drops) is causing these specific symptoms. 
+      Provide a short, comforting, and scientifically accurate explanation (2-4 sentences max) of how their current hormonal profile is likely causing these specific symptoms. 
       
       CRITICAL INSTRUCTION:
       RESPOND IN RAW PLAIN TEXT ONLY. 
@@ -114,7 +138,7 @@ class AiOracleService {
       ''';
 
       final response = await http.post(
-        Uri.parse(_proxyUrl),
+        Uri.parse(apiUrl),
         headers: {
           'Content-Type': 'application/json',
           'X-Ayla-App-Token': safeToken,
@@ -161,7 +185,6 @@ class AiOracleService {
       }
       cleanText = cleanText.replaceAll(r'\"', '"').replaceAll(r'\n', '\n').trim();
 
-      // 🔥 2. СОХРАНЯЕМ В КЭШ ПЕРЕД ВОЗВРАТОМ
       await aiBox.put('cached_advice_date', todayStr);
       await aiBox.put('cached_advice_text', cleanText);
 
@@ -196,6 +219,8 @@ class AiOracleService {
       }
 
       final safeToken = await _getSecretToken();
+      final apiUrl = await _getProxyUrl();
+
       final cycleBox = await Hive.openBox('cycles');
       final wellnessBox = await Hive.openBox('symptom_logs');
 
@@ -209,8 +234,9 @@ class AiOracleService {
       Текущая дата: $todayStr.
       """;
 
+      // 🔥 Юридически безопасный промпт
       final prompt = '''
-      Ты медицинский ИИ-аналитик женского здоровья в приложении Ayla.
+      Ты ИИ-ассистент по женскому здоровью (Cycle Intelligence Assistant) в приложении Ayla.
       Проанализируй контекст пользователя и выдай один короткий инсайт или совет на сегодня. 
       Если данных мало (например, 0 циклов), поприветствуй и посоветуй начать вести дневник.
       
@@ -223,7 +249,7 @@ class AiOracleService {
       ''';
 
       final response = await http.post(
-        Uri.parse(_proxyUrl),
+        Uri.parse(apiUrl),
         headers: {
           'Content-Type': 'application/json',
           'X-Ayla-App-Token': safeToken,
@@ -321,6 +347,82 @@ class AiOracleService {
       notificationService.scheduleNotification(
         id: 999, title: "Ayla Insight ✨", body: title, scheduledDate: scheduledTime,
       );
+    }
+  }
+
+  // --- 🔥 ЧАТ С АЙЛОЙ ---
+
+  static Future<String> chatWithAyla({
+    required String userMessage,
+    required List<Map<String, String>> chatHistory,
+    required String currentPhase,
+    required int currentDay,
+    required List<dynamic> recentLogs,
+    required bool isCoc,
+  }) async {
+    try {
+      final safeToken = await _getSecretToken();
+      final apiUrl = await _getProxyUrl();
+
+      // Формируем медицинский контекст пользователя
+      String contextStr = "User context: Phase: $currentPhase, Day: $currentDay, COC user: $isCoc. ";
+      if (recentLogs.isNotEmpty && recentLogs.first != null) {
+        final log = recentLogs.first;
+        List<String> symptoms = [];
+        try {
+          if (log.symptoms != null) symptoms.addAll((log.symptoms as List).map((e) => e.toString()));
+          if (log.painSymptoms != null) symptoms.addAll((log.painSymptoms as List).map((e) => e.toString()));
+        } catch (_) {}
+        if (symptoms.isNotEmpty) {
+          contextStr += "Symptoms today: ${symptoms.join(', ')}.";
+        }
+      }
+
+      // 🔥 Юридически безопасный системный промпт
+      final systemPrompt = '''
+      You are Ayla, an empathetic, highly professional Cycle Intelligence Assistant and women's wellness guide.
+      You are chatting directly with the user. Keep responses warm, concise, and scientifically accurate.
+      You are NOT a doctor. Do not give dangerous medical diagnoses. Always remind the user to consult a healthcare provider for any serious or concerning medical symptoms.
+      $contextStr
+      ''';
+
+      // Собираем историю диалога в текстовый вид для промпта
+      String conversationText = "$systemPrompt\n\n";
+      for (var msg in chatHistory) {
+        conversationText += "${msg['role'] == 'user' ? 'User' : 'Ayla'}: ${msg['content']}\n";
+      }
+      conversationText += "User: $userMessage\nAyla:";
+
+      final response = await http.post(
+        Uri.parse(apiUrl),
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Ayla-App-Token': safeToken,
+        },
+        body: jsonEncode({"prompt": conversationText}),
+      ).timeout(const Duration(seconds: 20));
+
+      if (response.statusCode != 200) {
+        throw Exception("Chat HTTP Error: ${response.statusCode}");
+      }
+
+      final jsonResponse = jsonDecode(response.body);
+      final candidates = jsonResponse['candidates'] as List?;
+      if (candidates == null || candidates.isEmpty) throw Exception("No candidates");
+
+      final content = candidates.first['content'] as Map<String, dynamic>?;
+      final parts = content?['parts'] as List?;
+      if (parts == null || parts.isEmpty) throw Exception("No text parts");
+
+      String generatedText = parts.first['text'] as String? ?? "";
+
+      // Очистка от маркдауна и лишних символов
+      generatedText = generatedText.replaceAll('**', '').trim();
+
+      return generatedText;
+    } catch (e) {
+      if (kDebugMode) debugPrint("🔥 AI Chat Error: $e");
+      return "I'm having a little trouble connecting right now. Please check your internet or try again in a moment. 💜";
     }
   }
 }

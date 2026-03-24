@@ -1,16 +1,16 @@
+import 'package:evimoon/features/dashboard/widgets/daily_medication_card.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:intl/intl.dart';
 
 import '../../core/theme/app_theme.dart';
 import '../../data/models/cycle_model.dart';
 import '../../data/providers/coc_provider.dart';
 import '../../data/providers/cycle_provider.dart';
 import '../../data/providers/settings_provider.dart';
-import '../../data/providers/wellness_provider.dart'; // 🔥 Нужно для передачи логов в ИИ
+import '../../data/providers/wellness_provider.dart';
 
 // Общие виджеты
 import '../../l10n/app_localizations.dart';
@@ -20,7 +20,7 @@ import '../../shared/widgets/premium_glass_card.dart';
 import '../../shared/widgets/live_phase_background.dart';
 import '../../shared/widgets/pill_blister_card.dart';
 
-// 🔥 Импорты для работы с нашим новым AI Окном
+// 🔥 Импорты для работы с AI Окном и Трекером Медикаментов
 import '../../core/services/ai_oracle_service.dart';
 import '../insights/widgets/ayla_consultation_sheet.dart';
 
@@ -41,7 +41,7 @@ class HomeScreen extends StatelessWidget {
     final isLoaded = context.select<CycleProvider, bool>((p) => p.isLoaded);
 
     if (!isLoaded) {
-      return Scaffold(
+      return const Scaffold(
         backgroundColor: Colors.transparent,
         body: Center(child: CupertinoActivityIndicator(color: AppColors.primary)),
       );
@@ -59,7 +59,7 @@ class _BuildUltraModernScreen extends StatefulWidget {
 }
 
 class _BuildUltraModernScreenState extends State<_BuildUltraModernScreen> {
-  bool _isLoadingAi = false; // 🔥 Флаг загрузки для визуального отклика
+  bool _isLoadingAi = false;
 
   void _openLoggerWithHero(BuildContext context, DateTime date, String heroTag) {
     HapticFeedback.mediumImpact();
@@ -80,15 +80,14 @@ class _BuildUltraModernScreenState extends State<_BuildUltraModernScreen> {
     );
   }
 
-  // 🔥 Обновленный метод вызова окна AI с главного экрана
   Future<void> _openAylaConsultation(BuildContext context) async {
-    if (_isLoadingAi) return; // Предотвращаем двойные клики
+    if (_isLoadingAi) return;
     HapticFeedback.mediumImpact();
 
     final cycleProvider = context.read<CycleProvider>();
     final wellnessProvider = context.read<WellnessProvider>();
 
-    setState(() => _isLoadingAi = true); // Показываем лоадер (если кэша нет)
+    setState(() => _isLoadingAi = true);
 
     try {
       final response = await AiOracleService.generateDailyAdvice(
@@ -98,7 +97,7 @@ class _BuildUltraModernScreenState extends State<_BuildUltraModernScreen> {
       );
 
       if (context.mounted) {
-        setState(() => _isLoadingAi = false); // Скрываем лоадер
+        setState(() => _isLoadingAi = false);
 
         showModalBottomSheet(
           context: context,
@@ -126,6 +125,7 @@ class _BuildUltraModernScreenState extends State<_BuildUltraModernScreen> {
     final bool isPremium = context.select<SettingsProvider, bool>((p) => p.isPremium);
 
     final provider = context.read<CycleProvider>();
+    final today = DateTime.now();
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -183,7 +183,14 @@ class _BuildUltraModernScreenState extends State<_BuildUltraModernScreen> {
                   const SizedBox(height: 32),
 
                   DashboardActionBar(data: data, isCOC: isCOC, provider: provider, l10n: l10n, onOpenLogger: _openLoggerWithHero),
-                  const SizedBox(height: 40),
+                  const SizedBox(height: 32),
+
+                  // 🔥 КАРТОЧКА МЕДИКАМЕНТОВ И ВИТАМИНОВ
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 24),
+                    child: DailyMedicationsCard(selectedDate: today),
+                  ),
+                  const SizedBox(height: 32),
 
                   if (isCOC) ...[
                     const Padding(
@@ -197,7 +204,6 @@ class _BuildUltraModernScreenState extends State<_BuildUltraModernScreen> {
                     _COCPackControlCard(provider: provider, l10n: l10n),
                   ]
                   else ...[
-                    // 🔥 ОБЫЧНЫЙ РЕЖИМ И TTC (Инсайты ИИ)
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 24),
                       child: Stack(
@@ -206,13 +212,12 @@ class _BuildUltraModernScreenState extends State<_BuildUltraModernScreen> {
                             onTap: () => _openAylaConsultation(context),
                             child: DashboardInsightCard(data: data, l10n: l10n),
                           ),
-                          // 🔥 Легкий лоадер поверх карточки, пока ИИ думает (до появления окна)
                           if (_isLoadingAi)
                             Positioned.fill(
                               child: Container(
                                 decoration: BoxDecoration(
                                   color: Colors.white.withOpacity(0.5),
-                                  borderRadius: BorderRadius.circular(28), // Скругление как у DashboardInsightCard
+                                  borderRadius: BorderRadius.circular(28),
                                 ),
                                 child: const Center(
                                   child: CupertinoActivityIndicator(radius: 12),
@@ -245,7 +250,7 @@ class _COCPackControlCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final data = provider.currentData;
-    final currentDay = data.dayOfCycle;
+    final currentDay = data.currentDay;
     final totalDays = data.totalCycleLength;
 
     final isBreak = data.phase == CyclePhase.menstruation;
@@ -333,7 +338,7 @@ class _COCPackControlCard extends StatelessWidget {
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
             title: Row(
               children: [
-                Icon(CupertinoIcons.arrow_2_circlepath_circle_fill,
+                const Icon(CupertinoIcons.arrow_2_circlepath_circle_fill,
                     color: AppColors.primary, size: 28),
                 const SizedBox(width: 10),
                 Expanded(child: Text("Start New Pack?",

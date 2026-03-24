@@ -13,11 +13,18 @@ import 'package:intl/intl.dart';
 
 // 🔥 ИМПОРТЫ FIREBASE
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_crashlytics/firebase_crashlytics.dart';
+import 'data/providers/chat_provider.dart';
+import 'data/providers/medication_provider.dart';
 import 'firebase_options.dart';
 
 // 🔥 Импорты для фоновой работы ИИ
 import 'package:workmanager/workmanager.dart';
 import 'core/services/ai_oracle_service.dart';
+
+// 🔥 Инструменты надежности (Оффлайн + Аналитика + Пуши)
+import 'package:connectivity_plus/connectivity_plus.dart';
+import 'core/services/fcm_service.dart'; // 🔥 ИМПОРТ FCM СЕРВИСА
 
 // Новая архитектура Ayla
 import 'ayla_app.dart';
@@ -41,6 +48,23 @@ import 'features/profile/profile_screen.dart';
 import 'l10n/app_localizations.dart';
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+
+// --- ГЛОБАЛЬНЫЙ СЕРВИС СЕТИ (OFFLINE-FIRST) ---
+class ConnectivityService {
+  static final Connectivity _connectivity = Connectivity();
+  static bool hasInternet = true; // По умолчанию считаем, что есть
+
+  static void init() {
+    _connectivity.onConnectivityChanged.listen((List<ConnectivityResult> results) {
+      hasInternet = !results.contains(ConnectivityResult.none);
+      if (!hasInternet) {
+        debugPrint("📴 Ayla is offline. Cloud features suspended.");
+      } else {
+        debugPrint("📶 Internet connection restored.");
+      }
+    });
+  }
+}
 
 // 🔥 Точка входа для фоновых задач (Должна быть Top-Level функцией!)
 @pragma('vm:entry-point')
@@ -79,29 +103,22 @@ void callbackDispatcher() {
       if (!Hive.isBoxOpen('cycles')) await Hive.openBox('cycles', encryptionCipher: HiveAesCipher(encryptionKey));
       if (!Hive.isBoxOpen('symptom_logs')) await Hive.openBox('symptom_logs', encryptionCipher: HiveAesCipher(encryptionKey));
 
-      // 5. Запускаем ИИ анализ (теперь он имеет доступ к зашифрованным данным и Firebase!)
+      // 5. Запускаем ИИ анализ
       await AiOracleService.fetchDailyInsight(isManual: false);
 
       return Future.value(true);
-    } catch (err) {
+    } catch (err, stack) {
       debugPrint("🔥 Background task error: $err");
-      // Возвращаем false, чтобы система попробовала запустить задачу позже
+      FirebaseCrashlytics.instance.recordError(err, stack, fatal: false);
       return Future.value(false);
     }
   });
 }
 
 void main() async {
-  // ✅ Global error handling (production sanity)
-  FlutterError.onError = (FlutterErrorDetails details) {
-    FlutterError.presentError(details);
-    debugPrint('🔥 FlutterError: ${details.exceptionAsString()}');
-    debugPrint('📍 Stack: ${details.stack}');
-  };
-
   PlatformDispatcher.instance.onError = (Object error, StackTrace stack) {
     debugPrint('🔥 Unhandled PlatformDispatcher error: $error');
-    debugPrint('📍 Stack: $stack');
+    FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
     return true; // handled
   };
 
@@ -109,18 +126,26 @@ void main() async {
     // 0) Инициализируем Flutter биндинги
     WidgetsFlutterBinding.ensureInitialized();
 
-    // 🚀 1) ЗАПУСКАЕМ FIREBASE ДЛЯ REMOTE CONFIG (И других сервисов)
+    // 🚀 1) ЗАПУСКАЕМ FIREBASE ДЛЯ REMOTE CONFIG И CRASHLYTICS
     try {
       await Firebase.initializeApp(
         options: DefaultFirebaseOptions.currentPlatform,
       );
+
+      FlutterError.onError = (errorDetails) {
+        FirebaseCrashlytics.instance.recordFlutterFatalError(errorDetails);
+        debugPrint('🔥 FlutterError: ${errorDetails.exceptionAsString()}');
+      };
     } catch (e) {
-      debugPrint("🔥 Ошибка инициализации Firebase (возможно, уже инициализирован): $e");
+      debugPrint("🔥 Ошибка инициализации Firebase: $e");
     }
 
     // 2) Critical services
     await SubscriptionService.init();
     final storageService = SecureStorageService();
+
+    // 🌟 Инициализируем слушатель Интернета
+    ConnectivityService.init();
 
     // 3) Получаем или создаем ключ для шифрования Hive
     final encryptionKey = await storageService.getOrCreateHiveCipherKey();
@@ -149,8 +174,9 @@ void main() async {
         await Hive.deleteBoxFromDisk('symptom_logs');
         await Hive.deleteBoxFromDisk('coc_settings');
         debugPrint("✅ Старые базы успешно удалены. Приложение спасено от краш-лупа.");
-      } catch (e) {
+      } catch (e, stack) {
         debugPrint("❌ Ошибка при удалении старых баз: $e");
+        FirebaseCrashlytics.instance.recordError(e, stack, reason: 'Failed to delete corrupted boxes');
       }
     }
 
@@ -173,7 +199,7 @@ void main() async {
     final wellnessBox = await _openBoxSafely('symptom_logs', encryptionKey);
     final cocBox = await _openBoxSafely('coc_settings', encryptionKey);
 
-    // 8) Notifications
+    // 8) Локальные уведомления
     final notificationService = NotificationService();
     await notificationService.init(
       onNotificationTap: (payload) {
@@ -188,7 +214,11 @@ void main() async {
       },
     );
 
-    // 9) Инициализация Workmanager
+    // 🔥 9) УДАЛЕННЫЕ УВЕДОМЛЕНИЯ (MARKETING PUSHES) 🔥
+    // Запускаем слушатель Firebase Cloud Messaging
+    await FCMService.init();
+
+    // 10) Инициализация Workmanager
     try {
       Workmanager().initialize(
         callbackDispatcher,
@@ -204,8 +234,9 @@ void main() async {
           requiresBatteryNotLow: true,
         ),
       );
-    } catch (e) {
+    } catch (e, stack) {
       debugPrint("⚠️ Workmanager init failed: $e");
+      FirebaseCrashlytics.instance.recordError(e, stack, reason: 'Workmanager Init Failure');
     }
 
     runApp(AylaAppRoot(
@@ -219,7 +250,7 @@ void main() async {
     ));
   }, (Object error, StackTrace stack) {
     debugPrint('🔥 Uncaught zoned error: $error');
-    debugPrint('📍 Stack: $stack');
+    FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
   });
 }
 
@@ -237,8 +268,9 @@ Future<Box> _openBoxSafely(String name, Uint8List key) async {
         await Hive.deleteBoxFromDisk(name);
       }
       return await Hive.openBox(name, encryptionCipher: HiveAesCipher(key));
-    } catch (e2) {
+    } catch (e2, stack) {
       debugPrint("❌ Hive recovery failed for '$name': $e2");
+      FirebaseCrashlytics.instance.recordError(e2, stack, fatal: true, reason: 'Hive box total corruption');
       rethrow;
     }
   }
@@ -290,6 +322,8 @@ class AylaAppRoot extends StatelessWidget {
         ChangeNotifierProvider(
           create: (_) => PredictionProvider()..init(),
         ),
+        ChangeNotifierProvider(create: (_) => ChatProvider()),
+        ChangeNotifierProvider(create: (_) => MedicationProvider()),
       ],
       child: const AylaApp(),
     );

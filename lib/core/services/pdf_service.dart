@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -9,20 +10,22 @@ import 'package:intl/intl.dart';
 import '../../data/models/cycle_model.dart';
 import '../../data/providers/cycle_provider.dart';
 import '../../data/providers/wellness_provider.dart';
+import '../../data/providers/medication_provider.dart'; // 🔥 Импорт трекера
 import '../../l10n/app_localizations.dart';
 
 class PdfService {
 
-  // Фирменные цвета для PDF (близки к стилю приложения)
-  static const PdfColor primaryColor = PdfColor.fromInt(0xFF6B4EFF); // Мягкий фиолетовый
-  static const PdfColor accentColor = PdfColor.fromInt(0xFFFF4E7E);  // Мягкий красный/розовый
+  // Фирменные цвета для PDF
+  static const PdfColor primaryColor = PdfColor.fromInt(0xFF6B4EFF);
+  static const PdfColor accentColor = PdfColor.fromInt(0xFFFF4E7E);
 
-  /// 🔥 ТОЧКА ВХОДА (Вызывается из настроек)
+  /// 🔥 ТОЧКА ВХОДА
   static Future<void> generateReport(BuildContext context) async {
     final l10n = AppLocalizations.of(context)!;
 
     final cycleProvider = Provider.of<CycleProvider>(context, listen: false);
     final wellnessProvider = Provider.of<WellnessProvider>(context, listen: false);
+    final medProvider = Provider.of<MedicationProvider>(context, listen: false); // 🔥
 
     // 1. Собираем данные (за последние 90 дней)
     final List<SymptomLog> logs = [];
@@ -31,8 +34,9 @@ class PdfService {
     for (int i = 0; i < 90; i++) {
       final date = now.subtract(Duration(days: i));
       final log = wellnessProvider.getLogForDate(date);
+      final takenMeds = medProvider.getTakenForDay(date); // 🔥 Проверяем витамины
 
-      // Фильтруем пустые дни
+      // Фильтруем пустые дни (теперь учитываем и медикаменты)
       bool hasData = log.flow != FlowIntensity.none ||
           log.painSymptoms.isNotEmpty ||
           log.symptoms.isNotEmpty ||
@@ -40,7 +44,8 @@ class PdfService {
           (log.notes != null && log.notes!.trim().isNotEmpty) ||
           log.hadSex ||
           log.ovulationTest != OvulationTestResult.none ||
-          log.mucus != CervicalMucusType.none;
+          log.mucus != CervicalMucusType.none ||
+          takenMeds.isNotEmpty; // 🔥 Если выпила витаминку — день важен для отчета
 
       if (hasData) {
         logs.add(log);
@@ -61,6 +66,7 @@ class PdfService {
       await PdfService().generateMedicalReport(
         logs: logs,
         cycleProvider: cycleProvider,
+        medProvider: medProvider, // 🔥 Передаем провайдер
         l10n: l10n,
       );
     } catch (e) {
@@ -78,6 +84,7 @@ class PdfService {
   Future<void> generateMedicalReport({
     required List<SymptomLog> logs,
     required CycleProvider cycleProvider,
+    required MedicationProvider medProvider, // 🔥
     required AppLocalizations l10n,
     String userName = "Patient",
   }) async {
@@ -95,12 +102,10 @@ class PdfService {
       fontBold = pw.Font.helveticaBold();
     }
 
-    // Сортируем: сначала старые (чтобы хронология в таблице читалась сверху вниз)
     logs.sort((a, b) => a.date.compareTo(b.date));
 
     final totalLogs = logs.length;
     final painDays = logs.where((l) => l.painSymptoms.isNotEmpty).length;
-
     final startDate = logs.first.date;
     final endDate = logs.last.date;
 
@@ -115,7 +120,6 @@ class PdfService {
             _buildMedicalHeader(userName, startDate, endDate, fontBold, fontRegular, l10n),
             pw.SizedBox(height: 20),
 
-            // 🔥 БЕЙДЖ РЕЖИМА (ОЧЕНЬ ВАЖНО ДЛЯ ВРАЧА)
             if (cycleProvider.isCOCEnabled || cycleProvider.isTTCMode)
               _buildModeBadge(cycleProvider, fontBold),
 
@@ -138,14 +142,22 @@ class PdfService {
 
             pw.SizedBox(height: 20),
 
-            // 3. ТАБЛИЦА
+            // 🔥 3. ПРЕПАРАТЫ И ВИТАМИНЫ (НОВЫЙ БЛОК)
+            if (medProvider.activeMedications.isNotEmpty) ...[
+              pw.Text("ACTIVE MEDICATIONS & SUPPLEMENTS", style: pw.TextStyle(font: fontBold, fontSize: 12, letterSpacing: 1.0, color: primaryColor)),
+              pw.SizedBox(height: 8),
+              _buildMedicationRegistry(medProvider, fontRegular, fontBold),
+              pw.SizedBox(height: 20),
+            ],
+
+            // 4. ТАБЛИЦА
             pw.Text(l10n.pdfDetailedLogs.toUpperCase(), style: pw.TextStyle(font: fontBold, fontSize: 12, letterSpacing: 1.0, color: primaryColor)),
             pw.SizedBox(height: 10),
-            _buildStrictTable(logs, cycleProvider, fontRegular, fontBold, l10n),
+            _buildStrictTable(logs, cycleProvider, medProvider, fontRegular, fontBold, l10n),
 
             pw.SizedBox(height: 20),
 
-            // 4. ДИСКЛЕЙМЕР
+            // 5. ДИСКЛЕЙМЕР
             pw.Divider(thickness: 0.5, color: PdfColors.grey400),
             pw.Padding(
               padding: const pw.EdgeInsets.only(top: 10),
@@ -162,7 +174,7 @@ class PdfService {
 
     await Printing.layoutPdf(
       onLayout: (PdfPageFormat format) async => pdf.save(),
-      name: 'Biorhythm_Report_${DateFormat('yyyyMMdd').format(DateTime.now())}',
+      name: 'Ayla_Medical_Report_${DateFormat('yyyyMMdd').format(DateTime.now())}',
     );
   }
 
@@ -177,7 +189,7 @@ class PdfService {
         pw.Column(
           crossAxisAlignment: pw.CrossAxisAlignment.start,
           children: [
-            pw.Text("HEALTH INSIGHTS REPORT", style: pw.TextStyle(font: bold, fontSize: 22, color: primaryColor)),
+            pw.Text("AYLA HEALTH REPORT", style: pw.TextStyle(font: bold, fontSize: 22, color: primaryColor)),
             pw.SizedBox(height: 4),
             pw.Text("Period: ${DateFormat('MMM dd, yyyy').format(start)} - ${DateFormat('MMM dd, yyyy').format(end)}", style: pw.TextStyle(font: regular, fontSize: 10, color: PdfColors.grey700)),
           ],
@@ -185,7 +197,7 @@ class PdfService {
         pw.Column(
           crossAxisAlignment: pw.CrossAxisAlignment.end,
           children: [
-            pw.Text("Patient: $name", style: pw.TextStyle(font: bold, fontSize: 12)),
+            pw.Text("Patient ID: $name", style: pw.TextStyle(font: bold, fontSize: 12)),
             pw.SizedBox(height: 2),
             pw.Text("Generated: ${DateFormat('dd.MM.yyyy').format(now)}", style: pw.TextStyle(font: regular, fontSize: 10, color: PdfColors.grey600)),
           ],
@@ -194,7 +206,21 @@ class PdfService {
     );
   }
 
-  // 🔥 ИСПРАВЛЕНО: Используем жестко заданные светлые цвета без .withOpacity()
+  pw.Widget _buildMedicationRegistry(MedicationProvider provider, pw.Font regular, pw.Font bold) {
+    return pw.Wrap(
+      spacing: 10,
+      runSpacing: 5,
+      children: provider.activeMedications.map((med) => pw.Container(
+        padding: const pw.EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        decoration: pw.BoxDecoration(
+          border: pw.Border.all(color: PdfColors.grey300),
+          borderRadius: pw.BorderRadius.circular(4),
+        ),
+        child: pw.Text("${med.iconStr} ${med.name}: ${med.dosage}", style: pw.TextStyle(font: regular, fontSize: 9)),
+      )).toList(),
+    );
+  }
+
   pw.Widget _buildModeBadge(CycleProvider cycle, pw.Font bold) {
     String text = "";
     PdfColor textColor = primaryColor;
@@ -203,7 +229,7 @@ class PdfService {
 
     if (cycle.isCOCEnabled) {
       text = "Active Oral Contraceptive (COC) Profile";
-      textColor = const PdfColor.fromInt(0xFF00B4D8); // Teal
+      textColor = const PdfColor.fromInt(0xFF00B4D8);
       bgColor = const PdfColor.fromInt(0xFFE5F7FA);
       borderColor = const PdfColor.fromInt(0xFFB2EBF4);
     } else if (cycle.isTTCMode) {
@@ -255,28 +281,21 @@ class PdfService {
       children: [
         pw.Text(label.toUpperCase(), style: pw.TextStyle(font: regular, fontSize: 8, color: PdfColors.grey600)),
         pw.SizedBox(height: 4),
-        pw.Text(
-            value,
-            style: pw.TextStyle(
-                font: bold,
-                fontSize: 16,
-                color: isWarning ? accentColor : PdfColors.black
-            )
-        ),
+        pw.Text(value, style: pw.TextStyle(font: bold, fontSize: 16, color: isWarning ? accentColor : PdfColors.black)),
       ],
     );
   }
 
-  pw.Widget _buildStrictTable(List<SymptomLog> logs, CycleProvider cycleProvider, pw.Font regular, pw.Font bold, AppLocalizations l10n) {
+  pw.Widget _buildStrictTable(List<SymptomLog> logs, CycleProvider cycleProvider, MedicationProvider medProvider, pw.Font regular, pw.Font bold, AppLocalizations l10n) {
     return pw.Table(
       border: pw.TableBorder.all(color: PdfColors.grey300, width: 0.5),
       columnWidths: {
-        0: const pw.FixedColumnWidth(50), // Date
-        1: const pw.FixedColumnWidth(30), // CD
+        0: const pw.FixedColumnWidth(45), // Date
+        1: const pw.FixedColumnWidth(25), // CD
         2: const pw.FixedColumnWidth(30), // BBT
-        3: const pw.FixedColumnWidth(40), // Flow
-        4: const pw.FlexColumnWidth(2),   // Symptoms & Clinical
-        5: const pw.FlexColumnWidth(1),   // Notes
+        3: const pw.FixedColumnWidth(35), // Flow
+        4: const pw.FlexColumnWidth(2),   // Symptoms
+        5: const pw.FlexColumnWidth(1.2), // Medications 🔥
       },
       children: [
         // Header
@@ -288,13 +307,14 @@ class PdfService {
             _th("BBT", bold, color: PdfColors.white),
             _th("FLOW", bold, color: PdfColors.white),
             _th("CLINICAL SYMPTOMS", bold, color: PdfColors.white),
-            _th("NOTES", bold, color: PdfColors.white),
+            _th("MEDS", bold, color: PdfColors.white),
           ],
         ),
         // Rows
         ...List.generate(logs.length, (index) {
           final log = logs[index];
-          final isEven = index % 2 == 0; // Для зебры (Zebra striping)
+          final isEven = index % 2 == 0;
+          final takenMeds = medProvider.getTakenNamesForDay(log.date); // 🔥 Получаем названия
 
           String cd = cycleProvider.getCycleDayFromDate(log.date).toString();
 
@@ -302,27 +322,18 @@ class PdfService {
           symptoms.addAll(log.painSymptoms);
           symptoms.addAll(log.symptoms);
 
-          if (log.hadSex) symptoms.add(log.protectedSex ? "Protected Sex" : "Unprotected Sex");
-          if (log.ovulationTest != OvulationTestResult.none) symptoms.add("LH Test: ${_lhShort(log.ovulationTest)}");
-          if (log.mucus != CervicalMucusType.none) symptoms.add("Mucus: ${_mucusShort(log.mucus)}");
+          if (log.hadSex) symptoms.add(log.protectedSex ? "Sex (P)" : "Sex (U)");
+          if (log.ovulationTest != OvulationTestResult.none) symptoms.add("LH: ${_lhShort(log.ovulationTest)}");
 
           return pw.TableRow(
             decoration: pw.BoxDecoration(color: isEven ? PdfColors.white : PdfColors.grey100),
             children: [
               _td(DateFormat('dd.MM.yy').format(log.date), regular),
               _td(cd, bold, align: pw.TextAlign.center, color: primaryColor),
-              _td(
-                  (log.temperature != null && log.temperature! > 0) ? "${log.temperature}°" : "-",
-                  regular,
-                  align: pw.TextAlign.center
-              ),
+              _td((log.temperature != null && log.temperature! > 0) ? "${log.temperature}°" : "-", regular, align: pw.TextAlign.center),
               _td(_flowShort(log.flow, l10n), bold, align: pw.TextAlign.center, color: accentColor),
-              _td(
-                  symptoms.map((s) => s[0].toUpperCase() + s.substring(1).replaceAll('_', ' ')).join(", "),
-                  regular,
-                  fontSize: 8
-              ),
-              _td(log.notes ?? "", regular, fontSize: 8),
+              _td(symptoms.map((s) => s[0].toUpperCase() + s.substring(1).replaceAll('_', ' ')).join(", "), regular, fontSize: 8),
+              _td(takenMeds.join(", "), regular, fontSize: 7, color: primaryColor), // 🔥 Вывод медикаментов
             ],
           );
         }),
@@ -347,7 +358,7 @@ class PdfService {
   String _flowShort(FlowIntensity f, AppLocalizations l10n) {
     switch (f) {
       case FlowIntensity.light: return "Light";
-      case FlowIntensity.medium: return "Medium";
+      case FlowIntensity.medium: return "Med";
       case FlowIntensity.heavy: return "Heavy";
       default: return "-";
     }
@@ -355,20 +366,9 @@ class PdfService {
 
   String _lhShort(OvulationTestResult r) {
     switch (r) {
-      case OvulationTestResult.negative: return "Negative (-)";
-      case OvulationTestResult.positive: return "Positive (+)";
-      case OvulationTestResult.peak: return "Peak (++)";
-      default: return "";
-    }
-  }
-
-  String _mucusShort(CervicalMucusType m) {
-    switch (m) {
-      case CervicalMucusType.dry: return "Dry";
-      case CervicalMucusType.sticky: return "Sticky";
-      case CervicalMucusType.creamy: return "Creamy";
-      case CervicalMucusType.watery: return "Watery";
-      case CervicalMucusType.eggWhite: return "Egg White";
+      case OvulationTestResult.negative: return "Neg";
+      case OvulationTestResult.positive: return "Pos";
+      case OvulationTestResult.peak: return "Peak";
       default: return "";
     }
   }

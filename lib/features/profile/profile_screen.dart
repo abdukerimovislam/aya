@@ -11,8 +11,10 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../ayla_app.dart';
 import '../../l10n/app_localizations.dart';
 import 'premium_paywall_sheet.dart';
+import 'partner_sync_screen.dart'; // 🔥 ИМПОРТ НОВОГО ЭКРАНА СИНХРОНИЗАЦИИ С ПАРТНЕРОМ
 import '../../core/services/auth_service.dart';
 import '../../core/services/backup_service.dart';
+import '../../core/services/health_service.dart';
 import '../../core/services/pdf_service.dart';
 import '../../core/services/secure_storage_service.dart';
 import '../../core/theme/app_theme.dart';
@@ -557,7 +559,52 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     const SizedBox(height: 24),
                     _buildSectionHeader(l10n.settingsData),
                     _buildGlassGroup([
-                      ProfileSettingsTile(icon: Icons.picture_as_pdf_rounded, title: l10n.settingsExport, subtitle: "Export health report as PDF", trailing: Icon(isPremium ? Icons.arrow_forward_ios_rounded : Icons.lock_outline, size: isPremium ? 14 : 20, color: isPremium ? AppColors.textSecondary.withOpacity(0.45) : Colors.amber), onTap: () async { if (!isPremium) { _showSheet(context, const PremiumPaywallSheet()); return; } _handleExport(context, wellness, l10n); }),
+                      // 🔥 НОВАЯ КНОПКА PARTNER SYNC
+                      ProfileSettingsTile(
+                        icon: CupertinoIcons.person_2_fill,
+                        iconColor: const Color(0xFF8E71C7),
+                        title: "Partner Sync",
+                        subtitle: "Share your cycle securely",
+                        trailing: Icon(Icons.arrow_forward_ios_rounded, size: 14, color: AppColors.textSecondary.withOpacity(0.45)),
+                        onTap: () {
+                          HapticFeedback.lightImpact();
+                          Navigator.push(context, MaterialPageRoute(builder: (_) => const PartnerSyncScreen()));
+                        },
+                      ),
+                      const _Divider(),
+                      // КНОПКА ИНТЕГРАЦИИ (Health Sync)
+                      ProfileSettingsTile(
+                        icon: CupertinoIcons.heart_circle_fill,
+                        iconColor: const Color(0xFFE85D75), // Нежный красно-розовый цвет
+                        title: Platform.isIOS ? "Apple Health Sync" : "Google Health Connect",
+                        subtitle: "Securely sync your cycle & BBT",
+                        trailing: Icon(Icons.arrow_forward_ios_rounded, size: 14, color: AppColors.textSecondary.withOpacity(0.45)),
+                        onTap: () async {
+                          HapticFeedback.mediumImpact();
+                          final success = await HealthIntegrationService.requestPermissions();
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(success ? "Sync successfully enabled! 🎉" : "Sync access denied or unavailable."),
+                                backgroundColor: success ? AppColors.primary : Colors.red,
+                                behavior: SnackBarBehavior.floating,
+                              ),
+                            );
+                          }
+                        },
+                      ),
+                      const _Divider(),
+                      // Кнопка PDF
+                      ProfileSettingsTile(
+                          icon: Icons.picture_as_pdf_rounded,
+                          title: l10n.settingsExport,
+                          subtitle: "Export health report as PDF",
+                          trailing: Icon(isPremium ? Icons.arrow_forward_ios_rounded : Icons.lock_outline, size: isPremium ? 14 : 20, color: isPremium ? AppColors.textSecondary.withOpacity(0.45) : Colors.amber),
+                          onTap: () async {
+                            if (!isPremium) { _showSheet(context, const PremiumPaywallSheet()); return; }
+                            _handleExport(context, wellness, l10n);
+                          }
+                      ),
                     ]),
                     const SizedBox(height: 24),
                     _buildSectionHeader(l10n.sectionBackup),

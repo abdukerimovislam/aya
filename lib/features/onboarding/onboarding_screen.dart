@@ -1,3 +1,4 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -16,6 +17,9 @@ import '../../l10n/app_localizations.dart';
 import '../../shared/widgets/live_phase_background.dart';
 import '../../shared/widgets/premium_glass_card.dart';
 
+// 🔥 ИМПОРТ ЭКРАНА ВВОДА КОДА ПАРТНЕРА
+import '../partner/partner_link_screen.dart';
+
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({super.key});
 
@@ -26,7 +30,7 @@ class OnboardingScreen extends StatefulWidget {
 class _OnboardingScreenState extends State<OnboardingScreen> {
   final PageController _pageController = PageController();
   int _currentPage = 0;
-  bool _isProcessing = false; // 🔥 Защита от двойного клика на финише
+  bool _isProcessing = false;
 
   bool _isCOC = false;
   DateTime _selectedDate = DateTime.now();
@@ -103,11 +107,38 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                   ),
                 ),
                 _buildBottomBar(l10n, totalPages),
+
+                // 🔥 КНОПКА ДЛЯ ПАРТНЕРА (ПОКАЗЫВАЕТСЯ ТОЛЬКО НА 1 ЭКРАНЕ)
+                if (_currentPage == 0)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 16),
+                    child: GestureDetector(
+                      onTap: () {
+                        HapticFeedback.lightImpact();
+                        Navigator.push(context, MaterialPageRoute(builder: (_) => const PartnerLinkScreen()));
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                        decoration: BoxDecoration(
+                          color: AppColors.textPrimary.withOpacity(0.05),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(color: AppColors.textSecondary.withOpacity(0.1)),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(CupertinoIcons.person_2_fill, size: 16, color: Color(0xFF8E71C7)),
+                            const SizedBox(width: 8),
+                            Text("Partner Mode? Enter code here.", style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textSecondary)),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
               ],
             ),
           ),
 
-          // 🔥 Блокирующий экран при сохранении, чтобы не тупило
           if (_isProcessing)
             Container(
               color: Colors.black.withOpacity(0.3),
@@ -118,7 +149,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      CircularProgressIndicator(color: AppColors.primary),
+                      const CircularProgressIndicator(color: AppColors.primary),
                       const SizedBox(height: 16),
                       Text(
                         "Setting up your AI...",
@@ -176,7 +207,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         ),
         child: CalendarDatePicker(
           initialDate: _selectedDate,
-          firstDate: DateTime.now().subtract(const Duration(days: 90)), // 🔥 Расширили под длинные циклы
+          firstDate: DateTime.now().subtract(const Duration(days: 90)),
           lastDate: DateTime.now(),
           onDateChanged: (val) {
             setState(() => _selectedDate = val);
@@ -219,7 +250,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             ),
             child: Slider(
               value: _selectedCycleLength.toDouble(),
-              min: 21, max: 45, divisions: 24, // Оставляем базовые лимиты для онбординга (чтобы не пугать 180 днями)
+              min: 21, max: 45, divisions: 24,
               onChanged: (val) {
                 if (val.toInt() != _selectedCycleLength) {
                   setState(() => _selectedCycleLength = val.toInt());
@@ -231,7 +262,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         ),
         const SizedBox(height: 10),
         Text(
-          "${l10n.lblNormalRange}",
+          l10n.lblNormalRange,
           style: TextStyle(fontSize: 12, color: AppColors.textSecondary.withOpacity(0.7)),
         ),
       ],
@@ -392,9 +423,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     }
   }
 
-  // 🔥 МЕДИЦИНСКОЕ ИСПРАВЛЕНИЕ: Синхронизация потоков сохранения (без лагов)
   Future<void> _finishOnboarding() async {
-    if (_isProcessing) return; // Защита от дабл-клика
+    if (_isProcessing) return;
 
     setState(() => _isProcessing = true);
     HapticFeedback.heavyImpact();
@@ -417,16 +447,13 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
           breakDays: breakDays,
         );
 
-        // 🔥 Передаем packStartDate в оба провайдера для идеальной синхронизации
         await settingsProvider.setCOCSettings(pillCount, breakDays, packStartDate: _selectedDate);
         await cycleProvider.setCOCMode(true, packStartDate: _selectedDate);
         await cocProvider.toggleCOC(true);
 
       } else {
         await cycleProvider.setCOCMode(false);
-        // Сначала устанавливаем длину
         await cycleProvider.setCycleLength(_selectedCycleLength);
-        // Затем вызываем умный старт цикла с флагом isConfirmed (ибо это онбординг, тут не нужны алерты)
         await cycleProvider.logActionStartPeriod(_selectedDate, isConfirmed: true);
       }
 
@@ -435,7 +462,6 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
       if (!mounted) return;
 
-      // Красивый переход без зависаний
       Navigator.of(context).pushReplacement(
         PageRouteBuilder(
           transitionDuration: const Duration(milliseconds: 1000),
@@ -448,7 +474,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       if (mounted) {
         setState(() => _isProcessing = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Error during setup. Please try again.")),
+          const SnackBar(content: Text("Error during setup. Please try again.")),
         );
       }
     }

@@ -3,7 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
-import 'package:hive_flutter/hive_flutter.dart'; // 🔥 Обязательно для Hive
+import 'package:hive_flutter/hive_flutter.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:fl_chart/fl_chart.dart';
@@ -22,9 +22,9 @@ import '../../data/logic/symptom_intelligence.dart';
 import '../../data/models/cycle_model.dart';
 import '../../data/logic/health_pattern_detector.dart';
 
-// 🔥 Импортируем наши карточки и окна
 import 'widgets/hormonal_rhythm_card.dart';
 import 'widgets/ayla_consultation_sheet.dart';
+import '../chat/chat_screen.dart'; // 🔥 Импорт экрана чата
 
 class InsightsScreen extends StatefulWidget {
   const InsightsScreen({super.key});
@@ -35,7 +35,7 @@ class InsightsScreen extends StatefulWidget {
 
 class _InsightsScreenState extends State<InsightsScreen> {
   bool _isGeneratingAI = false;
-  bool _hasCachedAdvice = false; // 🔥 Флаг кэширования
+  bool _hasCachedAdvice = false;
 
   bool _isCalculating = true;
 
@@ -60,7 +60,6 @@ class _InsightsScreenState extends State<InsightsScreen> {
     await Future.delayed(const Duration(milliseconds: 250));
     if (!mounted) return;
 
-    // 🔥 1. Проверяем кэш AI
     final aiBox = await Hive.openBox('ai_insights');
     final todayStr = DateFormat('yyyy-MM-dd').format(DateTime.now());
     if (aiBox.get('cached_advice_date') == todayStr && aiBox.get('cached_advice_text') != null) {
@@ -71,7 +70,7 @@ class _InsightsScreenState extends State<InsightsScreen> {
     final wellnessProvider = context.read<WellnessProvider>();
 
     _topSymptoms = _getTopSymptoms(wellnessProvider);
-    _clinicalFlags = HealthPatternDetector.analyzePatterns(
+    _clinicalFlags = await HealthPatternDetector.analyzePatterns(
       cycleProvider.history,
       wellnessProvider,
       isCocEnabled: cycleProvider.isCOCEnabled,
@@ -435,7 +434,7 @@ class _InsightsScreenState extends State<InsightsScreen> {
     );
   }
 
-  // 🔥 ОБНОВЛЕННАЯ ПАНЕЛЬ ИИ С КНОПКОЙ REFRESH
+  // 🔥 ОБНОВЛЕННАЯ ПАНЕЛЬ ИИ С ИНТЕГРАЦИЕЙ ЧАТА
   Widget _buildAIOperatingCenter(CycleProvider cycle, WellnessProvider wellness, bool isTTC) {
     return PremiumGlassCard(
       borderRadius: 28,
@@ -471,7 +470,6 @@ class _InsightsScreenState extends State<InsightsScreen> {
                     ),
                   ),
                 ),
-                // 🔥 Кнопка REFRESH (появляется только если есть кэш)
                 if (_hasCachedAdvice)
                   GestureDetector(
                     onTap: _isGeneratingAI ? null : () async {
@@ -482,7 +480,7 @@ class _InsightsScreenState extends State<InsightsScreen> {
                         phase: cycle.currentData.phase,
                         logs: [wellness.getLogForDate(DateTime.now())],
                         isCoc: cycle.isCOCEnabled,
-                        forceRefresh: true, // ИИ думает заново!
+                        forceRefresh: true,
                       );
 
                       if (mounted) {
@@ -507,8 +505,8 @@ class _InsightsScreenState extends State<InsightsScreen> {
 
             Text(
               _hasCachedAdvice
-                  ? "Your daily hormonal analysis is ready. Tap below to view your personalized insights."
-                  : "Wondering why you feel a certain way today? Let Ayla analyze your hormones and symptoms.",
+                  ? "Your daily hormonal analysis is ready. You can also chat with Ayla anytime for personalized guidance."
+                  : "Wondering why you feel a certain way today? Chat with Ayla or generate your daily hormone report.",
               style: GoogleFonts.inter(
                 fontSize: 13,
                 color: AppColors.textSecondary,
@@ -518,20 +516,65 @@ class _InsightsScreenState extends State<InsightsScreen> {
             ),
             const SizedBox(height: 16),
 
+            // 🔥 1. ГЛАВНАЯ КНОПКА: ЧАТ С АЙЛОЙ
+            GestureDetector(
+              onTap: () {
+                HapticFeedback.mediumImpact();
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const ChatScreen()),
+                );
+              },
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF8E71C7), AppColors.primary],
+                  ),
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColors.primary.withOpacity(0.3),
+                      blurRadius: 12,
+                      offset: const Offset(0, 4),
+                    )
+                  ],
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(CupertinoIcons.chat_bubble_2_fill, size: 18, color: Colors.white),
+                    const SizedBox(width: 8),
+                    Text(
+                      "Chat with Ayla",
+                      style: GoogleFonts.inter(
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 12),
+
+            // 🔥 2. ВТОРИЧНАЯ КНОПКА: ГЕНЕРАЦИЯ ДНЕВНОГО ОТЧЕТА (Кэшированного)
             SizedBox(
               width: double.infinity,
               child: CupertinoButton(
                 padding: const EdgeInsets.symmetric(vertical: 14),
-                color: AppColors.primary.withOpacity(0.85),
+                color: AppColors.primary.withOpacity(0.12), // Стеклянный эффект
                 borderRadius: BorderRadius.circular(16),
                 onPressed: _isGeneratingAI ? null : () async {
-                  HapticFeedback.mediumImpact();
+                  HapticFeedback.lightImpact();
 
                   if (!_hasCachedAdvice) {
                     setState(() => _isGeneratingAI = true);
                   }
 
-                  // Возвращает кэш моментально или грузит новый
                   final response = await AiOracleService.generateDailyAdvice(
                     phase: cycle.currentData.phase,
                     logs: [wellness.getLogForDate(DateTime.now())],
@@ -541,28 +584,27 @@ class _InsightsScreenState extends State<InsightsScreen> {
                   if (mounted) {
                     setState(() {
                       _isGeneratingAI = false;
-                      _hasCachedAdvice = true; // Кэш теперь точно есть
+                      _hasCachedAdvice = true;
                     });
-
                     _showAylaSheet(response);
                   }
                 },
                 child: _isGeneratingAI && !_hasCachedAdvice
-                    ? const CupertinoActivityIndicator(color: Colors.white)
+                    ? const CupertinoActivityIndicator(color: AppColors.primary)
                     : Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Icon(
-                        _hasCachedAdvice ? CupertinoIcons.bolt_horizontal_circle_fill : CupertinoIcons.chat_bubble_text_fill,
+                        _hasCachedAdvice ? CupertinoIcons.doc_text_search : CupertinoIcons.wand_rays,
                         size: 18,
-                        color: Colors.white
+                        color: AppColors.primary
                     ),
                     const SizedBox(width: 8),
                     Text(
-                      _hasCachedAdvice ? "View Today's Analysis" : "Analyze my body today",
+                      _hasCachedAdvice ? "View Today's Report" : "Generate Daily Report",
                       style: GoogleFonts.inter(
                         fontWeight: FontWeight.w700,
-                        color: Colors.white,
+                        color: AppColors.primary,
                         fontSize: 14,
                       ),
                     ),
@@ -576,7 +618,6 @@ class _InsightsScreenState extends State<InsightsScreen> {
     );
   }
 
-  // 🔥 Метод открытия окна
   void _showAylaSheet(String text) {
     showModalBottomSheet(
       context: context,
@@ -975,8 +1016,6 @@ class _InsightsScreenState extends State<InsightsScreen> {
     );
   }
 
-  // 🔥 МЕТОДЫ-ВЫЧИСЛИТЕЛИ (РАБОТАЮТ В ФОНЕ) ---
-
   void _prepareBBTData(CycleProvider cycle, WellnessProvider wellness) {
     final cycleStart = cycle.currentData.cycleStartDate;
     final totalDays = cycle.currentData.totalCycleLength;
@@ -1030,7 +1069,7 @@ class _InsightsScreenState extends State<InsightsScreen> {
     if (_bbtSpots.isEmpty) return _buildEmptyState("Log your morning temperature to see your thermal shift.", CupertinoIcons.thermometer);
 
     final double ovDay = cycle.ovulationDay.toDouble();
-    const Color chartColor = Color(0xFFBCAAA4); // Soft TTC color
+    const Color chartColor = Color(0xFFBCAAA4);
 
     return LineChart(
       LineChartData(

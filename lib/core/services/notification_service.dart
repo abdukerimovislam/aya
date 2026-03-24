@@ -17,7 +17,7 @@ class NotificationService {
   static const String _channelIdCycle = 'cycle_channel';
   static const String _channelIdPills = 'pills_channel';
 
-  // Payloads (единые по приложению)
+  // Payloads
   static const String payloadCalendar = 'screen_calendar';
   static const String payloadCOC = 'screen_coc';
 
@@ -33,7 +33,7 @@ class NotificationService {
     const AndroidInitializationSettings initializationSettingsAndroid =
     AndroidInitializationSettings('@mipmap/ic_launcher');
 
-    // 3. Настройки iOS (Включаем запрос прав сразу, чтобы не потерять их)
+    // 3. Настройки iOS/macOS (Darwin)
     final DarwinInitializationSettings initializationSettingsDarwin =
     DarwinInitializationSettings(
       requestAlertPermission: true,
@@ -59,14 +59,14 @@ class NotificationService {
     // 5. Каналы (Android 8+)
     await _ensureAndroidChannels();
 
-    // 6. 🔥 FIX: Явный запрос прав для Android 13+ (API 33)
-    // Без этого уведомления работать НЕ БУДУТ на новых телефонах
+    // 6. 🔥 ЗАПРОС ПРАВ НА ANDROID 13+ и EXACT ALARMS (Android 14+)
     if (Platform.isAndroid) {
       final androidImplementation = _notificationsPlugin
           .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
 
       if (androidImplementation != null) {
         await androidImplementation.requestNotificationsPermission();
+        await androidImplementation.requestExactAlarmsPermission();
       }
     }
 
@@ -90,8 +90,8 @@ class NotificationService {
   Future<void> _ensureAndroidChannels() async {
     if (!Platform.isAndroid) return;
 
-    final android = _notificationsPlugin.resolvePlatformSpecificImplementation<
-        AndroidFlutterLocalNotificationsPlugin>();
+    final android = _notificationsPlugin
+        .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
     if (android == null) return;
 
     const cycleChannel = AndroidNotificationChannel(
@@ -119,10 +119,10 @@ class NotificationService {
     }
   }
 
-  /// 🔒 Ручной запрос прав (если пользователь отказал при старте)
+  /// 🔒 Ручной запрос прав (вызывается из экрана профиля/настроек)
   Future<bool> requestPermissions() async {
     if (Platform.isIOS) {
-      // 🔥 ИСПРАВЛЕНИЕ: Используем IOSFlutterLocalNotificationsPlugin, а не Darwin...
+      // 🔥 ИСПРАВЛЕНО: возвращаем IOSFlutterLocalNotificationsPlugin
       final IOSFlutterLocalNotificationsPlugin? ios =
       _notificationsPlugin.resolvePlatformSpecificImplementation<
           IOSFlutterLocalNotificationsPlugin>();
@@ -140,13 +140,15 @@ class NotificationService {
       _notificationsPlugin.resolvePlatformSpecificImplementation<
           AndroidFlutterLocalNotificationsPlugin>();
 
-      return (await android?.requestNotificationsPermission()) ?? false;
+      bool notifGranted = (await android?.requestNotificationsPermission()) ?? false;
+      await android?.requestExactAlarmsPermission(); // Запрашиваем точные алармы
+      return notifGranted;
     }
 
     return false;
   }
 
-  /// 🚀 Мгновенное уведомление (ДОБАВЛЕНО ДЛЯ ИИ-ОРАКУЛА)
+  /// 🚀 Мгновенное уведомление
   Future<void> showLocalNotification({
     required int id,
     required String title,
@@ -167,7 +169,7 @@ class NotificationService {
     }
   }
 
-  /// 📅 One-time schedule (cycle)
+  /// 📅 Одиночное уведомление
   Future<void> scheduleNotification({
     required int id,
     required String title,
@@ -176,7 +178,6 @@ class NotificationService {
     String? payload,
   }) async {
     try {
-      // Конвертируем в локальное время зоны
       final tz.TZDateTime now = tz.TZDateTime.now(tz.local);
       final tz.TZDateTime target = tz.TZDateTime.from(scheduledDate, tz.local);
 
@@ -203,12 +204,13 @@ class NotificationService {
     }
   }
 
-  /// 💊 Daily schedule (pills)
+  /// 💊 Ежедневное уведомление
   Future<void> scheduleDailyNotification({
     required int id,
     required String title,
     required String body,
     required TimeOfDay time,
+    String? payload,
   }) async {
     try {
       final tz.TZDateTime now = tz.TZDateTime.now(tz.local);
@@ -222,12 +224,11 @@ class NotificationService {
         time.minute,
       );
 
-      // Если время уже прошло сегодня, ставим на завтра
       if (scheduledDate.isBefore(now)) {
         scheduledDate = scheduledDate.add(const Duration(days: 1));
       }
 
-      // Пытаемся поставить точное время
+      // Пытаемся поставить точное время (ExactAlarm)
       try {
         await _notificationsPlugin.zonedSchedule(
           id,
@@ -238,8 +239,8 @@ class NotificationService {
           androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
           uiLocalNotificationDateInterpretation:
           UILocalNotificationDateInterpretation.absoluteTime,
-          matchDateTimeComponents: DateTimeComponents.time, // Повтор каждый день
-          payload: payloadCOC,
+          matchDateTimeComponents: DateTimeComponents.time,
+          payload: payload ?? payloadCOC,
         );
       } catch (e) {
         debugPrint("⚠️ exactAllowWhileIdle failed, fallback to inexact: $e");
@@ -253,15 +254,15 @@ class NotificationService {
           uiLocalNotificationDateInterpretation:
           UILocalNotificationDateInterpretation.absoluteTime,
           matchDateTimeComponents: DateTimeComponents.time,
-          payload: payloadCOC,
+          payload: payload ?? payloadCOC,
         );
       }
 
       final hh = time.hour.toString().padLeft(2, '0');
       final mm = time.minute.toString().padLeft(2, '0');
-      debugPrint("💊 Daily pill scheduled at $hh:$mm (Next: $scheduledDate)");
+      debugPrint("✅ Daily scheduled [$id] '$title' at $hh:$mm");
     } catch (e) {
-      debugPrint("❌ Error scheduling daily pill [$id]: $e");
+      debugPrint("❌ Error scheduling daily notification [$id]: $e");
     }
   }
 
@@ -279,7 +280,7 @@ class NotificationService {
         priority: isPill ? Priority.high : Priority.defaultPriority,
         enableVibration: true,
         playSound: true,
-        color: const Color(0xFFFF6F61), // Брендовый цвет
+        color: const Color(0xFF8E71C7),
       ),
       iOS: const DarwinNotificationDetails(
         presentAlert: true,
