@@ -7,8 +7,8 @@ import 'dart:math' as math;
 import '../../core/services/notification_service.dart';
 import '../../core/services/cycle_notification_manager.dart';
 import '../../core/services/secure_storage_service.dart';
-import '../../core/services/health_service.dart'; // 🔥 ИМПОРТ HEALTH СЕРВИСА
-import '../../core/services/partner_sync_service.dart'; // 🔥 ИМПОРТ PARTNER SYNC
+import '../../core/services/health_service.dart';
+import '../../core/services/partner_sync_service.dart';
 import '../../l10n/app_localizations.dart';
 import '../models/cycle_model.dart';
 import '../logic/cycle_ai_engine.dart';
@@ -142,7 +142,7 @@ class CycleProvider with ChangeNotifier {
   void _loadOverrides() {
     try {
       final ovMs = _settingsBox.get('current_ovulation_override') as int?;
-      _ovulationOverride = ovMs != null ? DateTime.fromMillisecondsSinceEpoch(ovMs) : null;
+      _ovulationOverride = ovMs != null ? CycleCalculator.normalizeDate(DateTime.fromMillisecondsSinceEpoch(ovMs)) : null;
       _ovulationOverrideSource = _settingsBox.get('current_ovulation_override_source') as String?;
 
       final rawStrategy = _settingsBox.get('ttc_strategy') as String?;
@@ -248,8 +248,8 @@ class CycleProvider with ChangeNotifier {
       return;
     }
 
-    List<int> timestamps = (_settingsBox.get('bleeding_days') as List?)?.cast<int>() ?? [];
-    List<int> manualStarts = (_settingsBox.get('manual_cycle_starts') as List?)?.cast<int>() ?? [];
+    List<int> timestamps = List<int>.from(_settingsBox.get('bleeding_days') ?? []);
+    List<int> manualStarts = List<int>.from(_settingsBox.get('manual_cycle_starts') ?? []);
 
     if (timestamps.isEmpty) {
       await _cycleBox.clear();
@@ -323,8 +323,16 @@ class CycleProvider with ChangeNotifier {
       periodDuration: pLen,
     ));
 
-    await _cycleBox.clear();
-    await _cycleBox.addAll(newHistory);
+    final Map<int, CycleModel> updates = {};
+    for (int i = 0; i < newHistory.length; i++) {
+      updates[i] = newHistory[i];
+    }
+    await _cycleBox.putAll(updates);
+
+    if (_cycleBox.length > newHistory.length) {
+      final keysToDelete = _cycleBox.keys.skip(newHistory.length).toList();
+      await _cycleBox.deleteAll(keysToDelete);
+    }
 
     final oldHistory = _history.isNotEmpty ? _history.first : null;
 
@@ -411,6 +419,8 @@ class CycleProvider with ChangeNotifier {
       predictedOvulation = safeStart.add(Duration(days: effectiveCycleLen - 14));
     }
 
+    final bleedingDays = List<int>.from(_settingsBox.get('bleeding_days') ?? []);
+
     final phase = CycleCalculator.calculatePhase(
       day: currentDay,
       length: effectiveCycleLen,
@@ -420,7 +430,7 @@ class CycleProvider with ChangeNotifier {
       cocBreakDays: _settingsBox.get('coc_break_days', defaultValue: 7),
       cycleStart: safeStart,
       ovulationDate: predictedOvulation,
-      bleedingTimestamps: (_settingsBox.get('bleeding_days') as List?)?.cast<int>() ?? [],
+      bleedingTimestamps: bleedingDays,
       history: _history,
       avgPeriodDuration: periodLen,
       isPeriodEndedExplicitly: _settingsBox.get('current_period_ended', defaultValue: false),
@@ -457,12 +467,6 @@ class CycleProvider with ChangeNotifier {
       lastPeriodDate: safeStart,
     );
 
-    // 🔥 ОБНОВЛЕНИЕ ВИДЖЕТОВ
-    String phaseStr = phase.toString().split('.').last;
-    String widgetTitle = isCOCEnabled ? "Pill Pack" : "Current Cycle";
-
-
-    // 🔥 СИНХРОНИЗАЦИЯ С ПАРТНЕРОМ
     PartnerSyncService.syncStateToCloud(
       phase: phase,
       cycleDay: currentDay,
@@ -536,6 +540,8 @@ class CycleProvider with ChangeNotifier {
     final normDate = CycleCalculator.normalizeDate(date);
     final normStart = CycleCalculator.normalizeDate(_currentData.cycleStartDate);
 
+    final bleedingDays = List<int>.from(_settingsBox.get('bleeding_days') ?? []);
+
     if (isCOCEnabled) {
       int day = getCycleDayFromDate(date);
       return CycleCalculator.calculatePhase(
@@ -547,7 +553,7 @@ class CycleProvider with ChangeNotifier {
         cocBreakDays: _settingsBox.get('coc_break_days', defaultValue: 7),
         cycleStart: normStart,
         ovulationDate: normDate,
-        bleedingTimestamps: (_settingsBox.get('bleeding_days') as List?)?.cast<int>() ?? [],
+        bleedingTimestamps: bleedingDays,
         history: _history,
         avgPeriodDuration: _avgPeriodDuration,
         isPeriodEndedExplicitly: _settingsBox.get('current_period_ended', defaultValue: false),
@@ -573,7 +579,7 @@ class CycleProvider with ChangeNotifier {
         cocBreakDays: 7,
         cycleStart: CycleCalculator.normalizeDate(histCycle.startDate),
         ovulationDate: CycleCalculator.normalizeDate(histCycle.startDate).add(Duration(days: hOvDay - 1)),
-        bleedingTimestamps: (_settingsBox.get('bleeding_days') as List?)?.cast<int>() ?? [],
+        bleedingTimestamps: bleedingDays,
         history: _history,
         avgPeriodDuration: _avgPeriodDuration,
         isPeriodEndedExplicitly: _settingsBox.get('current_period_ended', defaultValue: false),
@@ -590,7 +596,7 @@ class CycleProvider with ChangeNotifier {
         cocBreakDays: 7,
         cycleStart: normStart,
         ovulationDate: normStart.add(Duration(days: ovulationDay - 1)),
-        bleedingTimestamps: (_settingsBox.get('bleeding_days') as List?)?.cast<int>() ?? [],
+        bleedingTimestamps: bleedingDays,
         history: _history,
         avgPeriodDuration: _avgPeriodDuration,
         isPeriodEndedExplicitly: _settingsBox.get('current_period_ended', defaultValue: false)
@@ -603,8 +609,8 @@ class CycleProvider with ChangeNotifier {
     final normDate = CycleCalculator.normalizeDate(date);
     if (normDate.isAfter(CycleCalculator.normalizeDate(DateTime.now()))) return;
 
-    List<int> timestamps = (_settingsBox.get('bleeding_days') as List?)?.cast<int>() ?? [];
-    List<int> manualStarts = (_settingsBox.get('manual_cycle_starts') as List?)?.cast<int>() ?? [];
+    List<int> timestamps = List<int>.from(_settingsBox.get('bleeding_days') ?? []);
+    List<int> manualStarts = List<int>.from(_settingsBox.get('manual_cycle_starts') ?? []);
     final ms = normDate.millisecondsSinceEpoch;
 
     bool shouldUnsetPeriodEnded = false;
@@ -614,9 +620,8 @@ class CycleProvider with ChangeNotifier {
       manualStarts.remove(ms);
     } else {
       timestamps.add(ms);
-
-      // 🔥 HEALTH SYNC
-      HealthIntegrationService.syncPeriodDay(normDate);
+      // 🔥 ОТКЛЮЧЕНО ДЛЯ ТЕСТОВ
+      // HealthIntegrationService.syncPeriodDay(normDate);
 
       if (!isCOCEnabled && !normDate.isBefore(CycleCalculator.normalizeDate(_currentData.cycleStartDate))) {
         shouldUnsetPeriodEnded = true;
@@ -671,8 +676,8 @@ class CycleProvider with ChangeNotifier {
       }
     }
 
-    List<int> timestamps = (_settingsBox.get('bleeding_days') as List?)?.cast<int>() ?? [];
-    List<int> manualStarts = (_settingsBox.get('manual_cycle_starts') as List?)?.cast<int>() ?? [];
+    List<int> timestamps = List<int>.from(_settingsBox.get('bleeding_days') ?? []);
+    List<int> manualStarts = List<int>.from(_settingsBox.get('manual_cycle_starts') ?? []);
 
     timestamps.removeWhere((ts) {
       final tDate = DateTime.fromMillisecondsSinceEpoch(ts);
@@ -688,8 +693,8 @@ class CycleProvider with ChangeNotifier {
 
     if (!timestamps.contains(ms)) {
       timestamps.add(ms);
-      // 🔥 HEALTH SYNC
-      HealthIntegrationService.syncPeriodDay(normDate);
+      // 🔥 ОТКЛЮЧЕНО ДЛЯ ТЕСТОВ
+      // HealthIntegrationService.syncPeriodDay(normDate);
     }
     if (!manualStarts.contains(ms)) manualStarts.add(ms);
 
@@ -719,15 +724,15 @@ class CycleProvider with ChangeNotifier {
 
     if (end.isBefore(start)) return;
 
-    List<int> timestamps = (_settingsBox.get('bleeding_days') as List?)?.cast<int>() ?? [];
+    List<int> timestamps = List<int>.from(_settingsBox.get('bleeding_days') ?? []);
 
     for (int i = 0; i <= end.difference(start).inDays; i++) {
       final d = start.add(Duration(days: i));
       if (d.isBefore(end)) {
         if (!timestamps.contains(d.millisecondsSinceEpoch)) {
           timestamps.add(d.millisecondsSinceEpoch);
-          // 🔥 HEALTH SYNC
-          HealthIntegrationService.syncPeriodDay(d);
+          // 🔥 ОТКЛЮЧЕНО ДЛЯ ТЕСТОВ
+          // HealthIntegrationService.syncPeriodDay(d);
         }
       }
     }
@@ -870,8 +875,8 @@ class CycleProvider with ChangeNotifier {
     final normDate = CycleCalculator.normalizeDate(_currentData.cycleStartDate);
     final ms = normDate.millisecondsSinceEpoch;
 
-    List<int> timestamps = (_settingsBox.get('bleeding_days') as List?)?.cast<int>() ?? [];
-    List<int> manualStarts = (_settingsBox.get('manual_cycle_starts') as List?)?.cast<int>() ?? [];
+    List<int> timestamps = List<int>.from(_settingsBox.get('bleeding_days') ?? []);
+    List<int> manualStarts = List<int>.from(_settingsBox.get('manual_cycle_starts') ?? []);
 
     timestamps.remove(ms);
     manualStarts.remove(ms);

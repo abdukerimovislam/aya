@@ -129,8 +129,9 @@ class _LivePhaseBackgroundState extends State<LivePhaseBackground>
                 ),
               ),
 
+              // 🔥 ОПТИМИЗАЦИЯ ПРОИЗВОДИТЕЛЬНОСТИ (Снижен sigma до 35 для предотвращения лагов на Android/старых iOS)
               BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 90, sigmaY: 90),
+                filter: ImageFilter.blur(sigmaX: 35, sigmaY: 35),
                 child: Container(color: Colors.transparent),
               ),
 

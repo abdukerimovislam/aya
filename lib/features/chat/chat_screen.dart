@@ -21,6 +21,10 @@ class _ChatScreenState extends State<ChatScreen> {
   final ScrollController _scrollController = ScrollController();
   final FocusNode _focusNode = FocusNode();
 
+  // 🔥 Добавлены переменные для отслеживания состояния скролла
+  int _lastMessageCount = 0;
+  bool _wasLoading = false;
+
   @override
   void dispose() {
     _textController.dispose();
@@ -58,12 +62,19 @@ class _ChatScreenState extends State<ChatScreen> {
   Widget build(BuildContext context) {
     final chatProvider = context.watch<ChatProvider>();
     final messages = chatProvider.messages;
+    final currentLoading = chatProvider.isLoading;
 
-    // Авто-скролл при появлении новых сообщений
-    WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
+    // 🔥 ОПТИМИЗАЦИЯ: Скроллим только если добавилось новое сообщение или изменился статус загрузки
+    if (messages.length != _lastMessageCount || currentLoading != _wasLoading) {
+      _lastMessageCount = messages.length;
+      _wasLoading = currentLoading;
+      WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
+    }
 
     return Scaffold(
       backgroundColor: AppColors.background,
+      // 🔥 ИСПРАВЛЕНИЕ: Отключаем автоматический сдвиг Scaffold, чтобы избежать двойного прыжка
+      resizeToAvoidBottomInset: false,
       body: Stack(
         children: [
           // ФОНОВЫЕ СВЕЧЕНИЯ (Орбы)
@@ -171,7 +182,6 @@ class _ChatScreenState extends State<ChatScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text("Ayla AI", style: GoogleFonts.outfit(fontSize: 18, fontWeight: FontWeight.w800, color: AppColors.textPrimary)),
-                  // 🔥 Обновили позиционирование здесь
                   Text("Online • Cycle Intelligence Assistant", style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w500, color: AppColors.textSecondary)),
                 ],
               ),
@@ -200,7 +210,6 @@ class _ChatScreenState extends State<ChatScreen> {
                 color: const Color(0xFF8E71C7).withOpacity(0.1),
                 shape: BoxShape.circle,
               ),
-              // 🔥 Заменили эмодзи доктора на ✨
               child: const Text("✨", style: TextStyle(fontSize: 48)),
             ),
             const SizedBox(height: 24),
