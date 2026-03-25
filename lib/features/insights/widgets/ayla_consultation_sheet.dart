@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../../../l10n/app_localizations.dart';
 import '../../../shared/widgets/ai_aura_visualizer.dart';
 
 class AylaConsultationSheet extends StatefulWidget {
@@ -60,6 +61,7 @@ class _AylaConsultationSheetState extends State<AylaConsultationSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Container(
       // Сделаем окно высоким, чтобы магии было больше места
       height: MediaQuery.of(context).size.height * 0.75,
@@ -89,7 +91,7 @@ class _AylaConsultationSheetState extends State<AylaConsultationSheet> {
                       width: 48,
                       height: 5,
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.3),
+                        color: Colors.white.withValues(alpha: 0.3),
                         borderRadius: BorderRadius.circular(3),
                       ),
                     ),
@@ -112,7 +114,7 @@ class _AylaConsultationSheetState extends State<AylaConsultationSheet> {
                           end: Alignment.bottomCenter,
                           colors: [
                             Colors.transparent,
-                            const Color(0xFF120E18).withOpacity(0.8),
+                            const Color(0xFF120E18).withValues(alpha: 0.8),
                             const Color(0xFF120E18),
                           ],
                         ),
@@ -121,7 +123,7 @@ class _AylaConsultationSheetState extends State<AylaConsultationSheet> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            "Ayla's Advice",
+                            l10n.aylaConsultationTitle,
                             style: GoogleFonts.outfit(
                               fontSize: 24,
                               fontWeight: FontWeight.w800,
@@ -136,7 +138,7 @@ class _AylaConsultationSheetState extends State<AylaConsultationSheet> {
                             _displayedText + (_displayedText.length < widget.insightText.length ? " ▎" : ""),
                             style: GoogleFonts.inter(
                               fontSize: 15,
-                              color: Colors.white.withOpacity(0.9),
+                              color: Colors.white.withValues(alpha: 0.9),
                               height: 1.6,
                               fontWeight: FontWeight.w500,
                             ),
@@ -149,14 +151,14 @@ class _AylaConsultationSheetState extends State<AylaConsultationSheet> {
                             width: double.infinity,
                             child: CupertinoButton(
                               padding: const EdgeInsets.symmetric(vertical: 16),
-                              color: Colors.white.withOpacity(0.15),
+                              color: Colors.white.withValues(alpha: 0.15),
                               borderRadius: BorderRadius.circular(20),
                               onPressed: () {
                                 HapticFeedback.lightImpact();
                                 Navigator.pop(context);
                               },
                               child: Text(
-                                "Got it, Ayla",
+                                l10n.aylaConsultationAction,
                                 style: GoogleFonts.inter(
                                   fontWeight: FontWeight.w700,
                                   color: Colors.white,

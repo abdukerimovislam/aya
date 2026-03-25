@@ -259,6 +259,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get btnConfirm => 'Confirm';
 
   @override
+  String get btnStartToday => 'Start Today';
+
+  @override
   String get btnNext => 'Next';
 
   @override
@@ -299,6 +302,135 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get calendarHeader => 'Your History';
+
+  @override
+  String get calendarViewMonth => 'Month';
+
+  @override
+  String get calendarIntimacyQuickLog => 'Intimacy Quick Log';
+
+  @override
+  String get calendarLogUnprotectedSex => 'Log Unprotected Sex';
+
+  @override
+  String get calendarLogProtectedSex => 'Log Protected Sex';
+
+  @override
+  String get calendarOpenFullLogger => 'Open Full Logger';
+
+  @override
+  String calendarIntimacyLogged(String date) {
+    return 'Intimacy logged for $date';
+  }
+
+  @override
+  String calendarIntimacyRemoved(String date) {
+    return 'Intimacy removed for $date';
+  }
+
+  @override
+  String get calendarBasedOnRecentLogs => 'Based on recent logs';
+
+  @override
+  String get calendarLoggedBreak => 'Logged break';
+
+  @override
+  String get calendarLoggedPeriod => 'Logged period';
+
+  @override
+  String get calendarPredictedPeriod => 'Predicted period';
+
+  @override
+  String get calendarFertileWindow => 'Fertile window';
+
+  @override
+  String get calendarHasLog => 'Has log';
+
+  @override
+  String calendarPillDay(int day) {
+    return 'Pill Day $day';
+  }
+
+  @override
+  String get calendarTwoWeekWaitTtc => 'Two Week Wait (TWW)';
+
+  @override
+  String calendarDaysToBreak(int days) {
+    return '~$days days to break';
+  }
+
+  @override
+  String calendarDaysToPeriod(int days) {
+    return '~$days days to period';
+  }
+
+  @override
+  String calendarDaysToFertileWindow(int days) {
+    return '~$days days to fertile window';
+  }
+
+  @override
+  String calendarDaysToTestDay(int days) {
+    return '~$days days to test day';
+  }
+
+  @override
+  String get calendarWelcomeTitle => 'Welcome to Ayla';
+
+  @override
+  String get calendarTrackingPaused => 'Tracking paused';
+
+  @override
+  String get calendarAddFirstPeriodBody => 'Add first day of your period to start.';
+
+  @override
+  String get calendarNeedMoreTimelineData => 'Need more data to build cycle timeline. Please log your previous periods.';
+
+  @override
+  String get calendarCurrentCycleTimeline => 'Current Cycle Timeline';
+
+  @override
+  String get calendarNormalPhase => 'Normal';
+
+  @override
+  String calendarTimelineDay(int day) {
+    return 'D$day';
+  }
+
+  @override
+  String get calendarYourAverages => 'Your Averages';
+
+  @override
+  String get calendarRecentCycles => 'Recent Cycles';
+
+  @override
+  String get calendarPeakOvulation => 'Peak Ovulation';
+
+  @override
+  String get calendarTwoWeekWait => 'Two Week Wait';
+
+  @override
+  String get calendarTestDay => 'Test Day';
+
+  @override
+  String get calendarLoggedBleeding => 'Bleeding';
+
+  @override
+  String calendarBbtLogged(String temp) {
+    return 'BBT: $temp';
+  }
+
+  @override
+  String get calendarOpkLogged => 'OPK Logged';
+
+  @override
+  String get calendarSymptomsLogged => 'Symptoms logged';
+
+  @override
+  String get calendarPrediction => 'Prediction';
+
+  @override
+  String get calendarAvgShort => 'Avg';
 
   @override
   String get lblPreviousCycle => 'Previous Cycle';
@@ -382,6 +514,15 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get insightDNASub => 'Follicular vs Luteal Persona';
+
+  @override
+  String get insightGeneratedOffline => 'Generated offline using your recent symptoms.';
+
+  @override
+  String get insightLocalAnalysis => 'Local Analysis';
+
+  @override
+  String get insightTodayAnalytics => 'Today\'s Analytics';
 
   @override
   String get insightAvgCycle => 'Avg Cycle';
@@ -487,6 +628,123 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get profileTitle => 'Profile';
+
+  @override
+  String get profileGoalSectionTitle => 'My Goal';
+
+  @override
+  String get profileGoalTrackBody => 'Standard period and ovulation tracking';
+
+  @override
+  String get profileGoalPreventTitle => 'Prevent pregnancy';
+
+  @override
+  String get profileGoalPreventBody => 'Track my birth control pill';
+
+  @override
+  String get profileGoalPreventPillTitle => 'Prevent pregnancy (Pill)';
+
+  @override
+  String get profileGoalConceiveTitle => 'Try to conceive';
+
+  @override
+  String get profileGoalConceiveBody => 'Maximized fertility predictions & BBT';
+
+  @override
+  String get profileGoalConceiveFromPillBody => 'Congratulations on this beautiful decision!\n\nSwitching from birth control to pregnancy planning means your natural hormones will restart. We will clear your pill history and begin a completely fresh cycle starting today. Are you ready?';
+
+  @override
+  String get profileGoalConceiveConfirmBody => 'Congratulations on this beautiful decision!\n\nWe will now optimize your AI predictions to pinpoint your exact fertile window and activate advanced tools like Basal Body Temperature tracking. Are you ready?';
+
+  @override
+  String get profileGoalConceiveDialogTitle => 'Exciting Journey! 🎉';
+
+  @override
+  String get profileGoalReadyAction => 'Yes, I\'m ready';
+
+  @override
+  String get profileGoalCurrentModeBody => 'Your current tracking mode';
+
+  @override
+  String get profileChangeAction => 'Change';
+
+  @override
+  String get profilePackFormatBody => 'Choose pill pack format';
+
+  @override
+  String get profileReminderTimeBody => 'Daily pill reminder time';
+
+  @override
+  String get profileAverageCycleBody => 'Average cycle length';
+
+  @override
+  String get profileAverageBleedingBody => 'Average bleeding duration';
+
+  @override
+  String get profileLanguageBody => 'App language';
+
+  @override
+  String get profileNotificationsBody => 'Cycle reminders and alerts';
+
+  @override
+  String get profileDailyReminderBody => 'Evening symptom reminder';
+
+  @override
+  String get profileFaceIdPinTitle => 'Face ID / PIN';
+
+  @override
+  String get profileFaceIdPinBody => 'Protect your private health data';
+
+  @override
+  String get profileSupportBody => 'Contact support team';
+
+  @override
+  String get profilePartnerSyncBody => 'Share your cycle securely';
+
+  @override
+  String get profileHealthSyncAppleTitle => 'Apple Health Sync';
+
+  @override
+  String get profileHealthSyncGoogleTitle => 'Google Health Connect';
+
+  @override
+  String get profileHealthSyncBody => 'Securely sync your cycle & BBT';
+
+  @override
+  String get profileHealthSyncEnabled => 'Sync successfully enabled! 🎉';
+
+  @override
+  String get profileHealthSyncDenied => 'Sync access denied or unavailable.';
+
+  @override
+  String get profilePdfExportBody => 'Export health report as PDF';
+
+  @override
+  String get profileBackupCreateBody => 'Create local backup copy';
+
+  @override
+  String get profileBackupRestoreBody => 'Restore previously saved backup';
+
+  @override
+  String get profileResetFailed => 'Reset failed. Your data is still on this device.';
+
+  @override
+  String get profileEditTitle => 'Edit Profile';
+
+  @override
+  String get profileNameLabel => 'Your Name';
+
+  @override
+  String get profileDoneAction => 'Done';
+
+  @override
+  String get profileHeroPremiumMember => 'Premium member';
+
+  @override
+  String get profileHeroSubtitle => 'Your personal health space';
+
+  @override
+  String get profileHeroPrivateChip => 'Private';
 
   @override
   String get lblUser => 'User';
@@ -618,6 +876,36 @@ class AppLocalizationsEn extends AppLocalizations {
   String get dialogResetConfirm => 'Reset';
 
   @override
+  String get languageSelectionTitle => 'Choose Language';
+
+  @override
+  String get languageSelectionSubtitle => 'Select your app language';
+
+  @override
+  String get languageNameEnglish => 'English';
+
+  @override
+  String get languageNameKyrgyz => 'Kyrgyz';
+
+  @override
+  String get languageNameRussian => 'Russian';
+
+  @override
+  String get languageNameSpanish => 'Spanish';
+
+  @override
+  String get languageNameGerman => 'German';
+
+  @override
+  String get languageNamePortugueseBrazil => 'Portuguese (Brazil)';
+
+  @override
+  String get languageNameTurkish => 'Turkish';
+
+  @override
+  String get languageNamePolish => 'Polish';
+
+  @override
   String get dialogRestoreTitle => 'Restore Data?';
 
   @override
@@ -628,6 +916,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get msgRestoreSuccess => 'Data restored successfully!';
+
+  @override
+  String get subscriptionRestoreSuccess => 'Purchases restored successfully!';
 
   @override
   String get backupSubject => 'EviMoon Backup';
@@ -654,6 +945,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get authReason => 'Please authenticate to access EviMoon';
+
+  @override
+  String get authUnlockShortReason => 'Scan to unlock Ayla';
 
   @override
   String get authNotAvailable => 'Biometrics not available on device';
@@ -701,6 +995,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get pdfDetailedLogs => 'Detailed Logs';
 
   @override
+  String get pdfMedicationRegistry => 'Active Medications & Supplements';
+
+  @override
   String get pdfAvgCycle => 'Avg Cycle Length';
 
   @override
@@ -725,7 +1022,30 @@ class AppLocalizationsEn extends AppLocalizations {
   String get pdfTableNotes => 'Notes';
 
   @override
+  String get pdfClinicalSymptoms => 'Clinical Symptoms';
+
+  @override
+  String get pdfMedicationShort => 'Meds';
+
+  @override
+  String get pdfDefaultPatient => 'Patient';
+
+  @override
+  String pdfPeriodRange(String start, String end) {
+    return 'Period: $start - $end';
+  }
+
+  @override
   String get pdfFlowShort => 'Flow';
+
+  @override
+  String get pdfFlowMedium => 'Med';
+
+  @override
+  String get pdfSymptomSexProtected => 'Sex (P)';
+
+  @override
+  String get pdfSymptomSexUnprotected => 'Sex (U)';
 
   @override
   String get unitDays => 'days';
@@ -843,6 +1163,495 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get insightSpottingBody => 'Light bleeding can happen during ovulation or due to stress.';
+
+  @override
+  String get symptomInsightPeakFertilityDetectedTitle => 'Peak Fertility Detected! 🎯';
+
+  @override
+  String get symptomInsightPeakFertilityDetectedBody => 'Your LH surge indicates ovulation will likely occur within 24-36 hours. Today and tomorrow are your best days to try to conceive.';
+
+  @override
+  String get symptomInsightFertileWindowOpeningTitle => 'Fertile Window Opening';
+
+  @override
+  String get symptomInsightFertileWindowOpeningBody => 'LH levels are rising. Start having intercourse every 1-2 days to maximize your chances as ovulation approaches.';
+
+  @override
+  String get symptomInsightHighlyFertileMucusTitle => 'Highly Fertile Mucus';
+
+  @override
+  String get symptomInsightHighlyFertileMucusBody => 'Egg-white cervical mucus creates the perfect environment for sperm to survive and swim. This is a primary sign of high fertility.';
+
+  @override
+  String get symptomInsightBuildingUpFertilityTitle => 'Building Up Fertility';
+
+  @override
+  String get symptomInsightBuildingUpFertilityBody => 'Your cervical mucus is transitioning. As you get closer to ovulation, it will become clearer and more stretchy.';
+
+  @override
+  String get symptomInsightPerfectTimingTitle => 'Perfect Timing! ✨';
+
+  @override
+  String get symptomInsightPerfectTimingBody => 'You\'ve logged unprotected sex during your ovulation phase. You\'ve maximized your chances for this cycle. Now, time for the Two Week Wait (TWW).';
+
+  @override
+  String get symptomInsightTwoWeekWaitTitle => 'The Two Week Wait';
+
+  @override
+  String get symptomInsightTwoWeekWaitBody => 'The egg only survives 24h after ovulation. Intercourse in the luteal phase usually doesn\'t lead to conception, but it\'s great for connection!';
+
+  @override
+  String get symptomInsightMedicalAlertPainSpottingTitle => 'Medical Alert: Pain & Spotting';
+
+  @override
+  String get symptomInsightMedicalAlertPainSpottingBody => 'Spotting accompanied by pain outside your period can indicate cysts, polyps, or hormonal issues. Consider consulting a doctor.';
+
+  @override
+  String get symptomInsightDysmenorrheaPatternTitle => 'Dysmenorrhea Pattern';
+
+  @override
+  String get symptomInsightDysmenorrheaPatternBody => 'High levels of prostaglandins are causing both severe cramps and nausea. Warmth and NSAIDs (like Ibuprofen) can help block this chemical.';
+
+  @override
+  String get symptomInsightSeverePmsPmddTitle => 'Severe PMS / PMDD Indicator';
+
+  @override
+  String get symptomInsightSeverePmsPmddBody => 'Your emotional symptoms are compounding. This sharp drop in serotonin alongside progesterone is normal, but requires extreme self-care today.';
+
+  @override
+  String get symptomInsightBiologicalPeakTitle => 'Biological Peak';
+
+  @override
+  String get symptomInsightBiologicalPeakBody => 'Estrogen and testosterone are cresting simultaneously. Your body is biologically primed for socializing, mating, and high-energy tasks.';
+
+  @override
+  String get symptomLogCycleWarningTitle => 'Cycle Update Warning';
+
+  @override
+  String get symptomLogOvulationSpottingWarningBody => 'Light bleeding is common during ovulation. Logging this as a New Period will reset your entire cycle predictions. Do you want to start a new cycle, or log this as spotting?';
+
+  @override
+  String get symptomLogResetStartCycleAction => 'Reset & Start New Cycle';
+
+  @override
+  String get symptomLogJustSpottingAction => 'Just Spotting';
+
+  @override
+  String get symptomLogShortCycleWarningBody => 'It\'s been less than 21 days since your last period. Logging this as a New Period will dramatically alter your cycle averages and predictions. Are you sure?';
+
+  @override
+  String get symptomLogNewPeriodWarningBody => 'This input will end your current cycle and generate new predictions for your next phases. Are you sure you want to log a New Period today?';
+
+  @override
+  String get symptomLogStartNewCycleAction => 'Yes, start new cycle';
+
+  @override
+  String get symptomLogRemoveBleedingWarningBody => 'Removing bleeding from a logged period day will recalculate your cycle history and future predictions. Are you sure?';
+
+  @override
+  String get symptomLogRemoveAction => 'Remove it';
+
+  @override
+  String get symptomLogLhPeakAddedWarningBody => 'Logging an LH Peak will immediately shift your predicted ovulation day and adjust your fertile window. Proceed?';
+
+  @override
+  String get symptomLogConfirmShiftAction => 'Confirm Shift';
+
+  @override
+  String get symptomLogLhPeakRemovedWarningBody => 'Removing the LH Peak will revert your ovulation predictions back to standard AI calculations. Are you sure?';
+
+  @override
+  String get symptomLogFuturePredictionTitle => 'Future Prediction';
+
+  @override
+  String get symptomLogFutureTitle => 'The Future is Bright';
+
+  @override
+  String get symptomLogFutureBody => 'You cannot log symptoms for future dates. Select a past date to enter records.';
+
+  @override
+  String get symptomLogTtcAiTitle => 'TTC AI Intelligence';
+
+  @override
+  String get symptomLogTtcAiBody => 'Log BBT and LH tests below to refine ovulation timing and fertile-window predictions.';
+
+  @override
+  String get symptomLogSectionBleedingTitle => 'Bleeding & Flow';
+
+  @override
+  String get symptomLogSectionBleedingBody => 'Choose the intensity for this day';
+
+  @override
+  String get symptomLogSectionBbtTitle => 'Basal Body Temp (BBT)';
+
+  @override
+  String get symptomLogSectionBbtBody => 'Adjust daily basal temperature';
+
+  @override
+  String get symptomLogSectionOpkTitle => 'Ovulation Tests (OPK)';
+
+  @override
+  String get symptomLogSectionOpkBody => 'Only one LH status can be active';
+
+  @override
+  String get symptomLogSectionMucusTitle => 'Cervical Mucus';
+
+  @override
+  String get symptomLogSectionMucusBody => 'Track the most relevant type';
+
+  @override
+  String get symptomLogSectionIntimacyTitle => 'Intercourse & Libido';
+
+  @override
+  String get symptomLogSectionIntimacyTtcBody => 'Helpful for fertility insights';
+
+  @override
+  String get symptomLogSectionIntimacyBody => 'Track your intimacy and desire';
+
+  @override
+  String get symptomLogSectionVitalsTitle => 'Vitals';
+
+  @override
+  String get symptomLogSectionVitalsBody => 'Quick body check-in for the day';
+
+  @override
+  String get symptomLogSectionPhysicalTitle => 'Physical Symptoms';
+
+  @override
+  String get symptomLogSectionPhysicalBody => 'Body discomfort and physical signs';
+
+  @override
+  String get symptomLogSectionMentalTitle => 'Mental & Emotional';
+
+  @override
+  String get symptomLogSectionMentalBody => 'Mood, focus, and emotional state';
+
+  @override
+  String get symptomLogSectionOtherTitle => 'Other Factors';
+
+  @override
+  String get symptomLogSectionOtherBody => 'Context that may affect symptoms';
+
+  @override
+  String get symptomLogMenstruationConflictRemoved => 'Menstruation logged. Incompatible symptoms (LH Peak / Mucus) removed.';
+
+  @override
+  String get symptomLogBbtMeasuredLabel => 'Basal temperature';
+
+  @override
+  String get symptomLogBbtSuggestedLabel => 'Suggested from recent log';
+
+  @override
+  String get symptomLogBleedingRemovedOvulationConflict => 'Bleeding removed. Menstruation and ovulation cannot co-occur.';
+
+  @override
+  String get symptomLogBleedingRemovedMucusConflict => 'Bleeding removed. Cervical mucus is not tracked during menstruation.';
+
+  @override
+  String get healthFlagPcosTitle => 'Irregular Cycle Pattern';
+
+  @override
+  String get healthFlagPcosBody => 'Your cycles vary significantly in length or are consistently longer than 35 days.';
+
+  @override
+  String get healthFlagPcosRecommendation => 'This pattern is sometimes associated with PCOS or thyroid issues. Consider sharing this data with your gynecologist.';
+
+  @override
+  String get healthFlagEndometriosisTitle => 'High Pain Profile';
+
+  @override
+  String get healthFlagEndometriosisBody => 'You frequently log severe pelvic pain combined with heavy flow.';
+
+  @override
+  String get healthFlagEndometriosisRecommendation => 'Severe period pain that disrupts your life is not normal. This pattern can sometimes indicate endometriosis or fibroids. A doctor can help you manage this.';
+
+  @override
+  String get healthFlagLutealDefectTitle => 'Short Luteal Phase';
+
+  @override
+  String get healthFlagLutealDefectBody => 'The time between your ovulation and your next period is consistently short (< 10 days).';
+
+  @override
+  String get healthFlagLutealDefectRecommendation => 'A short luteal phase is often linked to low progesterone, which can make it harder to conceive. Useful to mention if you are planning a pregnancy.';
+
+  @override
+  String get healthFlagMenorrhagiaTitle => 'Prolonged Bleeding';
+
+  @override
+  String get healthFlagMenorrhagiaBody => 'Your periods consistently last 8 days or longer.';
+
+  @override
+  String get healthFlagMenorrhagiaRecommendation => 'Prolonged bleeding (menorrhagia) can lead to iron deficiency and fatigue. It\'s highly recommended to check your iron levels.';
+
+  @override
+  String get healthFlagPolymenorrheaTitle => 'Unusually Short Cycles';
+
+  @override
+  String get healthFlagPolymenorrheaBody => 'Your cycles are consistently shorter than 21 days.';
+
+  @override
+  String get healthFlagPolymenorrheaRecommendation => 'Frequent periods can cause anemia and indicate an ovulation issue. Worth discussing with a healthcare provider.';
+
+  @override
+  String get healthFlagPmddTitle => 'Severe Mood Drops (Luteal)';
+
+  @override
+  String get healthFlagPmddBody => 'You consistently log very low mood, anxiety, or depression in the week before your period.';
+
+  @override
+  String get healthFlagPmddRecommendation => 'This cyclic emotional drop may be PMDD (Premenstrual Dysphoric Disorder). You don\'t have to suffer through this alone—treatments are available.';
+
+  @override
+  String get healthFlagAmenorrheaTitle => 'Prolonged Cycle Delay';
+
+  @override
+  String get healthFlagAmenorrheaBody => 'Your current cycle has lasted over 90 days.';
+
+  @override
+  String get healthFlagAmenorrheaRecommendation => 'This is known as secondary amenorrhea. If pregnancy is ruled out, it can be caused by stress, weight changes, or hormonal imbalances. Please consult a doctor.';
+
+  @override
+  String get insightsLoadingHistoryPatterns => 'Analyzing history and patterns...';
+
+  @override
+  String get insightsFertilityStatusTitle => 'Fertility Status';
+
+  @override
+  String get insightsCycleAnalysisTitle => 'Cycle Analysis';
+
+  @override
+  String get insightsKeySignalsSubtitle => 'Key signals from your body';
+
+  @override
+  String get insightsHormonalRhythmTitle => 'Hormonal Rhythm';
+
+  @override
+  String get insightsHormonalRhythmBody => 'Your symptoms correlated with estimated hormone levels';
+
+  @override
+  String get insightsHormonalContextTitle => 'Hormonal Context';
+
+  @override
+  String get insightsHormonalContextBody => 'Why you might be feeling this way today';
+
+  @override
+  String get insightsMedicalInsightsTitle => 'Medical Insights';
+
+  @override
+  String get insightsMedicalInsightsBody => 'Patterns detected from your historical logs';
+
+  @override
+  String get insightsThermalShiftTitle => 'Thermal Shift';
+
+  @override
+  String get insightsThermalShiftBody => 'Your temperature pattern across this cycle';
+
+  @override
+  String get insightsFrequentSymptomsTitle => 'Frequent Symptoms';
+
+  @override
+  String get insightsFrequentSymptomsBody => 'Most repeated symptoms from your recent logs';
+
+  @override
+  String get insightsEmptySymptomsBody => 'Log your daily symptoms to uncover your body\'s unique patterns.';
+
+  @override
+  String get insightsTopBarFertilityHubTitle => 'Fertility Hub';
+
+  @override
+  String get insightsTopBarFertilityHubSubtitle => 'Personalized fertility intelligence';
+
+  @override
+  String get insightsTopBarDefaultSubtitle => 'Your body\'s intelligence';
+
+  @override
+  String get insightsHeroContraceptiveModeTitle => 'Contraceptive Mode';
+
+  @override
+  String get insightsHeroContraceptiveModeBody => 'Tracking is adapted for pill-based cycles';
+
+  @override
+  String get insightsHeroOvulationConfirmedTitle => 'Ovulation Confirmed';
+
+  @override
+  String get insightsHeroOvulationConfirmedBody => 'You are now in the two-week wait phase';
+
+  @override
+  String get insightsHeroFertileWindowActiveTitle => 'Fertile Window Active';
+
+  @override
+  String get insightsHeroFertileWindowActiveBody => 'Conception probability is elevated';
+
+  @override
+  String get insightsHeroTrackingFertilityTitle => 'Tracking Fertility';
+
+  @override
+  String get insightsHeroTrackingFertilityBody => 'Log BBT and symptoms for precision';
+
+  @override
+  String get insightsHeroCycleIntelligenceTitle => 'Cycle Intelligence';
+
+  @override
+  String get insightsHeroCycleIntelligenceEmptyBody => 'Start logging to unlock analysis';
+
+  @override
+  String get insightsHeroCycleIntelligenceReadyBody => 'Trends updated from recent logs';
+
+  @override
+  String get insightsHeroStatusLabel => 'Status';
+
+  @override
+  String get insightsHeroPhaseLabel => 'Phase';
+
+  @override
+  String get insightsHeroLogsLabel => 'Logs';
+
+  @override
+  String get insightsHeroCycleLabel => 'Cycle';
+
+  @override
+  String get insightsHeroPeriodLabel => 'Period';
+
+  @override
+  String get insightsAylaEngineTitle => 'Ayla AI Engine';
+
+  @override
+  String get insightsAylaReadyBody => 'Your daily hormonal analysis is ready. You can also chat with Ayla anytime for personalized guidance.';
+
+  @override
+  String get insightsAylaPromptBody => 'Wondering why you feel a certain way today? Chat with Ayla or generate your daily hormone report.';
+
+  @override
+  String get insightsChatWithAylaAction => 'Chat with Ayla';
+
+  @override
+  String get insightsViewTodaysReportAction => 'View Today\'s Report';
+
+  @override
+  String get insightsGenerateDailyReportAction => 'Generate Daily Report';
+
+  @override
+  String get insightsAnalysisDataInsufficientTitle => 'Data insufficient';
+
+  @override
+  String get insightsAnalysisDataInsufficientBody => 'Log more cycles to unlock insights.';
+
+  @override
+  String get insightsAnalysisOvulationConfirmedTitle => 'Ovulation confirmed';
+
+  @override
+  String get insightsAnalysisOvulationConfirmedBody => 'You are now in the two-week wait. Keep routines stable.';
+
+  @override
+  String get insightsAnalysisFertileWindowOpenTitle => 'Fertile window open';
+
+  @override
+  String get insightsAnalysisFertileWindowOpenBody => 'Chance of conception is high. Log BBT daily.';
+
+  @override
+  String get insightsAnalysisTrackingPhaseTitle => 'Tracking phase';
+
+  @override
+  String get insightsAnalysisTrackingPhaseBody => 'Monitoring inputs to predict ovulation day.';
+
+  @override
+  String get insightsAnalysisContraceptiveModeTitle => 'Contraceptive mode';
+
+  @override
+  String get insightsAnalysisContraceptiveModeBody => 'Cycle managed by oral contraceptives. Keep taking pills.';
+
+  @override
+  String get insightsAnalysisDelayedCycleTitle => 'Delayed cycle';
+
+  @override
+  String get insightsAnalysisDelayedCycleBody => 'Cycle delayed >60 days. Consider clinical consultation.';
+
+  @override
+  String get insightsAnalysisIrregularBleedingTitle => 'Irregular bleeding';
+
+  @override
+  String get insightsAnalysisIrregularBleedingBody => 'Recent period was longer than typical. Monitor closely.';
+
+  @override
+  String get insightsAnalysisStableRhythmTitle => 'Stable rhythm';
+
+  @override
+  String get insightsAnalysisStableRhythmBody => 'Your recent cycles look highly consistent.';
+
+  @override
+  String get insightsAnalysisLearningRhythmTitle => 'Learning your rhythm';
+
+  @override
+  String get insightsAnalysisLearningRhythmBody => 'App is building a reliable model. Keep logging.';
+
+  @override
+  String get insightsMetricCycleLength => 'Cycle length';
+
+  @override
+  String get insightsMetricPeriod => 'Period';
+
+  @override
+  String get insightsMetricFertility => 'Fertility';
+
+  @override
+  String get insightsMetricOvulation => 'Ovulation';
+
+  @override
+  String get insightsMetricYes => 'Yes';
+
+  @override
+  String get insightsMetricPending => 'Pending';
+
+  @override
+  String get insightsBbtEmptyBody => 'Log your morning temperature to see your thermal shift.';
+
+  @override
+  String get aylaConsultationTitle => 'Ayla\'s Advice';
+
+  @override
+  String get aylaConsultationAction => 'Got it, Ayla';
+
+  @override
+  String get timerPeriod => 'PERIOD';
+
+  @override
+  String get timerFertileIn => 'FERTILE IN';
+
+  @override
+  String get timerFertileWindow => 'FERTILE WINDOW';
+
+  @override
+  String get timerOvulation => 'OVULATION';
+
+  @override
+  String get timerPastOvulation => 'PAST OVULATION';
+
+  @override
+  String get timerCycleDelay => 'CYCLE DELAY';
+
+  @override
+  String timerDayValue(int day) {
+    return 'DAY $day';
+  }
+
+  @override
+  String timerDaysValue(int days) {
+    return '$days DAYS';
+  }
+
+  @override
+  String timerDpoValue(int days) {
+    return '$days DPO';
+  }
+
+  @override
+  String get timerDaysLate => 'DAYS LATE';
+
+  @override
+  String get timerPreparing => 'PREPARING';
+
+  @override
+  String get timerTwwDpo => 'TWW / DPO';
 
   @override
   String get tipPeriod => 'Rest up and eat iron-rich foods.';
@@ -1012,6 +1821,18 @@ class AppLocalizationsEn extends AppLocalizations {
   String get pack28Subtitle => '21 Active + 7 Placebo';
 
   @override
+  String get pack24Title => '28 Pills (24+4)';
+
+  @override
+  String get pack24Subtitle => '24 Active + 4 Placebo';
+
+  @override
+  String get packContinuousTitle => 'Continuous / Mini-Pill';
+
+  @override
+  String get packContinuousSubtitle => '28 Active (No Break)';
+
+  @override
   String get pack21 => '21 Active + 7 Break';
 
   @override
@@ -1027,8 +1848,19 @@ class AppLocalizationsEn extends AppLocalizations {
   String get pillTake => 'Take Your Pill';
 
   @override
+  String get pillMissed => 'Missed pill?';
+
+  @override
+  String get pillTakeNow => 'Take now';
+
+  @override
   String pillScheduled(String time) {
     return 'Scheduled for $time';
+  }
+
+  @override
+  String pillScheduledFor(String time) {
+    return 'It was scheduled for $time';
   }
 
   @override
@@ -1146,10 +1978,25 @@ class AppLocalizationsEn extends AppLocalizations {
   String get onboardPackTitle => 'Pack Type';
 
   @override
+  String get onboardPartnerModeCta => 'Partner mode? Enter code here.';
+
+  @override
+  String get onboardProcessingSetup => 'Setting up your AI...';
+
+  @override
+  String get onboardSetupError => 'Error during setup. Please try again.';
+
+  @override
   String get splashTitle => 'EVIMOON';
 
   @override
   String get splashSlogan => 'Listen to your rhythm';
+
+  @override
+  String get splashBrand => 'AYLA';
+
+  @override
+  String get splashTagline => 'breathe & bloom';
 
   @override
   String get premiumInsightLabel => 'PREMIUM INSIGHT';
@@ -1341,6 +2188,128 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get ttcBtnSex => 'Intimacy';
+
+  @override
+  String get dashboardActionLogged => 'Logged';
+
+  @override
+  String get dashboardPeriodEndingTitle => 'Ending today';
+
+  @override
+  String get dashboardPeriodEndingBody => 'Tap if bleeding has stopped';
+
+  @override
+  String dashboardPeriodDayTitle(int day) {
+    return 'Day $day of period';
+  }
+
+  @override
+  String get dashboardPeriodDayBody => 'Tap to manage or log symptoms';
+
+  @override
+  String get dashboardStartPeriodTitle => 'Start period';
+
+  @override
+  String get dashboardStartPeriodBody => 'Log today, yesterday, or choose a date';
+
+  @override
+  String get dashboardShortCycleSpottingBody => 'It\'s been less than 21 days since your last cycle started. Is this a new period, or just spotting?';
+
+  @override
+  String get dashboardNewPeriodAction => 'New Period';
+
+  @override
+  String get dashboardPeriodStartRemoved => 'Period start removed';
+
+  @override
+  String get dashboardFutureDateError => 'Cannot log a date in the future';
+
+  @override
+  String get dashboardResumePeriodTitle => 'Resume period';
+
+  @override
+  String get dashboardResumePeriodBody => 'Still bleeding? Continue current period';
+
+  @override
+  String get dashboardMistakeTitle => 'I made a mistake';
+
+  @override
+  String get dashboardMistakeBody => 'Remove period start';
+
+  @override
+  String get dashboardInsightCycleResetTitle => 'Cycle Reset';
+
+  @override
+  String get dashboardInsightCycleResetBody => 'Start fresh. Remember to take your daily folic acid or prenatal vitamins.';
+
+  @override
+  String get dashboardInsightPreparingOvulationTitle => 'Preparing for Ovulation';
+
+  @override
+  String get dashboardInsightPreparingOvulationBody => 'Your body is getting ready. Keep tracking BBT and watch for cervical mucus changes.';
+
+  @override
+  String get dashboardInsightPeakFertilityTitle => 'Peak Fertility!';
+
+  @override
+  String get dashboardInsightPeakFertilityBody => 'This is your optimal window for conception. Log your intercourse and LH tests.';
+
+  @override
+  String get dashboardInsightTwwTitle => 'Two Week Wait (TWW)';
+
+  @override
+  String get dashboardInsightTwwBody => 'Progesterone is rising. Stay relaxed, avoid hot tubs, and keep tracking BBT.';
+
+  @override
+  String get dashboardInsightTestDayTitle => 'Test Day! 🤞';
+
+  @override
+  String get dashboardInsightTestDayBody => 'Your period is late. It\'s a great time to take a pregnancy test!';
+
+  @override
+  String get dashboardInsightRestResetTitle => 'Rest & Reset';
+
+  @override
+  String get dashboardInsightRestResetBody => 'Your hormones are at their lowest. Focus on hydration.';
+
+  @override
+  String get dashboardInsightEnergyRisingTitle => 'Energy Rising';
+
+  @override
+  String get dashboardInsightEnergyRisingBody => 'Estrogen is climbing. Great time for complex tasks.';
+
+  @override
+  String get dashboardInsightPeakVitalityTitle => 'Peak Vitality';
+
+  @override
+  String get dashboardInsightPeakVitalityBody => 'You are glowing. Best time for high-intensity workouts.';
+
+  @override
+  String get dashboardInsightWindDownTitle => 'Wind Down';
+
+  @override
+  String get dashboardInsightWindDownBody => 'Progesterone is high. Cravings and mood swings are normal.';
+
+  @override
+  String get dashboardInsightCycleDelayedTitle => 'Cycle Delayed';
+
+  @override
+  String get dashboardInsightCycleDelayedBody => 'Your period is late. Stress could be a factor.';
+
+  @override
+  String get dashboardInsightAnalyzingBadge => '⏳ ANALYZING...';
+
+  @override
+  String get dashboardInsightLocalBadge => '⚡ LOCAL INSIGHT';
+
+  @override
+  String get dashboardInsightDailyAiBadge => '✨ DAILY AI';
+
+  @override
+  String get dashboardInsightThinkingTitle => 'Ayla is thinking...';
+
+  @override
+  String get dashboardInsightThinkingBody => 'Analyzing your latest cycle data and symptoms to generate a personalized insight...';
 
   @override
   String get ttcBtnReset => 'Reset';
@@ -1553,6 +2522,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get notifLateBody => 'Cycle is longer than usual. Don\'t worry, it happens.';
 
   @override
+  String get notifLateFiveDaysTitle => 'Period is 5 days late';
+
+  @override
+  String get notifLateFiveDaysBody => 'Consider taking a pregnancy test if you\'ve been sexually active.';
+
+  @override
   String get notifLogCheckinTitle => 'How do you feel?';
 
   @override
@@ -1581,6 +2556,252 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get notifBreakBody => 'Active pills finished. Enjoy your break week.';
+
+  @override
+  String get partnerLinkTitle => 'Enter Invite Code';
+
+  @override
+  String get partnerLinkSubtitle => 'Ask your partner to generate a 6-digit code in their Ayla app settings.';
+
+  @override
+  String get partnerLinkHint => '000-000';
+
+  @override
+  String get partnerLinkButton => 'Connect to Partner';
+
+  @override
+  String get partnerLinkInvalidCode => 'Invalid or expired code. Please check and try again.';
+
+  @override
+  String get partnerDashboardTitle => 'Ayla for Partners';
+
+  @override
+  String get partnerStatusTracking => 'Tracking...';
+
+  @override
+  String get partnerPhaseMenstruation => 'Menstruation (Period)';
+
+  @override
+  String get partnerPhaseFollicular => 'Follicular Phase';
+
+  @override
+  String get partnerPhaseOvulation => 'Ovulation Phase';
+
+  @override
+  String get partnerPhaseLuteal => 'Luteal Phase (PMS)';
+
+  @override
+  String get partnerPhasePill => 'Pill Cycle';
+
+  @override
+  String get partnerPeriodExpectedToday => 'Period expected today';
+
+  @override
+  String partnerNextPeriodInDays(int days) {
+    return 'Next period in ~$days days';
+  }
+
+  @override
+  String get partnerCompanionTitle => 'AI Companion';
+
+  @override
+  String get partnerCompanionLowMoodTitle => 'Low Mood Detected';
+
+  @override
+  String get partnerAdviceDefault => 'Support your partner today!';
+
+  @override
+  String get partnerAdviceMenstruation => 'Energy levels might be low today. It\'s a great time to offer a heating pad, order her favorite comfort food, and keep plans low-key.';
+
+  @override
+  String get partnerAdviceFollicular => 'Estrogen is rising! She likely has more energy and feels social. Great time for a date night or outdoor activities.';
+
+  @override
+  String get partnerAdviceLuteal => 'Progesterone is high, which can cause fatigue or PMS. Be extra patient, offer a massage, and don\'t take mood swings personally.';
+
+  @override
+  String get partnerAdviceLowMood => 'She logged a low mood today. Send a sweet message or bring her a small treat to brighten her day! 🍫';
+
+  @override
+  String get partnerFertilityTitle => 'Fertility Window';
+
+  @override
+  String get partnerFertilityHigh => 'Chance of conception is currently HIGH. 👶';
+
+  @override
+  String get partnerFertilityLow => 'Chance of conception is low right now.';
+
+  @override
+  String get partnerSendHug => 'Send a Digital Hug 💖';
+
+  @override
+  String get partnerHugSent => 'Digital hug sent! 💖';
+
+  @override
+  String get partnerDisconnectedTitle => 'Connection Lost';
+
+  @override
+  String get partnerDisconnectedBody => 'Your partner has unlinked the connection.';
+
+  @override
+  String get partnerGoBack => 'Go Back';
+
+  @override
+  String get partnerSyncTitle => 'Partner Sync';
+
+  @override
+  String get partnerSyncInviteTitle => 'Invite Your Partner';
+
+  @override
+  String get partnerSyncInviteBody => 'Share your cycle phase and mood so your partner knows when you need extra support, chocolate, or space.';
+
+  @override
+  String get partnerSyncGenerateCode => 'Generate Invite Code';
+
+  @override
+  String get partnerSyncPrivacyFootnote => 'You control what they see.';
+
+  @override
+  String get partnerSyncConnectedTitle => 'Partner Connected';
+
+  @override
+  String get partnerSyncWaitingTitle => 'Waiting for Partner...';
+
+  @override
+  String get partnerSyncConnectedBody => 'Your Ayla app is securely syncing data.';
+
+  @override
+  String get partnerSyncWaitingBody => 'Ask your partner to download Ayla and enter this code during setup:';
+
+  @override
+  String get partnerSyncCodeCopied => 'Code copied to clipboard!';
+
+  @override
+  String get partnerSyncCodeHint => 'Tap to copy • Expires in 24h';
+
+  @override
+  String get partnerSyncPrivacySettings => 'Privacy Settings';
+
+  @override
+  String get partnerSyncShareMoodTitle => 'Share Mood & Energy';
+
+  @override
+  String get partnerSyncShareMoodBody => 'Partner will see if you are tired, anxious, or happy.';
+
+  @override
+  String get partnerSyncShareFertilityTitle => 'Share Fertility Window';
+
+  @override
+  String get partnerSyncShareFertilityBody => 'Partner will be notified when your conception chance is high.';
+
+  @override
+  String get partnerSyncUnlinkTitle => 'Unlink Partner?';
+
+  @override
+  String get partnerSyncUnlinkBody => 'Your partner will immediately lose access to your cycle updates.';
+
+  @override
+  String get partnerSyncUnlinkAction => 'Unlink';
+
+  @override
+  String get partnerSyncUnlinkButton => 'Unlink Partner';
+
+  @override
+  String get chatTitle => 'Ayla AI';
+
+  @override
+  String get chatStatusOnline => 'Online • Cycle Intelligence Assistant';
+
+  @override
+  String get chatEmptyTitle => 'Hi, I\'m Ayla!';
+
+  @override
+  String get chatEmptyBody => 'I analyze your cycle, logs, and symptoms in real-time. Ask me anything about your current well-being, hormones, or fertility.';
+
+  @override
+  String get chatTyping => 'Ayla is typing...';
+
+  @override
+  String get chatInputHint => 'Ask Ayla...';
+
+  @override
+  String get chatConnectionIssue => 'I\'m having a little trouble connecting right now. Please check your internet or try again in a moment. 💜';
+
+  @override
+  String get aiDailyInsightTitle => 'Daily Insight';
+
+  @override
+  String get aiDailyInsightBody => 'Listen to your body today.';
+
+  @override
+  String get notifAylaInsightTitle => 'Ayla Insight ✨';
+
+  @override
+  String get homeBrandWordmark => 'A Y L A';
+
+  @override
+  String homeCocDayOfTotal(int current, int total) {
+    return 'Day $current of $total';
+  }
+
+  @override
+  String get medicationsLoading => 'Loading medications...';
+
+  @override
+  String get medicationsTitle => 'Medications & Vitamins';
+
+  @override
+  String get medicationsEmptyBody => 'Add your daily medications or supplements to track intake for the day.';
+
+  @override
+  String get medicationsAdd => 'Add medication';
+
+  @override
+  String get medicationsDailyIntake => 'Daily Intake';
+
+  @override
+  String get medicationsManage => 'Manage';
+
+  @override
+  String get medicationsProgressNone => 'Nothing marked as taken yet';
+
+  @override
+  String get medicationsProgressAll => 'All medications completed for today';
+
+  @override
+  String medicationsProgressSome(int taken, int total) {
+    return '$taken of $total completed today';
+  }
+
+  @override
+  String get medicationsTakenBadge => 'Taken';
+
+  @override
+  String get medicationsManageTitle => 'Manage Medications';
+
+  @override
+  String get medicationsManageBody => 'Add, remove, and organize the medications you want to track each day.';
+
+  @override
+  String get medicationsCurrent => 'Current medications';
+
+  @override
+  String get medicationsAddNew => 'Add new medication';
+
+  @override
+  String get medicationsNameLabel => 'Medication name';
+
+  @override
+  String get medicationsNameHint => 'Iron, Vitamin D, Omega-3...';
+
+  @override
+  String get medicationsDosageLabel => 'Dosage';
+
+  @override
+  String get medicationsDosageHint => '500mg, 1 pill, 2 drops...';
+
+  @override
+  String get medicationsAddButton => 'Add Medication';
 
   @override
   String get paywallTitle => 'EviMoon Premium';

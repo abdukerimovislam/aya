@@ -40,14 +40,14 @@ class SymptomIntelligence {
       // 1. ПИК ОВУЛЯЦИИ (ЛГ-тест)
       if (_has(symptoms, ['lh: peak'])) {
         possibleInsights.add(SymptomInsight(
-          title: "Peak Fertility Detected! 🎯",
-          description: "Your LH surge indicates ovulation will likely occur within 24-36 hours. Today and tomorrow are your best days to try to conceive.",
-          priority: 100, // Максимальный приоритет
+          title: l10n.symptomInsightPeakFertilityDetectedTitle,
+          description: l10n.symptomInsightPeakFertilityDetectedBody,
+          priority: 95, // 🔥 Снижен со 100 до 95, чтобы уступить место критическим мед. флагам
         ));
       } else if (_has(symptoms, ['lh: high'])) {
         possibleInsights.add(SymptomInsight(
-          title: "Fertile Window Opening",
-          description: "LH levels are rising. Start having intercourse every 1-2 days to maximize your chances as ovulation approaches.",
+          title: l10n.symptomInsightFertileWindowOpeningTitle,
+          description: l10n.symptomInsightFertileWindowOpeningBody,
           priority: 80,
         ));
       }
@@ -55,14 +55,14 @@ class SymptomIntelligence {
       // 2. ЦЕРВИКАЛЬНАЯ СЛИЗЬ (Яичный белок)
       if (_has(symptoms, ['egg-white mucus'])) {
         possibleInsights.add(SymptomInsight(
-          title: "Highly Fertile Mucus",
-          description: "Egg-white cervical mucus creates the perfect environment for sperm to survive and swim. This is a primary sign of high fertility.",
+          title: l10n.symptomInsightHighlyFertileMucusTitle,
+          description: l10n.symptomInsightHighlyFertileMucusBody,
           priority: 90,
         ));
       } else if (_has(symptoms, ['creamy mucus', 'sticky mucus'])) {
         possibleInsights.add(SymptomInsight(
-          title: "Building Up Fertility",
-          description: "Your cervical mucus is transitioning. As you get closer to ovulation, it will become clearer and more stretchy.",
+          title: l10n.symptomInsightBuildingUpFertilityTitle,
+          description: l10n.symptomInsightBuildingUpFertilityBody,
           priority: 40,
         ));
       }
@@ -71,24 +71,21 @@ class SymptomIntelligence {
       if (_has(symptoms, ['unprotected sex'])) {
         if (phase == CyclePhase.ovulation) {
           possibleInsights.add(SymptomInsight(
-            title: "Perfect Timing! ✨",
-            description: "You've logged unprotected sex during your ovulation phase. You've maximized your chances for this cycle. Now, time for the Two Week Wait (TWW).",
+            title: l10n.symptomInsightPerfectTimingTitle,
+            description: l10n.symptomInsightPerfectTimingBody,
             priority: 85,
           ));
         } else if (phase == CyclePhase.luteal) {
           possibleInsights.add(SymptomInsight(
-            title: "The Two Week Wait",
-            description: "The egg only survives 24h after ovulation. Intercourse in the luteal phase usually doesn't lead to conception, but it's great for connection!",
+            title: l10n.symptomInsightTwoWeekWaitTitle,
+            description: l10n.symptomInsightTwoWeekWaitBody,
             priority: 30,
           ));
         }
       }
 
-      // Если нашли инсайты планирования — отдаем их первыми
-      if (possibleInsights.isNotEmpty) {
-        possibleInsights.sort((a, b) => b.priority.compareTo(a.priority));
-        return possibleInsights.first;
-      }
+      // 🔥 ИСПРАВЛЕНИЕ: Убран ранний возврат "if (possibleInsights.isNotEmpty) return possibleInsights.first;".
+      // Теперь мы продолжаем анализ, чтобы не пропустить медицинские тревоги!
     }
 
 
@@ -99,10 +96,10 @@ class SymptomIntelligence {
     if (_has(symptoms, ['spotting', 'bleed', 'мазня']) && phase != CyclePhase.menstruation) {
       if (_has(symptoms, ['pain', 'cramp', 'боль', 'спазм', 'severe cramps'])) {
         possibleInsights.add(SymptomInsight(
-          title: "Medical Alert: Pain & Spotting",
-          description: "Spotting accompanied by pain outside your period can indicate cysts, polyps, or hormonal issues. Consider consulting a doctor.",
+          title: l10n.symptomInsightMedicalAlertPainSpottingTitle,
+          description: l10n.symptomInsightMedicalAlertPainSpottingBody,
           isWarning: true,
-          priority: 100,
+          priority: 100, // 🔥 Это перебьет любой инсайт планирования беременности
         ));
       } else {
         possibleInsights.add(SymptomInsight(
@@ -124,8 +121,8 @@ class SymptomIntelligence {
         ['nausea', 'vomit', 'тошнота', 'dizzy', 'головокружение']
       ])) {
         possibleInsights.add(SymptomInsight(
-          title: "Dysmenorrhea Pattern",
-          description: "High levels of prostaglandins are causing both severe cramps and nausea. Warmth and NSAIDs (like Ibuprofen) can help block this chemical.",
+          title: l10n.symptomInsightDysmenorrheaPatternTitle,
+          description: l10n.symptomInsightDysmenorrheaPatternBody,
           priority: 80,
           isWarning: true,
         ));
@@ -138,8 +135,8 @@ class SymptomIntelligence {
         ['anxious', 'anxiety', 'panic', 'stress', 'тревога']
       ])) {
         possibleInsights.add(SymptomInsight(
-          title: "Severe PMS / PMDD Indicator",
-          description: "Your emotional symptoms are compounding. This sharp drop in serotonin alongside progesterone is normal, but requires extreme self-care today.",
+          title: l10n.symptomInsightSeverePmsPmddTitle,
+          description: l10n.symptomInsightSeverePmsPmddBody,
           priority: 70,
           isWarning: true,
         ));
@@ -152,8 +149,8 @@ class SymptomIntelligence {
         ['energy', 'active', 'энергия', 'happy']
       ])) {
         possibleInsights.add(SymptomInsight(
-          title: "Biological Peak",
-          description: "Estrogen and testosterone are cresting simultaneously. Your body is biologically primed for socializing, mating, and high-energy tasks.",
+          title: l10n.symptomInsightBiologicalPeakTitle,
+          description: l10n.symptomInsightBiologicalPeakBody,
           priority: 60,
         ));
       }
@@ -203,6 +200,8 @@ class SymptomIntelligence {
     }
 
     if (possibleInsights.isEmpty) return null;
+
+    // 🔥 ФИНАЛЬНАЯ СОРТИРОВКА: ВЫБИРАЕТСЯ САМЫЙ КРИТИЧНЫЙ ИНСАЙТ ИЗ ВСЕХ ВОЗМОЖНЫХ
     possibleInsights.sort((a, b) => b.priority.compareTo(a.priority));
     return possibleInsights.first;
   }

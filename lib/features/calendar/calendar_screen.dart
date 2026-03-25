@@ -1,5 +1,4 @@
 import 'dart:math' as math;
-import 'dart:ui';
 
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/cupertino.dart';
@@ -11,6 +10,7 @@ import 'package:provider/provider.dart';
 import 'package:table_calendar/table_calendar.dart';
 
 import '../../core/theme/app_theme.dart';
+import '../../core/utils/intimacy_logging.dart';
 import '../../data/models/cycle_model.dart';
 import '../../data/providers/cycle_provider.dart';
 import '../../data/providers/wellness_provider.dart';
@@ -77,14 +77,14 @@ class _CalendarScreenState extends State<CalendarScreen> {
                   shape: BoxShape.circle,
                   gradient: LinearGradient(
                     colors: [
-                      AppColors.intimacy.withOpacity(0.18),
-                      AppColors.intimacy.withOpacity(0.08),
+                      AppColors.intimacy.withValues(alpha: 0.18),
+                      AppColors.intimacy.withValues(alpha: 0.08),
                     ],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),
                   border: Border.all(
-                    color: Colors.white.withOpacity(0.28),
+                    color: Colors.white.withValues(alpha: 0.28),
                   ),
                 ),
                 child: const Icon(
@@ -144,18 +144,19 @@ class _CalendarScreenState extends State<CalendarScreen> {
   }
 
   Widget _buildViewToggle() {
+    final l10n = AppLocalizations.of(context)!;
     return Container(
       padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.26),
+        color: Colors.white.withValues(alpha: 0.26),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.white.withOpacity(0.16)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.16)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          _buildToggleBtn("Month", CalendarViewMode.month),
-          _buildToggleBtn("Cycle", CalendarViewMode.cycle),
+          _buildToggleBtn(l10n.calendarViewMonth, CalendarViewMode.month),
+          _buildToggleBtn(l10n.tabCycle, CalendarViewMode.cycle),
         ],
       ),
     );
@@ -179,7 +180,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
           boxShadow: isActive
               ? [
             BoxShadow(
-              color: AppColors.primary.withOpacity(0.10),
+              color: AppColors.primary.withValues(alpha: 0.10),
               blurRadius: 12,
               offset: const Offset(0, 6),
             ),
@@ -193,7 +194,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
             fontWeight: isActive ? FontWeight.w800 : FontWeight.w600,
             color: isActive
                 ? AppColors.textPrimary
-                : AppColors.textPrimary.withOpacity(0.56),
+                : AppColors.textPrimary.withValues(alpha: 0.56),
           ),
         ),
       ),
@@ -208,8 +209,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
     final bool hasData = cycle.history.isNotEmpty || cycle.isCOCEnabled;
 
     String title = cycle.isCOCEnabled
-        ? "Pill Day ${cycle.currentData.dayOfCycle}"
-        : "Day ${cycle.currentData.dayOfCycle}";
+        ? l10n.calendarPillDay(cycle.currentData.dayOfCycle)
+        : l10n.dayOfCycle(cycle.currentData.dayOfCycle);
     String phaseName = _getPhaseName(
       cycle.currentData.phase,
       cycle.isCOCEnabled,
@@ -218,23 +219,23 @@ class _CalendarScreenState extends State<CalendarScreen> {
     );
 
     String forecast = cycle.isCOCEnabled
-        ? "~${cycle.currentData.daysToNextPeriod} days to break"
-        : "~${cycle.currentData.daysToNextPeriod} days to period";
+        ? l10n.calendarDaysToBreak(cycle.currentData.daysToNextPeriod)
+        : l10n.calendarDaysToPeriod(cycle.currentData.daysToNextPeriod);
 
     if (isTTC && hasData) {
       if (cycle.currentData.phase == CyclePhase.follicular) {
         final int daysToFertile =
         math.max(0, cycle.ovulationDay - 5 - cycle.currentData.dayOfCycle);
-        forecast = "~$daysToFertile days to fertile window";
+        forecast = l10n.calendarDaysToFertileWindow(daysToFertile);
       } else if (cycle.currentData.phase == CyclePhase.luteal) {
-        forecast = "~${cycle.currentData.daysToNextPeriod} days to test day";
+        forecast = l10n.calendarDaysToTestDay(cycle.currentData.daysToNextPeriod);
       }
     }
 
     if (!hasData) {
-      title = "Welcome to Ayla";
-      phaseName = "Tracking paused";
-      forecast = "Add first day of your period to start.";
+      title = l10n.calendarWelcomeTitle;
+      phaseName = l10n.calendarTrackingPaused;
+      forecast = l10n.calendarAddFirstPeriodBody;
     }
 
     final Color accentColor = cycle.isCOCEnabled
@@ -255,8 +256,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
               shape: BoxShape.circle,
               gradient: LinearGradient(
                 colors: [
-                  accentColor.withOpacity(0.22),
-                  accentColor.withOpacity(0.10),
+                  accentColor.withValues(alpha: 0.22),
+                  accentColor.withValues(alpha: 0.10),
                 ],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
@@ -338,7 +339,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
           : l10n.cocActivePhase;
     }
     if (isTTC && phase == CyclePhase.luteal) {
-      return "Two Week Wait (TWW)";
+      return l10n.calendarTwoWeekWaitTtc;
     }
 
     switch (phase) {
@@ -360,6 +361,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
       DateTime date,
       WellnessProvider wellness,
       ) {
+    final l10n = AppLocalizations.of(context)!;
     showCupertinoModalPopup(
       context: context,
       builder: (BuildContext context) => CupertinoActionSheet(
@@ -370,7 +372,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
             letterSpacing: 1,
           ),
         ),
-        message: const Text('Intimacy Quick Log'),
+        message: Text(l10n.calendarIntimacyQuickLog),
         actions: <CupertinoActionSheetAction>[
           CupertinoActionSheetAction(
             child: Row(
@@ -383,7 +385,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                 ),
                 const SizedBox(width: 8),
                 Text(
-                  'Log Unprotected Sex',
+                  l10n.calendarLogUnprotectedSex,
                   style: GoogleFonts.inter(
                     color: AppColors.textPrimary,
                     fontWeight: FontWeight.w600,
@@ -407,7 +409,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                 ),
                 const SizedBox(width: 8),
                 Text(
-                  'Log Protected Sex',
+                  l10n.calendarLogProtectedSex,
                   style: GoogleFonts.inter(
                     color: AppColors.textPrimary,
                     fontWeight: FontWeight.w600,
@@ -431,7 +433,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                 ),
                 const SizedBox(width: 8),
                 Text(
-                  'Open Full Logger',
+                  l10n.calendarOpenFullLogger,
                   style: GoogleFonts.inter(
                     color: AppColors.textPrimary,
                     fontWeight: FontWeight.w600,
@@ -449,7 +451,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
           isDefaultAction: true,
           onPressed: () => Navigator.pop(context),
           child: Text(
-            'Cancel',
+            l10n.btnCancel,
             style: GoogleFonts.inter(fontWeight: FontWeight.bold),
           ),
         ),
@@ -458,24 +460,15 @@ class _CalendarScreenState extends State<CalendarScreen> {
   }
 
   void _quickLogIntimacy(
-      DateTime date,
-      WellnessProvider wellness,
-      String intimacyType,
-      ) async {
+    DateTime date,
+    WellnessProvider wellness,
+    String intimacyType,
+  ) async {
     HapticFeedback.mediumImpact();
+    final l10n = AppLocalizations.of(context)!;
     final log = wellness.getLogForDate(date);
-    final List<String> updatedSymptoms = List.from(log.symptoms);
-
-    if (intimacyType == 'Unprotected Sex') {
-      updatedSymptoms.remove('Protected Sex');
-    }
-    if (intimacyType == 'Protected Sex') {
-      updatedSymptoms.remove('Unprotected Sex');
-    }
-
-    if (!updatedSymptoms.contains(intimacyType)) {
-      updatedSymptoms.add(intimacyType);
-    }
+    final updatedSymptoms = toggleIntimacySymptoms(log.symptoms, intimacyType);
+    final wasLogged = updatedSymptoms.contains(intimacyType);
 
     await wellness.saveLog(log.copyWith(symptoms: updatedSymptoms));
 
@@ -483,7 +476,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            "Intimacy logged for ${DateFormat('MMM d').format(date)}",
+            wasLogged
+                ? l10n.calendarIntimacyLogged(DateFormat('MMM d').format(date))
+                : l10n.calendarIntimacyRemoved(DateFormat('MMM d').format(date)),
           ),
           backgroundColor: AppColors.intimacy,
           behavior: SnackBarBehavior.floating,
@@ -566,7 +561,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                 leftChevronIcon: Container(
                   padding: const EdgeInsets.all(6),
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.55),
+                    color: Colors.white.withValues(alpha: 0.55),
                     shape: BoxShape.circle,
                   ),
                   child: Icon(
@@ -578,7 +573,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                 rightChevronIcon: Container(
                   padding: const EdgeInsets.all(6),
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.55),
+                    color: Colors.white.withValues(alpha: 0.55),
                     shape: BoxShape.circle,
                   ),
                   child: Icon(
@@ -598,7 +593,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                 weekendStyle: GoogleFonts.inter(
                   fontSize: 11,
                   fontWeight: FontWeight.w700,
-                  color: AppColors.textSecondary.withOpacity(0.55),
+                  color: AppColors.textSecondary.withValues(alpha: 0.55),
                 ),
               ),
               calendarStyle: const CalendarStyle(
@@ -655,6 +650,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
   }
 
   Widget _buildLegend(bool isCOC, bool isTTC) {
+    final l10n = AppLocalizations.of(context)!;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 14),
       child: PremiumGlassCard(
@@ -666,27 +662,27 @@ class _CalendarScreenState extends State<CalendarScreen> {
           runSpacing: 10,
           children: [
             _buildLegendItem(
-              isCOC ? "Logged break" : "Logged period",
+              isCOC ? l10n.calendarLoggedBreak : l10n.calendarLoggedPeriod,
               AppColors.menstruation,
             ),
             _buildLegendItem(
-              "Predicted period",
+              l10n.calendarPredictedPeriod,
               Colors.transparent,
-              borderColor: AppColors.menstruation.withOpacity(0.48),
+              borderColor: AppColors.menstruation.withValues(alpha: 0.48),
             ),
             if (!isCOC) ...[
               _buildLegendItem(
-                isTTC ? "Fertile window" : "Fertile",
-                AppColors.follicular.withOpacity(0.45),
+                isTTC ? l10n.calendarFertileWindow : l10n.legendFertile,
+                AppColors.follicular.withValues(alpha: 0.45),
               ),
               _buildLegendItem(
-                "Ovulation",
-                AppColors.ovulation.withOpacity(0.25),
+                l10n.legendOvulation,
+                AppColors.ovulation.withValues(alpha: 0.25),
                 dotColor: AppColors.ovulationStrong,
               ),
               _buildLegendItem(
-                "Has log",
-                AppColors.textSecondary.withOpacity(0.35),
+                l10n.calendarHasLog,
+                AppColors.textSecondary.withValues(alpha: 0.35),
               ),
             ],
           ],
@@ -711,7 +707,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
             color: bgColor,
             shape: BoxShape.circle,
             border: Border.all(
-              color: borderColor ?? Colors.black.withOpacity(0.05),
+              color: borderColor ?? Colors.black.withValues(alpha: 0.05),
             ),
           ),
           child: dotColor != null
@@ -764,8 +760,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
     if (log != null) {
       hasAnyLog = true;
-      hasSex = log.symptoms.contains('Unprotected Sex') ||
-          log.symptoms.contains('Protected Sex');
+      hasSex = log.hasAnyIntimacy;
       hasBBT = log.temperature != null && log.temperature! > 0;
     }
 
@@ -778,23 +773,23 @@ class _CalendarScreenState extends State<CalendarScreen> {
         textColor = AppColors.periodStrong;
       }
     } else if (phase == CyclePhase.follicular && !cycle.isCOCEnabled) {
-      bgColor = AppColors.follicular.withOpacity(0.20);
+      bgColor = AppColors.follicular.withValues(alpha: 0.20);
       textColor = const Color(0xFF3A7C73);
     } else if (phase == CyclePhase.ovulation && !cycle.isCOCEnabled) {
       bgColor = isTTC
           ? AppColors.ovulationStrong
-          : AppColors.ovulation.withOpacity(0.26);
+          : AppColors.ovulation.withValues(alpha: 0.26);
       textColor = isTTC ? Colors.white : AppColors.ovulationStrong;
       showOvulationDot = !isTTC;
     } else if (phase == CyclePhase.luteal && isTTC) {
-      bgColor = AppColors.ovulationSoft.withOpacity(0.35);
+      bgColor = AppColors.ovulationSoft.withValues(alpha: 0.35);
       textColor = AppColors.ovulationStrong;
     }
 
     if (isSelected) {
-      outlineColor = AppColors.primary.withOpacity(0.52);
+      outlineColor = AppColors.primary.withValues(alpha: 0.52);
     } else if (isToday) {
-      outlineColor = AppColors.textSecondary.withOpacity(0.24);
+      outlineColor = AppColors.textSecondary.withValues(alpha: 0.24);
     }
 
     Widget bottomMarkers() {
@@ -829,7 +824,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
           width: 4,
           height: 4,
           decoration: BoxDecoration(
-            color: textColor.withOpacity(0.55),
+            color: textColor.withValues(alpha: 0.55),
             shape: BoxShape.circle,
           ),
         ));
@@ -887,7 +882,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
           color: isPredictedPeriod
-              ? AppColors.periodStrong.withOpacity(0.44)
+              ? AppColors.periodStrong.withValues(alpha: 0.44)
               : (outlineColor ?? Colors.transparent),
           width: isSelected ? 2 : (isPredictedPeriod ? 1.4 : 1.1),
         ),
@@ -896,7 +891,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
           ? DecoratedBox(
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(14),
-          color: AppColors.periodSoft.withOpacity(0.32),
+          color: AppColors.periodSoft.withValues(alpha: 0.32),
         ),
         child: baseChild,
       )
@@ -916,7 +911,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
     if (!hasEnoughData && cycle.history.isEmpty) {
       return _buildEmptyState(
-        "Need more data to build cycle timeline. Please log your previous periods.",
+        l10n.calendarNeedMoreTimelineData,
         CupertinoIcons.chart_bar_alt_fill,
       );
     }
@@ -933,7 +928,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
         Padding(
           padding: const EdgeInsets.fromLTRB(20, 8, 20, 8),
           child: Text(
-            "Current Cycle Timeline",
+            l10n.calendarCurrentCycleTimeline,
             style: GoogleFonts.outfit(
               fontSize: 19,
               fontWeight: FontWeight.w700,
@@ -960,31 +955,31 @@ class _CalendarScreenState extends State<CalendarScreen> {
               Color cardColor = AppColors.surface;
               Color textColor = AppColors.textPrimary;
               Color accentColor = AppColors.textSecondary;
-              String phaseLabel = "Normal";
+              String phaseLabel = l10n.calendarNormalPhase;
 
               if (phase == CyclePhase.menstruation) {
                 cardColor = hasFlow ? AppColors.menstruation : AppColors.periodSoft;
                 textColor = hasFlow ? Colors.white : AppColors.menstruation;
                 accentColor = hasFlow ? Colors.white : AppColors.menstruation;
-                phaseLabel = "Period";
+                phaseLabel = l10n.legendPeriod;
               } else if (phase == CyclePhase.follicular && !cycle.isCOCEnabled) {
-                cardColor = AppColors.follicular.withOpacity(0.3);
+                cardColor = AppColors.follicular.withValues(alpha: 0.3);
                 textColor = const Color(0xFF3A7C73);
                 accentColor = const Color(0xFF3A7C73);
-                phaseLabel = "Follicular";
+                phaseLabel = l10n.legendFollicular;
               } else if (phase == CyclePhase.ovulation && !cycle.isCOCEnabled) {
                 cardColor = isTTC ? AppColors.ovulationStrong : AppColors.ovulationSoft;
                 textColor = isTTC ? Colors.white : AppColors.ovulationStrong;
                 accentColor = isTTC ? Colors.white : AppColors.ovulationStrong;
-                phaseLabel = "Ovulation";
+                phaseLabel = l10n.legendOvulation;
               } else if (phase == CyclePhase.luteal) {
-                phaseLabel = "Luteal";
-                cardColor = AppColors.luteal.withOpacity(0.3);
+                phaseLabel = l10n.legendLuteal;
+                cardColor = AppColors.luteal.withValues(alpha: 0.3);
                 textColor = AppColors.textPrimary;
                 accentColor = AppColors.luteal;
               } else if (phase == CyclePhase.late) {
-                phaseLabel = "Late";
-                cardColor = AppColors.late.withOpacity(0.3);
+                phaseLabel = l10n.phaseLate;
+                cardColor = AppColors.late.withValues(alpha: 0.3);
                 textColor = const Color(0xFF8F651E);
                 accentColor = AppColors.late;
               }
@@ -1001,7 +996,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                   boxShadow: [
                     if (isToday)
                       BoxShadow(
-                        color: AppColors.primary.withOpacity(0.15),
+                        color: AppColors.primary.withValues(alpha: 0.15),
                         blurRadius: 10,
                         offset: const Offset(0, 4),
                       )
@@ -1015,7 +1010,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                       style: GoogleFonts.inter(
                         fontSize: 10,
                         fontWeight: FontWeight.w700,
-                        color: textColor.withOpacity(0.6),
+                        color: textColor.withValues(alpha: 0.6),
                       ),
                     ),
                     const SizedBox(height: 4),
@@ -1031,11 +1026,11 @@ class _CalendarScreenState extends State<CalendarScreen> {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
                       decoration: BoxDecoration(
-                        color: accentColor.withOpacity(0.15),
+                        color: accentColor.withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(6),
                       ),
                       child: Text(
-                        "D$dayNum",
+                        l10n.calendarTimelineDay(dayNum),
                         style: GoogleFonts.inter(
                           fontSize: 10,
                           fontWeight: FontWeight.w800,
@@ -1049,7 +1044,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                       style: GoogleFonts.inter(
                         fontSize: 9,
                         fontWeight: FontWeight.w700,
-                        color: textColor.withOpacity(0.7),
+                        color: textColor.withValues(alpha: 0.7),
                       ),
                     ),
                   ],
@@ -1066,7 +1061,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
             child: Text(
-              "Your Averages",
+              l10n.calendarYourAverages,
               style: GoogleFonts.outfit(
                 fontSize: 19,
                 fontWeight: FontWeight.w700,
@@ -1075,7 +1070,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
             ),
           ),
           const SizedBox(height: 12),
-          _buildCycleStatistics(cycle),
+          _buildCycleStatistics(cycle, l10n),
         ],
 
         const SizedBox(height: 32),
@@ -1089,7 +1084,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 Text(
-                  "Recent Cycles",
+                  l10n.calendarRecentCycles,
                   style: GoogleFonts.outfit(
                     fontSize: 19,
                     fontWeight: FontWeight.w700,
@@ -1133,7 +1128,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
               child: Icon(
                 icon,
                 size: 32,
-                color: AppColors.textSecondary.withOpacity(0.5),
+                color: AppColors.textSecondary.withValues(alpha: 0.5),
               ),
             ),
             const SizedBox(height: 20),
@@ -1154,9 +1149,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
   }
 
   // 🔥 НОВЫЙ БЛОК СО СТАТИСТИКОЙ
-  Widget _buildCycleStatistics(CycleProvider cycle) {
+  Widget _buildCycleStatistics(CycleProvider cycle, AppLocalizations l10n) {
     // Считаем регулярность (вариативность)
-    String regularityStatus = "Regular";
+    String regularityStatus = l10n.factorStable;
     Color regularityColor = AppColors.success;
 
     if (cycle.history.length >= 3) {
@@ -1166,10 +1161,10 @@ class _CalendarScreenState extends State<CalendarScreen> {
       final variation = maxLen - minLen;
 
       if (variation > 9) {
-        regularityStatus = "Irregular";
+        regularityStatus = l10n.factorHighVar;
         regularityColor = AppColors.error;
       } else if (variation > 5) {
-        regularityStatus = "Slightly variable";
+        regularityStatus = l10n.factorSlightVar;
         regularityColor = AppColors.warning;
       }
     }
@@ -1189,7 +1184,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                     children: [
                       Icon(CupertinoIcons.arrow_2_circlepath, size: 14, color: AppColors.primary),
                       const SizedBox(width: 6),
-                      Text("Cycle Length", style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.textSecondary)),
+                      Text(l10n.lblCycleLength, style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.textSecondary)),
                     ],
                   ),
                   const SizedBox(height: 8),
@@ -1198,7 +1193,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                     textBaseline: TextBaseline.alphabetic,
                     children: [
                       Text("${cycle.cycleLength}", style: GoogleFonts.outfit(fontSize: 24, fontWeight: FontWeight.w800, color: AppColors.textPrimary)),
-                      Text(" days", style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textSecondary)),
+                      Text(" ${l10n.daysUnit}", style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textSecondary)),
                     ],
                   ),
                   const SizedBox(height: 4),
@@ -1225,7 +1220,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                     children: [
                       const Icon(CupertinoIcons.drop_fill, size: 14, color: AppColors.menstruation),
                       const SizedBox(width: 6),
-                      Text("Period Length", style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.textSecondary)),
+                      Text(l10n.lblPeriodLength, style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.textSecondary)),
                     ],
                   ),
                   const SizedBox(height: 8),
@@ -1234,11 +1229,11 @@ class _CalendarScreenState extends State<CalendarScreen> {
                     textBaseline: TextBaseline.alphabetic,
                     children: [
                       Text("${cycle.avgPeriodDuration}", style: GoogleFonts.outfit(fontSize: 24, fontWeight: FontWeight.w800, color: AppColors.textPrimary)),
-                      Text(" days", style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textSecondary)),
+                      Text(" ${l10n.daysUnit}", style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textSecondary)),
                     ],
                   ),
                   const SizedBox(height: 4),
-                  Text("Based on recent logs", style: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.w500, color: AppColors.textSecondary)),
+                  Text(l10n.calendarBasedOnRecentLogs, style: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.w500, color: AppColors.textSecondary)),
                 ],
               ),
             ),
@@ -1249,13 +1244,22 @@ class _CalendarScreenState extends State<CalendarScreen> {
   }
 
   // 🔥 ОБНОВЛЕННЫЙ ГРАФИК ЦИКЛОВ (С РАЗБИВКОЙ НА ФАЗЫ)
+  // 🔥 ОБНОВЛЕННЫЙ ГРАФИК ЦИКЛОВ (С РАЗБИВКОЙ НА ФАЗЫ)
   Widget _buildCycleBarChart(CycleProvider cycle) {
-    // Берем последние 6 циклов
+    final l10n = AppLocalizations.of(context)!;
     final history = cycle.history.reversed.take(6).toList().reversed.toList();
     final avgCycle = cycle.cycleLength.toDouble();
     final avgPeriod = cycle.avgPeriodDuration.toDouble();
 
-    // Приблизительная длина лютеиновой фазы (обычно 14 дней)
+    // 🔥 ИСПРАВЛЕНИЕ: Динамический maxY для поддержки длинных циклов (PCOS)
+    double maxRecordedLength = 40.0;
+    for (var c in history) {
+      if (c.length != null && c.length! > maxRecordedLength) {
+        maxRecordedLength = c.length!.toDouble();
+      }
+    }
+    final double chartMaxY = maxRecordedLength + 5.0; // Даем запас сверху
+
     const double lutealLength = 14.0;
 
     return Column(
@@ -1264,7 +1268,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
           child: BarChart(
             BarChartData(
               alignment: BarChartAlignment.spaceAround,
-              maxY: 40, // Максимальная адекватная длина цикла
+              maxY: chartMaxY, // 🔥 Применили динамический лимит!
               minY: 0,
               barTouchData: BarTouchData(
                 enabled: true,
@@ -1280,7 +1284,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                   getTooltipItem: (group, groupIndex, rod, rodIndex) {
                     final cycleLen = rod.toY.toInt();
                     return BarTooltipItem(
-                      "$cycleLen days",
+                      "$cycleLen ${l10n.daysUnit}",
                       GoogleFonts.inter(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 12),
                     );
                   },
@@ -1310,7 +1314,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                     interval: 10,
                     getTitlesWidget: (value, meta) => Text(
                       value.toInt().toString(),
-                      style: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.w500, color: AppColors.textSecondary.withOpacity(0.5)),
+                      style: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.w500, color: AppColors.textSecondary.withValues(alpha: 0.5)),
                     ),
                   ),
                 ),
@@ -1321,15 +1325,15 @@ class _CalendarScreenState extends State<CalendarScreen> {
                 horizontalLines: [
                   HorizontalLine(
                     y: avgCycle,
-                    color: AppColors.primary.withOpacity(0.3),
+                    color: AppColors.primary.withValues(alpha: 0.3),
                     strokeWidth: 1.5,
                     dashArray: [4, 4],
                     label: HorizontalLineLabel(
                       show: true,
                       alignment: Alignment.topRight,
                       padding: const EdgeInsets.only(right: 0, bottom: 4),
-                      style: GoogleFonts.inter(fontSize: 9, fontWeight: FontWeight.w700, color: AppColors.primary.withOpacity(0.5)),
-                      labelResolver: (_) => "Avg",
+                      style: GoogleFonts.inter(fontSize: 9, fontWeight: FontWeight.w700, color: AppColors.primary.withValues(alpha: 0.5)),
+                      labelResolver: (_) => l10n.calendarAvgShort,
                     ),
                   ),
                 ],
@@ -1379,11 +1383,11 @@ class _CalendarScreenState extends State<CalendarScreen> {
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            _buildGraphLegend("Period", AppColors.menstruation),
+            _buildGraphLegend(l10n.legendPeriod, AppColors.menstruation),
             const SizedBox(width: 12),
-            _buildGraphLegend("Follicular", AppColors.follicular),
+            _buildGraphLegend(l10n.legendFollicular, AppColors.follicular),
             const SizedBox(width: 12),
-            _buildGraphLegend("Luteal", AppColors.luteal),
+            _buildGraphLegend(l10n.legendLuteal, AppColors.luteal),
           ],
         )
       ],
@@ -1429,9 +1433,9 @@ class _DaySummaryCard extends StatelessWidget {
 
     final hasLogs = wellnessProvider.hasLogForDate(date);
 
-    String phaseText = "Predicted";
+    String phaseText = l10n.legendPredictedPeriod;
     Color phaseColor = AppColors.textSecondary;
-    String subText = "No symptoms logged";
+    String subText = l10n.lblNoSymptoms;
 
     if (phase != null) {
       if (cycleProvider.isCOCEnabled) {
@@ -1452,16 +1456,16 @@ class _DaySummaryCard extends StatelessWidget {
             phaseColor = AppColors.follicular;
             break;
           case CyclePhase.ovulation:
-            phaseText = isTTC ? "Peak Ovulation" : l10n.phaseOvulation;
+            phaseText = isTTC ? l10n.calendarPeakOvulation : l10n.phaseOvulation;
             phaseColor =
             isTTC ? AppColors.ovulationStrong : AppColors.ovulation;
             break;
           case CyclePhase.luteal:
-            phaseText = isTTC ? "Two Week Wait" : l10n.phaseLuteal;
+            phaseText = isTTC ? l10n.calendarTwoWeekWait : l10n.phaseLuteal;
             phaseColor = AppColors.luteal;
             break;
           case CyclePhase.late:
-            phaseText = isTTC ? "Test Day" : l10n.phaseLate;
+            phaseText = isTTC ? l10n.calendarTestDay : l10n.phaseLate;
             phaseColor = AppColors.late;
             break;
         }
@@ -1472,25 +1476,24 @@ class _DaySummaryCard extends StatelessWidget {
       final log = wellnessProvider.getLogForDate(date);
       final List<String> loggedItems = [];
 
-      if (log.flow != FlowIntensity.none) loggedItems.add("Bleeding");
+      if (log.flow != FlowIntensity.none) loggedItems.add(l10n.calendarLoggedBleeding);
       if (log.temperature != null && log.temperature! > 0) {
-        loggedItems.add("BBT: ${log.temperature}");
+        loggedItems.add(l10n.calendarBbtLogged(log.temperature!.toString()));
       }
-      if (log.symptoms.contains('Unprotected Sex') ||
-          log.symptoms.contains('Protected Sex')) {
-        loggedItems.add("Intimacy");
+      if (log.hasAnyIntimacy) {
+        loggedItems.add(l10n.lblIntimacy);
       }
       if (log.symptoms.any((s) => s.startsWith("LH:"))) {
-        loggedItems.add("OPK Logged");
+        loggedItems.add(l10n.calendarOpkLogged);
       }
 
       if (loggedItems.isNotEmpty) {
         subText = loggedItems.join(" • ");
       } else {
-        subText = "Symptoms logged";
+        subText = l10n.calendarSymptomsLogged;
       }
     } else if (isFuture) {
-      subText = "Prediction";
+      subText = l10n.calendarPrediction;
     }
 
     final Color ctaColor =
@@ -1585,15 +1588,15 @@ class _DaySummaryCard extends StatelessWidget {
                   shape: BoxShape.circle,
                   gradient: LinearGradient(
                     colors: [
-                      ctaColor.withOpacity(0.96),
-                      ctaColor.withOpacity(0.84),
+                      ctaColor.withValues(alpha: 0.96),
+                      ctaColor.withValues(alpha: 0.84),
                     ],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),
                   boxShadow: [
                     BoxShadow(
-                      color: ctaColor.withOpacity(0.24),
+                      color: ctaColor.withValues(alpha: 0.24),
                       blurRadius: 16,
                       offset: const Offset(0, 8),
                     ),

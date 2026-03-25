@@ -50,7 +50,7 @@ class PremiumGlassCard extends StatelessWidget {
     final Color cardBackground = usePhaseTint
         ? Color.lerp(
       baseColor,
-      phaseColor.withOpacity(0.16),
+      phaseColor.withValues(alpha: 0.16),
       phaseTintStrength,
     ) ??
         baseColor
@@ -59,23 +59,23 @@ class PremiumGlassCard extends StatelessWidget {
     final Color deepLayer = usePhaseTint
         ? Color.lerp(
       AppColors.secondaryBackground,
-      phaseColor.withOpacity(0.12),
+      phaseColor.withValues(alpha: 0.12),
       0.42,
     ) ??
         AppColors.secondaryBackground
         : AppColors.secondaryBackground;
 
     final Color outerBorder = usePhaseTint
-        ? phaseColor.withOpacity(0.22)
-        : AppColors.divider.withOpacity(0.85);
+        ? phaseColor.withValues(alpha: 0.22)
+        : AppColors.divider.withValues(alpha: 0.85);
 
     final Color innerBorder = usePhaseTint
-        ? phaseColor.withOpacity(0.10)
-        : Colors.white.withOpacity(0.18);
+        ? phaseColor.withValues(alpha: 0.10)
+        : Colors.white.withValues(alpha: 0.18);
 
     final Color ambientGlow = usePhaseTint
-        ? phaseColor.withOpacity(0.14)
-        : AppColors.primary.withOpacity(0.09);
+        ? phaseColor.withValues(alpha: 0.14)
+        : AppColors.primary.withValues(alpha: 0.09);
 
     final Color accent = usePhaseTint ? phaseColor : AppColors.primary;
 
@@ -89,13 +89,13 @@ class PremiumGlassCard extends StatelessWidget {
         boxShadow: elevated
             ? [
           BoxShadow(
-            color: AppColors.textPrimary.withOpacity(0.08),
+            color: AppColors.textPrimary.withValues(alpha: 0.08),
             blurRadius: 24,
             offset: const Offset(0, 14),
             spreadRadius: -8,
           ),
           BoxShadow(
-            color: ambientGlow.withOpacity(0.42),
+            color: ambientGlow.withValues(alpha: 0.42),
             blurRadius: 28,
             offset: const Offset(0, 8),
             spreadRadius: -12,
@@ -103,7 +103,7 @@ class PremiumGlassCard extends StatelessWidget {
         ]
             : [
           BoxShadow(
-            color: AppColors.textPrimary.withOpacity(0.04),
+            color: AppColors.textPrimary.withValues(alpha: 0.04),
             blurRadius: 10,
             offset: const Offset(0, 4),
             spreadRadius: -4,
@@ -142,7 +142,7 @@ class PremiumGlassCard extends StatelessWidget {
                           radius: 1.08,
                           colors: [
                             ambientGlow,
-                            ambientGlow.withOpacity(0.05),
+                            ambientGlow.withValues(alpha: 0.05),
                             Colors.transparent,
                           ],
                           stops: const [0.0, 0.34, 1.0],
@@ -160,7 +160,7 @@ class PremiumGlassCard extends StatelessWidget {
                         center: const Alignment(0.95, 1.0),
                         radius: 1.0,
                         colors: [
-                          Colors.white.withOpacity(0.07),
+                          Colors.white.withValues(alpha: 0.07),
                           Colors.transparent,
                         ],
                         stops: const [0.0, 1.0],
@@ -183,8 +183,8 @@ class PremiumGlassCard extends StatelessWidget {
                         begin: Alignment.topCenter,
                         end: Alignment.bottomCenter,
                         colors: [
-                          Colors.white.withOpacity(0.16),
-                          accent.withOpacity(0.05),
+                          Colors.white.withValues(alpha: 0.16),
+                          accent.withValues(alpha: 0.05),
                           Colors.transparent,
                         ],
                         stops: const [0.0, 0.42, 1.0],
@@ -207,7 +207,7 @@ class PremiumGlassCard extends StatelessWidget {
                         begin: Alignment.bottomCenter,
                         end: Alignment.topCenter,
                         colors: [
-                          AppColors.textPrimary.withOpacity(0.025),
+                          AppColors.textPrimary.withValues(alpha: 0.025),
                           Colors.transparent,
                         ],
                       ),
@@ -245,14 +245,14 @@ class PremiumGlassCard extends StatelessWidget {
                         borderRadius: BorderRadius.circular(999),
                         gradient: LinearGradient(
                           colors: [
-                            accent.withOpacity(0.10),
-                            accent.withOpacity(0.82),
-                            accent.withOpacity(0.10),
+                            accent.withValues(alpha: 0.10),
+                            accent.withValues(alpha: 0.82),
+                            accent.withValues(alpha: 0.10),
                           ],
                         ),
                         boxShadow: [
                           BoxShadow(
-                            color: accent.withOpacity(0.20),
+                            color: accent.withValues(alpha: 0.20),
                             blurRadius: 10,
                             spreadRadius: -3,
                             offset: const Offset(0, 2),
@@ -275,15 +275,15 @@ class PremiumGlassCard extends StatelessWidget {
                         shape: BoxShape.circle,
                         gradient: RadialGradient(
                           colors: [
-                            Colors.white.withOpacity(0.85),
-                            accent.withOpacity(0.95),
-                            accent.withOpacity(0.45),
+                            Colors.white.withValues(alpha: 0.85),
+                            accent.withValues(alpha: 0.95),
+                            accent.withValues(alpha: 0.45),
                           ],
                           stops: const [0.0, 0.42, 1.0],
                         ),
                         boxShadow: [
                           BoxShadow(
-                            color: accent.withOpacity(0.28),
+                            color: accent.withValues(alpha: 0.28),
                             blurRadius: 10,
                             spreadRadius: 1,
                           ),
@@ -342,7 +342,7 @@ class _SilkTintPainter extends CustomPainter {
 
     final paint = Paint()
       ..style = PaintingStyle.stroke
-      ..color = color.withOpacity(0.16)
+      ..color = color.withValues(alpha: 0.16)
       ..strokeWidth = 0.75;
 
     const gap = 20.0;

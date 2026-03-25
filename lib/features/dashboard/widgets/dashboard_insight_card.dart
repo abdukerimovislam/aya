@@ -76,38 +76,38 @@ class _DashboardInsightCardState extends State<DashboardInsightCard> {
       if (cycle.isTTCMode) {
         switch (widget.data.phase) {
           case CyclePhase.menstruation:
-            localTitle = "Cycle Reset";
-            localSubtitle = "Start fresh. Remember to take your daily folic acid or prenatal vitamins.";
+            localTitle = widget.l10n.dashboardInsightCycleResetTitle;
+            localSubtitle = widget.l10n.dashboardInsightCycleResetBody;
             localType = "neutral";
             break;
           case CyclePhase.follicular:
-            localTitle = "Preparing for Ovulation";
-            localSubtitle = "Your body is getting ready. Keep tracking BBT and watch for cervical mucus changes.";
+            localTitle = widget.l10n.dashboardInsightPreparingOvulationTitle;
+            localSubtitle = widget.l10n.dashboardInsightPreparingOvulationBody;
             localType = "positive";
             break;
           case CyclePhase.ovulation:
-            localTitle = "Peak Fertility!";
-            localSubtitle = "This is your optimal window for conception. Log your intercourse and LH tests.";
+            localTitle = widget.l10n.dashboardInsightPeakFertilityTitle;
+            localSubtitle = widget.l10n.dashboardInsightPeakFertilityBody;
             localType = "positive";
             break;
           case CyclePhase.luteal:
-            localTitle = "Two Week Wait (TWW)";
-            localSubtitle = "Progesterone is rising. Stay relaxed, avoid hot tubs, and keep tracking BBT.";
+            localTitle = widget.l10n.dashboardInsightTwwTitle;
+            localSubtitle = widget.l10n.dashboardInsightTwwBody;
             localType = "neutral";
             break;
           case CyclePhase.late:
-            localTitle = "Test Day! 🤞";
-            localSubtitle = "Your period is late. It's a great time to take a pregnancy test!";
+            localTitle = widget.l10n.dashboardInsightTestDayTitle;
+            localSubtitle = widget.l10n.dashboardInsightTestDayBody;
             localType = "positive";
             break;
         }
       } else {
         switch (widget.data.phase) {
-          case CyclePhase.menstruation: localTitle = "Rest & Reset"; localSubtitle = "Your hormones are at their lowest. Focus on hydration."; localType = "warning"; break;
-          case CyclePhase.follicular: localTitle = "Energy Rising"; localSubtitle = "Estrogen is climbing. Great time for complex tasks."; localType = "positive"; break;
-          case CyclePhase.ovulation: localTitle = "Peak Vitality"; localSubtitle = "You are glowing. Best time for high-intensity workouts."; localType = "positive"; break;
-          case CyclePhase.luteal: localTitle = "Wind Down"; localSubtitle = "Progesterone is high. Cravings and mood swings are normal."; localType = "neutral"; break;
-          case CyclePhase.late: localTitle = "Cycle Delayed"; localSubtitle = "Your period is late. Stress could be a factor."; localType = "warning"; break;
+          case CyclePhase.menstruation: localTitle = widget.l10n.dashboardInsightRestResetTitle; localSubtitle = widget.l10n.dashboardInsightRestResetBody; localType = "warning"; break;
+          case CyclePhase.follicular: localTitle = widget.l10n.dashboardInsightEnergyRisingTitle; localSubtitle = widget.l10n.dashboardInsightEnergyRisingBody; localType = "positive"; break;
+          case CyclePhase.ovulation: localTitle = widget.l10n.dashboardInsightPeakVitalityTitle; localSubtitle = widget.l10n.dashboardInsightPeakVitalityBody; localType = "positive"; break;
+          case CyclePhase.luteal: localTitle = widget.l10n.dashboardInsightWindDownTitle; localSubtitle = widget.l10n.dashboardInsightWindDownBody; localType = "neutral"; break;
+          case CyclePhase.late: localTitle = widget.l10n.dashboardInsightCycleDelayedTitle; localSubtitle = widget.l10n.dashboardInsightCycleDelayedBody; localType = "warning"; break;
         }
       }
     }
@@ -117,15 +117,15 @@ class _DashboardInsightCardState extends State<DashboardInsightCard> {
     if (cycle.isTTCMode) {
       switch (cycle.conceptionChance) {
         case FertilityChance.low:
-          chanceText = "Low Chance";
+          chanceText = widget.l10n.ttcChanceLow;
           chanceColor = Colors.blueGrey;
           break;
         case FertilityChance.high:
-          chanceText = "High Chance";
+          chanceText = widget.l10n.ttcChanceHigh;
           chanceColor = Colors.pinkAccent;
           break;
         case FertilityChance.peak:
-          chanceText = "Peak Fertility";
+          chanceText = widget.l10n.ttcChancePeak;
           chanceColor = Colors.purple;
           break;
       }
@@ -149,15 +149,15 @@ class _DashboardInsightCardState extends State<DashboardInsightCard> {
                 final bool useLocalFallback = isOffline || lastUpdate != todayStr;
 
                 final String displayBadge = _isRefreshing
-                    ? "⏳ ANALYZING..."
-                    : (useLocalFallback ? "⚡ LOCAL INSIGHT" : "✨ DAILY AI");
+                    ? widget.l10n.dashboardInsightAnalyzingBadge
+                    : (useLocalFallback ? widget.l10n.dashboardInsightLocalBadge : widget.l10n.dashboardInsightDailyAiBadge);
 
                 final String displayTitle = _isRefreshing
-                    ? "Ayla is thinking..."
+                    ? widget.l10n.dashboardInsightThinkingTitle
                     : (useLocalFallback ? localTitle : box.get('current_insight_title', defaultValue: localTitle) as String);
 
                 final String displaySubtitle = _isRefreshing
-                    ? "Analyzing your latest cycle data and symptoms to generate a personalized insight..."
+                    ? widget.l10n.dashboardInsightThinkingBody
                     : (useLocalFallback ? localSubtitle : box.get('current_insight_body', defaultValue: localSubtitle) as String);
 
                 final String displayType = _isRefreshing
@@ -173,7 +173,7 @@ class _DashboardInsightCardState extends State<DashboardInsightCard> {
                     HapticFeedback.lightImpact();
                     SystemSound.play(SystemSoundType.click);
                     showGeneralDialog(
-                      context: context, barrierColor: Colors.black.withOpacity(0.4), barrierDismissible: true, barrierLabel: "Insight", transitionDuration: const Duration(milliseconds: 400),
+                      context: context, barrierColor: Colors.black.withValues(alpha: 0.4), barrierDismissible: true, barrierLabel: widget.l10n.insightsTitle, transitionDuration: const Duration(milliseconds: 400),
                       pageBuilder: (_, __, ___) => _ExpandedInsightDialog(
                         data: widget.data,
                         aiTitle: displayTitle,
@@ -216,9 +216,9 @@ class _DashboardInsightCardState extends State<DashboardInsightCard> {
                                       child: Container(
                                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                                         decoration: BoxDecoration(
-                                          color: chanceColor.withOpacity(0.1),
+                                          color: chanceColor.withValues(alpha: 0.1),
                                           borderRadius: BorderRadius.circular(8),
-                                          border: Border.all(color: chanceColor.withOpacity(0.3)),
+                                          border: Border.all(color: chanceColor.withValues(alpha: 0.3)),
                                         ),
                                         child: Text(
                                           cycle.currentDPO != null ? "${cycle.currentDPO} DPO • $chanceText" : chanceText,
@@ -238,7 +238,7 @@ class _DashboardInsightCardState extends State<DashboardInsightCard> {
                               const SizedBox(height: 4),
                               Text(
                                   displaySubtitle,
-                                  style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w500, color: AppColors.textSecondary.withOpacity(0.8), height: 1.3),
+                                  style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w500, color: AppColors.textSecondary.withValues(alpha: 0.8), height: 1.3),
                                   maxLines: 2,
                                   overflow: TextOverflow.ellipsis
                               ),
@@ -253,7 +253,7 @@ class _DashboardInsightCardState extends State<DashboardInsightCard> {
                           child: Container(
                             padding: const EdgeInsets.all(10),
                             decoration: BoxDecoration(
-                              color: badgeColor.withOpacity(0.1),
+                              color: badgeColor.withValues(alpha: 0.1),
                               shape: BoxShape.circle,
                             ),
                             child: Icon(useLocalFallback ? CupertinoIcons.cloud_download : CupertinoIcons.refresh_thick, color: badgeColor, size: 18),
@@ -346,7 +346,7 @@ class _EnergyOrbState extends State<_EnergyOrb> with SingleTickerProviderStateMi
               ),
               boxShadow: [
                 BoxShadow(
-                  color: orbColors[1].withOpacity(0.3 + (_controller.value * 0.4)),
+                  color: orbColors[1].withValues(alpha: 0.3 + (_controller.value * 0.4)),
                   blurRadius: 10 + (_controller.value * 15),
                   spreadRadius: _controller.value * 4,
                 )
@@ -373,6 +373,7 @@ class _ExpandedInsightDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Center(
       child: Material(
         color: Colors.transparent,
@@ -384,24 +385,24 @@ class _ExpandedInsightDialog extends StatelessWidget {
               opacity: val.clamp(0.0, 1.0),
               child: Container(
                 width: MediaQuery.of(context).size.width * 0.85, padding: const EdgeInsets.all(32),
-                decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(40), boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 40, offset: const Offset(0, 20))]),
+                decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(40), boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 40, offset: const Offset(0, 20))]),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Container(padding: const EdgeInsets.all(16), decoration: BoxDecoration(color: AppColors.primary.withOpacity(0.1), shape: BoxShape.circle), child: Icon(isLocal ? CupertinoIcons.bolt_fill : CupertinoIcons.sparkles, color: AppColors.primary, size: 32)),
+                    Container(padding: const EdgeInsets.all(16), decoration: BoxDecoration(color: AppColors.primary.withValues(alpha: 0.1), shape: BoxShape.circle), child: Icon(isLocal ? CupertinoIcons.bolt_fill : CupertinoIcons.sparkles, color: AppColors.primary, size: 32)),
                     const SizedBox(height: 24),
                     Text(aiTitle, textAlign: TextAlign.center, style: GoogleFonts.inter(fontSize: 22, fontWeight: FontWeight.w900, color: AppColors.textPrimary)),
                     const SizedBox(height: 8),
 
                     if (isLocal)
-                      Text("Generated offline using your recent symptoms.", textAlign: TextAlign.center, style: GoogleFonts.inter(fontSize: 12, color: AppColors.textSecondary)),
+                      Text(l10n.insightGeneratedOffline, textAlign: TextAlign.center, style: GoogleFonts.inter(fontSize: 12, color: AppColors.textSecondary)),
 
                     const SizedBox(height: 24),
 
-                    _buildInsightSection(isLocal ? "Local Analysis" : "Today's Analytics", aiBody, CupertinoIcons.waveform_path),
+                    _buildInsightSection(isLocal ? l10n.insightLocalAnalysis : l10n.insightTodayAnalytics, aiBody, CupertinoIcons.waveform_path),
 
                     const SizedBox(height: 32),
-                    SizedBox(width: double.infinity, child: CupertinoButton(color: AppColors.textPrimary, borderRadius: BorderRadius.circular(20), onPressed: () => Navigator.pop(context), child: Text("Got it", style: GoogleFonts.inter(fontWeight: FontWeight.w700, color: Colors.white))))
+                    SizedBox(width: double.infinity, child: CupertinoButton(color: AppColors.textPrimary, borderRadius: BorderRadius.circular(20), onPressed: () => Navigator.pop(context), child: Text(l10n.btnGotIt, style: GoogleFonts.inter(fontWeight: FontWeight.w700, color: Colors.white))))
                   ],
                 ),
               ),

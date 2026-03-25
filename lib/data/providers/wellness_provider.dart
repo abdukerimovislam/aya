@@ -15,6 +15,7 @@ class WellnessProvider extends ChangeNotifier {
     try {
       if (!_logsBox.isOpen) return;
 
+      _logsCache.clear();
       for (var key in _logsBox.keys) {
         final log = _logsBox.get(key);
         if (log is SymptomLog) {
@@ -28,7 +29,7 @@ class WellnessProvider extends ChangeNotifier {
   }
 
   void reload() {
-    notifyListeners();
+    _init();
   }
 
   // --- CRUD METHODS ---
@@ -59,7 +60,9 @@ class WellnessProvider extends ChangeNotifier {
   List<SymptomLog> get allLogs => _logsCache.values.toList();
 
   List<SymptomLog> getLogHistory() {
-    return _logsCache.values.toList();
+    final logs = _logsCache.values.toList();
+    logs.sort((a, b) => a.date.compareTo(b.date));
+    return logs;
   }
 
   Future<void> saveLog(SymptomLog log) async {
@@ -72,6 +75,12 @@ class WellnessProvider extends ChangeNotifier {
       await _logsBox.put(key, log);
       _logsCache[key] = log;
     }
+    notifyListeners();
+  }
+
+  Future<void> clearAllLogs() async {
+    await _logsBox.clear();
+    _logsCache.clear();
     notifyListeners();
   }
 
@@ -185,8 +194,12 @@ class WellnessProvider extends ChangeNotifier {
       if (DateTime.now().difference(log.date).inDays > 90) continue;
 
       if (cycle.getPhaseForDate(log.date) == targetPhase) {
-        for (var s in log.painSymptoms) counts[s] = (counts[s] ?? 0) + 1;
-        for (var s in log.symptoms) counts[s] = (counts[s] ?? 0) + 1;
+        for (var s in log.painSymptoms) {
+          counts[s] = (counts[s] ?? 0) + 1;
+        }
+        for (var s in log.symptoms) {
+          counts[s] = (counts[s] ?? 0) + 1;
+        }
       }
     }
 
@@ -205,7 +218,9 @@ class WellnessProvider extends ChangeNotifier {
     if (logs.length < 5) return [];
 
     final Set<String> allFactors = {};
-    for (var log in logs) allFactors.addAll(log.symptoms);
+    for (var log in logs) {
+      allFactors.addAll(log.symptoms);
+    }
 
     for (var factor in allFactors) {
       int factorCount = 0;

@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../core/utils/intimacy_logging.dart';
 import '../../../data/models/cycle_model.dart';
 import '../../../data/providers/cycle_provider.dart';
 import '../../../data/providers/wellness_provider.dart';
@@ -19,7 +20,6 @@ class _ActionBarConstants {
   static const double sheetBorderRadius = 32;
   static const double handleWidth = 48;
   static const double handleHeight = 5;
-  static const double optionIconSize = 26;
 }
 
 class DashboardActionBar extends StatelessWidget {
@@ -47,8 +47,8 @@ class DashboardActionBar extends StatelessWidget {
     final bool isBbtLogged =
         todayLog.temperature != null && todayLog.temperature! > 0.0;
     final bool isTestLogged =
-    todayLog.symptoms.any((s) => s.startsWith('LH:') || s.startsWith('PT:'));
-    final bool isSexLogged = todayLog.symptoms.any((s) => s.contains('Sex'));
+        todayLog.symptoms.any((s) => s.startsWith('LH:') || s.startsWith('PT:'));
+    final bool isSexLogged = todayLog.hasAnyIntimacy;
 
     final _ActionConfig config = _resolveActionConfig(context);
 
@@ -68,7 +68,7 @@ class DashboardActionBar extends StatelessWidget {
                     child: _buildTTCQuickAction(
                       context: context,
                       icon: CupertinoIcons.thermometer,
-                      label: "Log BBT",
+                      label: l10n.ttcBtnBBT,
                       color: Colors.purple,
                       isLogged: isBbtLogged,
                       onTap: () =>
@@ -80,7 +80,7 @@ class DashboardActionBar extends StatelessWidget {
                     child: _buildTTCQuickAction(
                       context: context,
                       icon: CupertinoIcons.sparkles,
-                      label: "Test",
+                      label: l10n.ttcBtnTest,
                       color: Colors.pinkAccent,
                       isLogged: isTestLogged,
                       onTap: () =>
@@ -92,7 +92,7 @@ class DashboardActionBar extends StatelessWidget {
                     child: _buildTTCQuickAction(
                       context: context,
                       icon: CupertinoIcons.heart_fill,
-                      label: "Sex",
+                      label: l10n.ttcBtnSex,
                       color: Colors.redAccent,
                       isLogged: isSexLogged,
                       onTap: () =>
@@ -133,12 +133,12 @@ class DashboardActionBar extends StatelessWidget {
             duration: const Duration(milliseconds: 300),
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: isLogged ? color : color.withOpacity(0.15),
+              color: isLogged ? color : color.withValues(alpha: 0.15),
               shape: BoxShape.circle,
               boxShadow: isLogged
                   ? [
                 BoxShadow(
-                  color: color.withOpacity(0.4),
+                  color: color.withValues(alpha: 0.4),
                   blurRadius: 8,
                   offset: const Offset(0, 4),
                 )
@@ -153,7 +153,7 @@ class DashboardActionBar extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           Text(
-            isLogged ? "Logged" : label,
+            isLogged ? l10n.dashboardActionLogged : label,
             style: GoogleFonts.inter(
               fontSize: 12,
               fontWeight: isLogged ? FontWeight.w800 : FontWeight.bold,
@@ -171,7 +171,7 @@ class DashboardActionBar extends StatelessWidget {
     return Container(
       height: 40,
       width: 1,
-      color: Colors.black.withOpacity(0.05),
+      color: Colors.black.withValues(alpha: 0.05),
     );
   }
 
@@ -194,8 +194,8 @@ class DashboardActionBar extends StatelessWidget {
     if (data.phase == CyclePhase.menstruation) {
       if (provider.isPeriodEnded) {
         return _ActionConfig(
-          title: "Ending today",
-          subtitle: "Tap if bleeding has stopped",
+          title: l10n.dashboardPeriodEndingTitle,
+          subtitle: l10n.dashboardPeriodEndingBody,
           icon: CupertinoIcons.check_mark_circled_solid,
           isPrimaryFilled: false,
           isPulsing: false,
@@ -205,8 +205,8 @@ class DashboardActionBar extends StatelessWidget {
       }
 
       return _ActionConfig(
-        title: "Day ${data.currentDay} of period",
-        subtitle: "Tap to manage or log symptoms",
+        title: l10n.dashboardPeriodDayTitle(data.currentDay),
+        subtitle: l10n.dashboardPeriodDayBody,
         icon: CupertinoIcons.drop_fill,
         isPrimaryFilled: true,
         isPulsing: false,
@@ -220,8 +220,8 @@ class DashboardActionBar extends StatelessWidget {
             data.phase == CyclePhase.late;
 
     return _ActionConfig(
-      title: "Start period",
-      subtitle: "Log today, yesterday, or choose a date",
+      title: l10n.dashboardStartPeriodTitle,
+      subtitle: l10n.dashboardStartPeriodBody,
       icon: CupertinoIcons.drop_fill,
       isPrimaryFilled: true,
       isPulsing: isPulsing,
@@ -240,7 +240,7 @@ class DashboardActionBar extends StatelessWidget {
       if (!context.mounted) return;
 
       if (result == CycleLogResult.futureDate) {
-        _showErrorSnackbar(context, message: "Cannot log a date in the future");
+        _showErrorSnackbar(context, message: l10n.dashboardFutureDateError);
         return;
       }
 
@@ -271,7 +271,7 @@ class DashboardActionBar extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: Colors.orange.withOpacity(0.1),
+                color: Colors.orange.withValues(alpha: 0.1),
                 shape: BoxShape.circle,
               ),
               child: const Icon(
@@ -282,7 +282,7 @@ class DashboardActionBar extends StatelessWidget {
             const SizedBox(width: 12),
             Expanded(
               child: Text(
-                "Are you sure?",
+                l10n.alertDeleteTitle,
                 style: GoogleFonts.inter(
                   fontWeight: FontWeight.w800,
                   fontSize: 20,
@@ -293,7 +293,7 @@ class DashboardActionBar extends StatelessWidget {
           ],
         ),
         content: Text(
-          "It's been less than 21 days since your last cycle started. Is this a new period, or just spotting?",
+          l10n.dashboardShortCycleSpottingBody,
           style: GoogleFonts.inter(
             fontSize: 15,
             color: AppColors.textSecondary,
@@ -316,7 +316,7 @@ class DashboardActionBar extends StatelessWidget {
               }
             },
             child: Text(
-              "Just Spotting",
+              l10n.symptomLogJustSpottingAction,
               style: GoogleFonts.inter(
                 fontWeight: FontWeight.w600,
                 color: AppColors.textSecondary,
@@ -347,7 +347,7 @@ class DashboardActionBar extends StatelessWidget {
               }
             },
             child: Text(
-              "New Period",
+              l10n.dashboardNewPeriodAction,
               style: GoogleFonts.inter(
                 fontWeight: FontWeight.w700,
                 color: Colors.white,
@@ -439,7 +439,7 @@ class DashboardActionBar extends StatelessWidget {
           Navigator.pop(ctx);
           await provider.undoPeriodStart();
           if (context.mounted) {
-            _showSuccessSnackbar(context, "Period start removed");
+            _showSuccessSnackbar(context, l10n.dashboardPeriodStartRemoved);
           }
         },
       ),
@@ -449,7 +449,7 @@ class DashboardActionBar extends StatelessWidget {
   void _showSuccessSnackbar(BuildContext context, String message) {
     ScaffoldMessenger.of(context).clearSnackBars();
     ScaffoldMessenger.of(context).showSnackBar(
-      _buildSnackbar(message, AppColors.textPrimary.withOpacity(0.9)),
+      _buildSnackbar(message, AppColors.textPrimary.withValues(alpha: 0.9)),
     );
   }
 
@@ -459,7 +459,7 @@ class DashboardActionBar extends StatelessWidget {
       }) {
     ScaffoldMessenger.of(context).clearSnackBars();
     ScaffoldMessenger.of(context).showSnackBar(
-      _buildSnackbar(message, Colors.redAccent.withOpacity(0.9)),
+      _buildSnackbar(message, Colors.redAccent.withValues(alpha: 0.9)),
     );
   }
 
@@ -548,7 +548,6 @@ class _CycleActionCardState extends State<_CycleActionCard>
 
   @override
   Widget build(BuildContext context) {
-    final bool isFilled = widget.config.isPrimaryFilled;
     final bool isEnding = _isEndingState;
 
     final Gradient backgroundGradient = isEnding
@@ -576,23 +575,23 @@ class _CycleActionCardState extends State<_CycleActionCard>
 
     final Color subtitleColor = isEnding
         ? const Color(0xFF8C6B75)
-        : Colors.white.withOpacity(0.88);
+        : Colors.white.withValues(alpha: 0.88);
 
     final Color borderColor = isEnding
         ? const Color(0xFFFFD3DE)
-        : Colors.white.withOpacity(0.18);
+        : Colors.white.withValues(alpha: 0.18);
 
     final List<BoxShadow> shadows = isEnding
         ? [
       BoxShadow(
-        color: const Color(0xFFFFC7D4).withOpacity(0.35),
+        color: const Color(0xFFFFC7D4).withValues(alpha: 0.35),
         blurRadius: 18,
         offset: const Offset(0, 10),
       ),
     ]
         : [
       BoxShadow(
-        color: const Color(0xFFE94057).withOpacity(
+        color: const Color(0xFFE94057).withValues(alpha: 
           widget.config.isPulsing ? _glowOpacity.value * 0.42 : 0.34,
         ),
         blurRadius: widget.config.isPulsing ? 30 : 24,
@@ -600,7 +599,7 @@ class _CycleActionCardState extends State<_CycleActionCard>
         offset: const Offset(0, 14),
       ),
       BoxShadow(
-        color: const Color(0xFFFF8DB2).withOpacity(
+        color: const Color(0xFFFF8DB2).withValues(alpha: 
           widget.config.isPulsing ? _glowOpacity.value * 0.24 : 0.18,
         ),
         blurRadius: 10,
@@ -630,12 +629,12 @@ class _CycleActionCardState extends State<_CycleActionCard>
               border: Border.all(
                 color: isEnding
                     ? const Color(0xFFFFD3DE)
-                    : Colors.white.withOpacity(0.95),
+                    : Colors.white.withValues(alpha: 0.95),
                 width: 1.2,
               ),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.06),
+                  color: Colors.black.withValues(alpha: 0.06),
                   blurRadius: 10,
                   offset: const Offset(0, 5),
                 ),
@@ -684,10 +683,10 @@ class _CycleActionCardState extends State<_CycleActionCard>
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.18),
+                color: Colors.white.withValues(alpha: 0.18),
                 borderRadius: BorderRadius.circular(999),
                 border: Border.all(
-                  color: Colors.white.withOpacity(0.24),
+                  color: Colors.white.withValues(alpha: 0.24),
                 ),
               ),
               child: Text(
@@ -705,7 +704,7 @@ class _CycleActionCardState extends State<_CycleActionCard>
               CupertinoIcons.chevron_right,
               color: isEnding
                   ? const Color(0xFFC89AA8)
-                  : Colors.white.withOpacity(0.82),
+                  : Colors.white.withValues(alpha: 0.82),
               size: 18,
             ),
         ],
@@ -862,8 +861,8 @@ class _ActivePeriodSheet extends StatelessWidget {
         if (isPeriodEnded)
           _SheetOption(
             icon: CupertinoIcons.play_circle_fill,
-            title: "Resume period",
-            subtitle: "Still bleeding? Continue current period",
+            title: l10n.dashboardResumePeriodTitle,
+            subtitle: l10n.dashboardResumePeriodBody,
             gradient: const LinearGradient(
               colors: [Color(0xFFFF9800), Color(0xFFF57C00)],
               begin: Alignment.topLeft,
@@ -889,8 +888,8 @@ class _ActivePeriodSheet extends StatelessWidget {
           const SizedBox(height: 12),
           _SheetOption(
             icon: CupertinoIcons.trash_circle_fill,
-            title: "I made a mistake",
-            subtitle: "Remove period start",
+            title: l10n.dashboardMistakeTitle,
+            subtitle: l10n.dashboardMistakeBody,
             gradient: const LinearGradient(
               colors: [Color(0xFFEF5350), Color(0xFFD32F2F)],
               begin: Alignment.topLeft,
@@ -937,7 +936,7 @@ class _BaseSheet extends StatelessWidget {
               width: _ActionBarConstants.handleWidth,
               height: _ActionBarConstants.handleHeight,
               decoration: BoxDecoration(
-                color: AppColors.textSecondary.withOpacity(0.3),
+                color: AppColors.textSecondary.withValues(alpha: 0.3),
                 borderRadius: BorderRadius.circular(3),
               ),
             ),
@@ -992,12 +991,12 @@ class _SheetOption extends StatelessWidget {
           gradient: gradient, // Используем градиент как у главной кнопки
           borderRadius: BorderRadius.circular(24),
           border: Border.all(
-              color: Colors.white.withOpacity(0.18),
+              color: Colors.white.withValues(alpha: 0.18),
               width: 1.3
           ),
           boxShadow: [
             BoxShadow(
-              color: gradient.colors.last.withOpacity(0.3),
+              color: gradient.colors.last.withValues(alpha: 0.3),
               blurRadius: 16,
               offset: const Offset(0, 8),
             ),
@@ -1013,12 +1012,12 @@ class _SheetOption extends StatelessWidget {
                 color: Colors.white,
                 shape: BoxShape.circle,
                 border: Border.all(
-                  color: Colors.white.withOpacity(0.95),
+                  color: Colors.white.withValues(alpha: 0.95),
                   width: 1.2,
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.06),
+                    color: Colors.black.withValues(alpha: 0.06),
                     blurRadius: 8,
                     offset: const Offset(0, 4),
                   ),
@@ -1050,7 +1049,7 @@ class _SheetOption extends StatelessWidget {
                     style: GoogleFonts.inter(
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
-                      color: Colors.white.withOpacity(0.85), // Белый полупрозрачный подзаголовок
+                      color: Colors.white.withValues(alpha: 0.85), // Белый полупрозрачный подзаголовок
                     ),
                   ),
                 ],
@@ -1058,7 +1057,7 @@ class _SheetOption extends StatelessWidget {
             ),
             Icon(
               CupertinoIcons.chevron_right,
-              color: Colors.white.withOpacity(0.8),
+              color: Colors.white.withValues(alpha: 0.8),
               size: 20,
             ),
           ],

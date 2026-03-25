@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../core/theme/app_theme.dart';
 import '../../core/services/partner_sync_service.dart';
+import '../../l10n/app_localizations.dart';
 import 'partner_dashboard_screen.dart';
 
 class PartnerLinkScreen extends StatefulWidget {
@@ -19,6 +20,7 @@ class _PartnerLinkScreenState extends State<PartnerLinkScreen> {
   bool _isLoading = false;
 
   Future<void> _link() async {
+    final l10n = AppLocalizations.of(context)!;
     final code = _codeController.text.trim();
     if (code.length < 6) return;
 
@@ -35,7 +37,7 @@ class _PartnerLinkScreenState extends State<PartnerLinkScreen> {
         );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text("Invalid or expired code. Please check and try again."))
+          SnackBar(content: Text(l10n.partnerLinkInvalidCode)),
         );
       }
     }
@@ -43,6 +45,8 @@ class _PartnerLinkScreenState extends State<PartnerLinkScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
@@ -61,13 +65,13 @@ class _PartnerLinkScreenState extends State<PartnerLinkScreen> {
             children: [
               Container(
                 width: 64, height: 64,
-                decoration: BoxDecoration(color: const Color(0xFF8E71C7).withOpacity(0.1), shape: BoxShape.circle),
+                decoration: BoxDecoration(color: const Color(0xFF8E71C7).withValues(alpha: 0.1), shape: BoxShape.circle),
                 child: const Center(child: Text("🤝", style: TextStyle(fontSize: 32))),
               ),
               const SizedBox(height: 24),
-              Text("Enter Invite Code", style: GoogleFonts.outfit(fontSize: 32, fontWeight: FontWeight.w800, color: AppColors.textPrimary, height: 1.1)),
+              Text(l10n.partnerLinkTitle, style: GoogleFonts.outfit(fontSize: 32, fontWeight: FontWeight.w800, color: AppColors.textPrimary, height: 1.1)),
               const SizedBox(height: 12),
-              Text("Ask your partner to generate a 6-digit code in their Ayla app settings.", style: GoogleFonts.inter(fontSize: 15, color: AppColors.textSecondary, height: 1.5)),
+              Text(l10n.partnerLinkSubtitle, style: GoogleFonts.inter(fontSize: 15, color: AppColors.textSecondary, height: 1.5)),
               const SizedBox(height: 40),
 
               // Поле ввода кода
@@ -76,7 +80,7 @@ class _PartnerLinkScreenState extends State<PartnerLinkScreen> {
                 decoration: BoxDecoration(
                   color: AppColors.tintedSurface,
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: AppColors.textSecondary.withOpacity(0.1)),
+                  border: Border.all(color: AppColors.textSecondary.withValues(alpha: 0.1)),
                 ),
                 child: TextField(
                   controller: _codeController,
@@ -87,8 +91,8 @@ class _PartnerLinkScreenState extends State<PartnerLinkScreen> {
                   decoration: InputDecoration(
                     counterText: "",
                     border: InputBorder.none,
-                    hintText: "000-000",
-                    hintStyle: GoogleFonts.outfit(color: AppColors.textSecondary.withOpacity(0.3)),
+                    hintText: l10n.partnerLinkHint,
+                    hintStyle: GoogleFonts.outfit(color: AppColors.textSecondary.withValues(alpha: 0.3)),
                   ),
                   onChanged: (val) {
                     // Автоматическое добавление тире
@@ -110,7 +114,7 @@ class _PartnerLinkScreenState extends State<PartnerLinkScreen> {
                   onPressed: _isLoading ? null : _link,
                   child: _isLoading
                       ? const CupertinoActivityIndicator(color: Colors.white)
-                      : Text("Connect to Partner", style: GoogleFonts.inter(fontWeight: FontWeight.w700, color: Colors.white)),
+                      : Text(l10n.partnerLinkButton, style: GoogleFonts.inter(fontWeight: FontWeight.w700, color: Colors.white)),
                 ),
               ),
             ],

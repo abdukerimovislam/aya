@@ -1,51 +1,60 @@
+import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 import '../../core/services/ai_oracle_service.dart';
+import '../../l10n/app_localizations.dart';
 import 'cycle_provider.dart';
 import 'wellness_provider.dart';
 
-class ChatProvider extends ChangeNotifier {
+class ChatProvider with ChangeNotifier {
   final List<Map<String, String>> _messages = [];
   bool _isLoading = false;
 
-  List<Map<String, String>> get messages => List.unmodifiable(_messages);
+  List<Map<String, String>> get messages => _messages;
   bool get isLoading => _isLoading;
-
-  void addMessage(String message, {bool isUser = true}) {
-    _messages.add({
-      'role': isUser ? 'user' : 'model',
-      'content': message,
-      'timestamp': DateTime.now().toIso8601String(),
-    });
-    notifyListeners();
-  }
 
   void clearChat() {
     _messages.clear();
     notifyListeners();
   }
 
-  Future<void> sendMessage(String text, CycleProvider cycleProvider, WellnessProvider wellnessProvider) async {
+  Future<void> sendMessage(String text, CycleProvider cycle, WellnessProvider wellness, AppLocalizations l10n) async {
     if (text.trim().isEmpty) return;
 
-    addMessage(text, isUser: true);
+    _messages.add({'role': 'user', 'content': text.trim()});
     _isLoading = true;
     notifyListeners();
 
-    // Получаем свежие логи для контекста
-    final logs = wellnessProvider.getLogHistory();
-    logs.sort((a, b) => b.date.compareTo(a.date)); // Свежие первыми
+    try {
+      // 🔥 ИСПРАВЛЕНИЕ 1: Ищем логи СТРОГО за сегодняшний день, чтобы избежать галлюцинаций ИИ
+      final today = DateTime.now();
+      final todayLogs = wellness.getLogHistory().where((l) =>
+      l.date.year == today.year && l.date.month == today.month && l.date.day == today.day
+      ).toList();
 
-    final response = await AiOracleService.chatWithAyla(
-      userMessage: text,
-      chatHistory: _messages.length > 5 ? _messages.sublist(_messages.length - 5) : _messages, // Передаем последние 5 сообщений
-      currentPhase: cycleProvider.currentData.phase.toString().split('.').last,
-      currentDay: cycleProvider.currentData.currentDay,
-      recentLogs: logs,
-      isCoc: cycleProvider.isCOCEnabled,
-    );
+      // 🔥 ИСПРАВЛЕНИЕ 2: Безопасно берем последние 5 сообщений из истории (не включая текущий запрос)
+      final history = _messages.length > 1
+          ? _messages.sublist(math.max(0, _messages.length - 6), _messages.length - 1)
+          : <Map<String, String>>[];
 
-    addMessage(response, isUser: false);
-    _isLoading = false;
-    notifyListeners();
+      final response = await AiOracleService.chatWithAyla(
+        userMessage: text.trim(),
+        chatHistory: history,
+        currentPhase: cycle.currentData.phase.toString().split('.').last,
+        currentDay: cycle.currentData.dayOfCycle,
+        recentLogs: todayLogs,
+        isCoc: cycle.isCOCEnabled,
+      );
+
+      _messages.add({'role': 'model', 'content': response});
+    } catch (e) {
+      _messages.add({
+        'role': 'model',
+        'content': l10n.chatConnectionIssue,
+      });
+    } finally {
+      // 🔥 ИСПРАВЛЕНИЕ: Гарантированное снятие блокировки UI при любых сбоях сети!
+      _isLoading = false;
+      notifyListeners();
+    }
   }
 }

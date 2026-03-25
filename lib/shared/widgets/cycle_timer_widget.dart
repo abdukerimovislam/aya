@@ -291,10 +291,10 @@ class ClassicTimerWidgetState extends State<ClassicTimerWidget>
                       height: 170,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color: Colors.white.withOpacity(0.94),
+                        color: Colors.white.withValues(alpha: 0.94),
                         boxShadow: [
                           BoxShadow(
-                            color: displayColor.withOpacity(0.2),
+                            color: displayColor.withValues(alpha: 0.2),
                             blurRadius: 25,
                             spreadRadius: 2,
                           ),
@@ -331,10 +331,10 @@ class ClassicTimerWidgetState extends State<ClassicTimerWidget>
                             ),
                             margin: const EdgeInsets.symmetric(horizontal: 16),
                             decoration: BoxDecoration(
-                              color: displayColor.withOpacity(0.1),
+                              color: displayColor.withValues(alpha: 0.1),
                               borderRadius: BorderRadius.circular(12),
                               border: Border.all(
-                                color: displayColor.withOpacity(0.2),
+                                color: displayColor.withValues(alpha: 0.2),
                               ),
                             ),
                             child: Row(
@@ -357,7 +357,7 @@ class ClassicTimerWidgetState extends State<ClassicTimerWidget>
                                 Icon(
                                   Icons.touch_app_rounded,
                                   size: 10,
-                                  color: displayColor.withOpacity(0.5),
+                                  color: displayColor.withValues(alpha: 0.5),
                                 )
                               ],
                             ),
@@ -403,13 +403,13 @@ class ClassicTimerWidgetState extends State<ClassicTimerWidget>
                               begin: Alignment.topLeft,
                               end: Alignment.bottomRight,
                               colors: [
-                                Colors.white.withOpacity(0.95),
-                                Colors.white.withOpacity(0.85),
+                                Colors.white.withValues(alpha: 0.95),
+                                Colors.white.withValues(alpha: 0.85),
                               ],
                             ),
                             boxShadow: [
                               BoxShadow(
-                                color: displayColor.withOpacity(0.3),
+                                color: displayColor.withValues(alpha: 0.3),
                                 blurRadius: 40,
                                 spreadRadius: 5,
                                 offset: const Offset(0, 10),
@@ -441,7 +441,7 @@ class ClassicTimerWidgetState extends State<ClassicTimerWidget>
                                 Container(
                                   padding: const EdgeInsets.all(10),
                                   decoration: BoxDecoration(
-                                    color: displayColor.withOpacity(0.1),
+                                    color: displayColor.withValues(alpha: 0.1),
                                     shape: BoxShape.circle,
                                   ),
                                   child: Icon(
@@ -662,7 +662,7 @@ class _StatCapsule extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Row(
@@ -685,7 +685,7 @@ class _StatCapsule extends StatelessWidget {
                 height: 4,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: index < level ? color : color.withOpacity(0.2),
+                  color: index < level ? color : color.withValues(alpha: 0.2),
                 ),
               ),
             ),
@@ -727,7 +727,7 @@ class _SpirographPainter extends CustomPainter {
     canvas.drawPath(
       path,
       Paint()
-        ..color = color.withOpacity(0.3)
+        ..color = color.withValues(alpha: 0.3)
         ..style = PaintingStyle.stroke
         ..strokeWidth = 3.0,
     );
@@ -792,7 +792,7 @@ class _SmartDotsPainter extends CustomPainter {
           Offset(x, y),
           6,
           Paint()
-            ..color = AppColors.ovulation.withOpacity(0.3)
+            ..color = AppColors.ovulation.withValues(alpha: 0.3)
             ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3),
         );
       }
@@ -808,7 +808,7 @@ class _SmartDotsPainter extends CustomPainter {
           Offset(x, y),
           12 + (pulse * 3),
           Paint()
-            ..color = dotColor.withOpacity(0.4)
+            ..color = dotColor.withValues(alpha: 0.4)
             ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8),
         );
         canvas.drawCircle(Offset(x, y), 6, Paint()..color = dotColor);
@@ -817,7 +817,7 @@ class _SmartDotsPainter extends CustomPainter {
       }
 
       bool isPast = dayNum < currentDay;
-      final paint = Paint()..color = isPast ? dotColor.withOpacity(0.3) : dotColor;
+      final paint = Paint()..color = isPast ? dotColor.withValues(alpha: 0.3) : dotColor;
 
       canvas.drawCircle(
         Offset(x, y),

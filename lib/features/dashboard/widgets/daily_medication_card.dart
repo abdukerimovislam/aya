@@ -6,6 +6,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../data/providers/medication_provider.dart';
+import '../../../l10n/app_localizations.dart';
 import '../../../shared/widgets/premium_glass_card.dart';
 
 class DailyMedicationsCard extends StatelessWidget {
@@ -18,7 +19,30 @@ class DailyMedicationsCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final medProvider = context.watch<MedicationProvider>();
+    if (!medProvider.isLoaded) {
+      return PremiumGlassCard(
+        borderRadius: 24,
+        padding: const EdgeInsets.all(20),
+        child: Row(
+          children: [
+            const CupertinoActivityIndicator(),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                l10n.medicationsLoading,
+                style: GoogleFonts.inter(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
     final meds = medProvider.activeMedications;
 
     if (meds.isEmpty) {
@@ -32,7 +56,7 @@ class DailyMedicationsCard extends StatelessWidget {
               width: 52,
               height: 52,
               decoration: BoxDecoration(
-                color: AppColors.primary.withOpacity(0.12),
+                color: AppColors.primary.withValues(alpha: 0.12),
                 shape: BoxShape.circle,
               ),
               child: const Icon(
@@ -47,7 +71,7 @@ class DailyMedicationsCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Medications & Vitamins',
+                    l10n.medicationsTitle,
                     style: GoogleFonts.outfit(
                       fontSize: 17,
                       fontWeight: FontWeight.w800,
@@ -56,7 +80,7 @@ class DailyMedicationsCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 6),
                   Text(
-                    'Add your daily medications or supplements to track intake for the day.',
+                    l10n.medicationsEmptyBody,
                     style: GoogleFonts.inter(
                       fontSize: 13,
                       height: 1.4,
@@ -86,7 +110,7 @@ class DailyMedicationsCard extends StatelessWidget {
                           ),
                           const SizedBox(width: 8),
                           Text(
-                            'Add medication',
+                            l10n.medicationsAdd,
                             style: GoogleFonts.inter(
                               fontSize: 13,
                               fontWeight: FontWeight.w700,
@@ -112,11 +136,11 @@ class DailyMedicationsCard extends StatelessWidget {
 
     String progressLabel;
     if (takenCount == 0) {
-      progressLabel = 'Nothing marked as taken yet';
+      progressLabel = l10n.medicationsProgressNone;
     } else if (takenCount == totalCount) {
-      progressLabel = 'All medications completed for today';
+      progressLabel = l10n.medicationsProgressAll;
     } else {
-      progressLabel = '$takenCount of $totalCount completed today';
+      progressLabel = l10n.medicationsProgressSome(takenCount, totalCount);
     }
 
     return PremiumGlassCard(
@@ -134,7 +158,7 @@ class DailyMedicationsCard extends StatelessWidget {
                   width: 38,
                   height: 38,
                   decoration: BoxDecoration(
-                    color: AppColors.primary.withOpacity(0.12),
+                    color: AppColors.primary.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: const Icon(
@@ -149,7 +173,7 @@ class DailyMedicationsCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Daily Intake',
+                        l10n.medicationsDailyIntake,
                         style: GoogleFonts.outfit(
                           fontSize: 18,
                           fontWeight: FontWeight.w800,
@@ -176,11 +200,11 @@ class DailyMedicationsCard extends StatelessWidget {
                       vertical: 8,
                     ),
                     decoration: BoxDecoration(
-                      color: AppColors.primary.withOpacity(0.10),
+                      color: AppColors.primary.withValues(alpha: 0.10),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Text(
-                      'Manage',
+                      l10n.medicationsManage,
                       style: GoogleFonts.inter(
                         fontSize: 12,
                         fontWeight: FontWeight.w700,
@@ -203,7 +227,7 @@ class DailyMedicationsCard extends StatelessWidget {
                     child: LinearProgressIndicator(
                       value: progress,
                       minHeight: 8,
-                      backgroundColor: AppColors.primary.withOpacity(0.10),
+                      backgroundColor: AppColors.primary.withValues(alpha: 0.10),
                       valueColor: AlwaysStoppedAnimation<Color>(
                         progress >= 1
                             ? const Color(0xFF76C893)
@@ -235,7 +259,7 @@ class DailyMedicationsCard extends StatelessWidget {
               med,
               isTaken,
             );
-          }).toList(),
+          }),
 
           const SizedBox(height: 8),
         ],
@@ -249,6 +273,8 @@ class DailyMedicationsCard extends StatelessWidget {
       MedicationItem med,
       bool isTaken,
       ) {
+    final l10n = AppLocalizations.of(context)!;
+
     return GestureDetector(
       onTap: () {
         HapticFeedback.lightImpact();
@@ -260,13 +286,13 @@ class DailyMedicationsCard extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
         decoration: BoxDecoration(
           color: isTaken
-              ? AppColors.primary.withOpacity(0.06)
-              : Colors.white.withOpacity(0.55),
+              ? AppColors.primary.withValues(alpha: 0.06)
+              : Colors.white.withValues(alpha: 0.55),
           borderRadius: BorderRadius.circular(18),
           border: Border.all(
             color: isTaken
-                ? AppColors.primary.withOpacity(0.22)
-                : Colors.black.withOpacity(0.04),
+                ? AppColors.primary.withValues(alpha: 0.22)
+                : Colors.black.withValues(alpha: 0.04),
             width: 1,
           ),
         ),
@@ -283,7 +309,7 @@ class DailyMedicationsCard extends StatelessWidget {
                 border: Border.all(
                   color: isTaken
                       ? AppColors.primary
-                      : AppColors.textSecondary.withOpacity(0.28),
+                      : AppColors.textSecondary.withValues(alpha: 0.28),
                   width: 2,
                 ),
               ),
@@ -301,7 +327,7 @@ class DailyMedicationsCard extends StatelessWidget {
               height: 36,
               alignment: Alignment.center,
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.7),
+                color: Colors.white.withValues(alpha: 0.7),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Text(
@@ -337,7 +363,7 @@ class DailyMedicationsCard extends StatelessWidget {
                       style: GoogleFonts.inter(
                         fontSize: 12.5,
                         fontWeight: FontWeight.w500,
-                        color: AppColors.textSecondary.withOpacity(0.82),
+                        color: AppColors.textSecondary.withValues(alpha: 0.82),
                       ),
                     ),
                   ],
@@ -355,11 +381,11 @@ class DailyMedicationsCard extends StatelessWidget {
                   vertical: 6,
                 ),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF76C893).withOpacity(0.14),
+                  color: const Color(0xFF76C893).withValues(alpha: 0.14),
                   borderRadius: BorderRadius.circular(999),
                 ),
                 child: Text(
-                  'Taken',
+                  l10n.medicationsTakenBadge,
                   style: GoogleFonts.inter(
                     fontSize: 11,
                     fontWeight: FontWeight.w800,
@@ -421,6 +447,7 @@ class _ManageMedicationsSheetState extends State<_ManageMedicationsSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final medProvider = context.watch<MedicationProvider>();
 
     return Container(
@@ -448,7 +475,7 @@ class _ManageMedicationsSheetState extends State<_ManageMedicationsSheet> {
                   width: 42,
                   height: 5,
                   decoration: BoxDecoration(
-                    color: Colors.grey.withOpacity(0.28),
+                    color: Colors.grey.withValues(alpha: 0.28),
                     borderRadius: BorderRadius.circular(999),
                   ),
                 ),
@@ -459,7 +486,7 @@ class _ManageMedicationsSheetState extends State<_ManageMedicationsSheet> {
                 children: [
                   Expanded(
                     child: Text(
-                      'Manage Medications',
+                      l10n.medicationsManageTitle,
                       style: GoogleFonts.outfit(
                         fontSize: 22,
                         fontWeight: FontWeight.w800,
@@ -480,7 +507,7 @@ class _ManageMedicationsSheetState extends State<_ManageMedicationsSheet> {
               const SizedBox(height: 8),
 
               Text(
-                'Add, remove, and organize the medications you want to track each day.',
+                l10n.medicationsManageBody,
                 style: GoogleFonts.inter(
                   fontSize: 13,
                   height: 1.45,
@@ -493,7 +520,7 @@ class _ManageMedicationsSheetState extends State<_ManageMedicationsSheet> {
 
               if (medProvider.activeMedications.isNotEmpty) ...[
                 Text(
-                  'Current medications',
+                  l10n.medicationsCurrent,
                   style: GoogleFonts.inter(
                     fontSize: 13,
                     fontWeight: FontWeight.w800,
@@ -509,10 +536,10 @@ class _ManageMedicationsSheetState extends State<_ManageMedicationsSheet> {
                       vertical: 10,
                     ),
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.55),
+                      color: Colors.white.withValues(alpha: 0.55),
                       borderRadius: BorderRadius.circular(16),
                       border: Border.all(
-                        color: Colors.black.withOpacity(0.04),
+                        color: Colors.black.withValues(alpha: 0.04),
                       ),
                     ),
                     child: Row(
@@ -522,7 +549,7 @@ class _ManageMedicationsSheetState extends State<_ManageMedicationsSheet> {
                           height: 40,
                           alignment: Alignment.center,
                           decoration: BoxDecoration(
-                            color: AppColors.primary.withOpacity(0.10),
+                            color: AppColors.primary.withValues(alpha: 0.10),
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: Text(
@@ -575,7 +602,7 @@ class _ManageMedicationsSheetState extends State<_ManageMedicationsSheet> {
               ],
 
               Text(
-                'Add new medication',
+                l10n.medicationsAddNew,
                 style: GoogleFonts.inter(
                   fontSize: 13,
                   fontWeight: FontWeight.w800,
@@ -601,8 +628,8 @@ class _ManageMedicationsSheetState extends State<_ManageMedicationsSheet> {
                         width: 52,
                         decoration: BoxDecoration(
                           color: isSelected
-                              ? AppColors.primary.withOpacity(0.16)
-                              : Colors.grey.withOpacity(0.10),
+                              ? AppColors.primary.withValues(alpha: 0.16)
+                              : Colors.grey.withValues(alpha: 0.10),
                           borderRadius: BorderRadius.circular(16),
                           border: Border.all(
                             color: isSelected
@@ -632,11 +659,11 @@ class _ManageMedicationsSheetState extends State<_ManageMedicationsSheet> {
                   color: AppColors.textPrimary,
                 ),
                 decoration: InputDecoration(
-                  labelText: 'Medication name',
-                  hintText: 'Iron, Vitamin D, Omega-3...',
+                  labelText: l10n.medicationsNameLabel,
+                  hintText: l10n.medicationsNameHint,
                   labelStyle: TextStyle(color: AppColors.textSecondary),
                   hintStyle: TextStyle(
-                    color: AppColors.textSecondary.withOpacity(0.55),
+                    color: AppColors.textSecondary.withValues(alpha: 0.55),
                   ),
                   filled: true,
                   fillColor: AppColors.background,
@@ -655,11 +682,11 @@ class _ManageMedicationsSheetState extends State<_ManageMedicationsSheet> {
                   color: AppColors.textPrimary,
                 ),
                 decoration: InputDecoration(
-                  labelText: 'Dosage',
-                  hintText: '500mg, 1 pill, 2 drops...',
+                  labelText: l10n.medicationsDosageLabel,
+                  hintText: l10n.medicationsDosageHint,
                   labelStyle: TextStyle(color: AppColors.textSecondary),
                   hintStyle: TextStyle(
-                    color: AppColors.textSecondary.withOpacity(0.55),
+                    color: AppColors.textSecondary.withValues(alpha: 0.55),
                   ),
                   filled: true,
                   fillColor: AppColors.background,
@@ -692,7 +719,7 @@ class _ManageMedicationsSheetState extends State<_ManageMedicationsSheet> {
                     FocusScope.of(context).unfocus();
                   },
                   child: Text(
-                    'Add Medication',
+                    l10n.medicationsAddButton,
                     style: GoogleFonts.inter(
                       fontWeight: FontWeight.w800,
                       color: Colors.white,

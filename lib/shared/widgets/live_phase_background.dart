@@ -82,8 +82,8 @@ class _LivePhaseBackgroundState extends State<LivePhaseBackground>
                     shape: BoxShape.circle,
                     gradient: RadialGradient(
                       colors: [
-                        Colors.white.withOpacity(0.22),
-                        Colors.white.withOpacity(0.10),
+                        Colors.white.withValues(alpha: 0.22),
+                        Colors.white.withValues(alpha: 0.10),
                         Colors.transparent,
                       ],
                       stops: const [0.0, 0.36, 1.0],
@@ -124,7 +124,7 @@ class _LivePhaseBackgroundState extends State<LivePhaseBackground>
                   height: 240,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: palette.highlight.withOpacity(0.14),
+                    color: palette.highlight.withValues(alpha: 0.14),
                   ),
                 ),
               ),
@@ -141,9 +141,9 @@ class _LivePhaseBackgroundState extends State<LivePhaseBackground>
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
                     colors: [
-                      Colors.white.withOpacity(0.04),
-                      palette.overlay.withOpacity(0.10),
-                      palette.overlay.withOpacity(0.16),
+                      Colors.white.withValues(alpha: 0.04),
+                      palette.overlay.withValues(alpha: 0.10),
+                      palette.overlay.withValues(alpha: 0.16),
                     ],
                   ),
                 ),
@@ -186,9 +186,9 @@ class _MovingBlob extends StatelessWidget {
             shape: BoxShape.circle,
             gradient: RadialGradient(
               colors: [
-                color.withOpacity(opacity),
-                color.withOpacity(opacity * 0.5),
-                color.withOpacity(0.0),
+                color.withValues(alpha: opacity),
+                color.withValues(alpha: opacity * 0.5),
+                color.withValues(alpha: 0.0),
               ],
               stops: const [0.0, 0.42, 1.0],
             ),

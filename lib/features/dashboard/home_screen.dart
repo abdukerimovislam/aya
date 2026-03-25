@@ -52,7 +52,7 @@ class HomeScreen extends StatelessWidget {
 }
 
 class _BuildUltraModernScreen extends StatefulWidget {
-  const _BuildUltraModernScreen({super.key});
+  const _BuildUltraModernScreen();
 
   @override
   State<_BuildUltraModernScreen> createState() => _BuildUltraModernScreenState();
@@ -135,7 +135,7 @@ class _BuildUltraModernScreenState extends State<_BuildUltraModernScreen> {
         elevation: 0,
         systemOverlayStyle: SystemUiOverlayStyle.dark,
         title: Text(
-          "A Y L A",
+          l10n.homeBrandWordmark,
           style: GoogleFonts.outfit(
             color: AppColors.textPrimary,
             fontWeight: FontWeight.w800,
@@ -216,7 +216,7 @@ class _BuildUltraModernScreenState extends State<_BuildUltraModernScreen> {
                             Positioned.fill(
                               child: Container(
                                 decoration: BoxDecoration(
-                                  color: Colors.white.withOpacity(0.5),
+                                  color: Colors.white.withValues(alpha: 0.5),
                                   borderRadius: BorderRadius.circular(28),
                                 ),
                                 child: const Center(
@@ -269,8 +269,8 @@ class _COCPackControlCard extends StatelessWidget {
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
                     color: isBreak
-                        ? Colors.orangeAccent.withOpacity(0.15)
-                        : AppColors.primary.withOpacity(0.15),
+                        ? Colors.orangeAccent.withValues(alpha: 0.15)
+                        : AppColors.primary.withValues(alpha: 0.15),
                     shape: BoxShape.circle,
                   ),
                   child: Icon(
@@ -293,7 +293,7 @@ class _COCPackControlCard extends StatelessWidget {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        "Day $currentDay of $totalDays",
+                        l10n.homeCocDayOfTotal(currentDay, totalDays),
                         style: GoogleFonts.inter(fontSize: 13,
                             color: AppColors.textSecondary,
                             fontWeight: FontWeight.w600),
@@ -309,7 +309,7 @@ class _COCPackControlCard extends StatelessWidget {
               width: double.infinity,
               child: CupertinoButton(
                 padding: const EdgeInsets.symmetric(vertical: 16),
-                color: isBreak ? AppColors.primary : AppColors.primary.withOpacity(0.1),
+                color: isBreak ? AppColors.primary : AppColors.primary.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(16),
                 onPressed: () => _showStartNewPackDialog(context, provider),
                 child: Text(
@@ -330,6 +330,7 @@ class _COCPackControlCard extends StatelessWidget {
 
   void _showStartNewPackDialog(BuildContext context, CycleProvider provider) {
     HapticFeedback.heavyImpact();
+    final l10n = AppLocalizations.of(context)!;
     showDialog(
       context: context,
       builder: (ctx) =>
@@ -341,13 +342,13 @@ class _COCPackControlCard extends StatelessWidget {
                 const Icon(CupertinoIcons.arrow_2_circlepath_circle_fill,
                     color: AppColors.primary, size: 28),
                 const SizedBox(width: 10),
-                Expanded(child: Text("Start New Pack?",
+                Expanded(child: Text(l10n.dialogStartPackTitle,
                     style: GoogleFonts.outfit(fontWeight: FontWeight.w800,
                         color: AppColors.textPrimary))),
               ],
             ),
             content: Text(
-              "This will reset your tracker, clear previous pill history, and start a new pack today.",
+              l10n.dialogStartPackBody,
               style: GoogleFonts.inter(
                   color: AppColors.textSecondary, fontSize: 14, height: 1.4),
             ),
@@ -356,7 +357,7 @@ class _COCPackControlCard extends StatelessWidget {
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(ctx),
-                child: Text("Cancel", style: GoogleFonts.inter(
+                child: Text(l10n.btnCancel, style: GoogleFonts.inter(
                     color: AppColors.textSecondary,
                     fontWeight: FontWeight.w600)),
               ),
@@ -384,7 +385,7 @@ class _COCPackControlCard extends StatelessWidget {
                     await coc.startNewPack(startDate: now);
                   }
                 },
-                child: Text("Start Today", style: GoogleFonts.inter(
+                child: Text(l10n.btnStartToday, style: GoogleFonts.inter(
                     fontWeight: FontWeight.w700, color: Colors.white)),
               ),
             ],
@@ -418,7 +419,7 @@ class _DashboardPremiumBadge extends StatelessWidget {
             Icon(isPremium ? Icons.verified_rounded : Icons.star_rounded, color: isPremium ? Colors.amber.shade800 : AppColors.textPrimary, size: 16),
             const SizedBox(width: 6),
             Text(
-                isPremium ? l10n.badgePro : "PRO",
+                l10n.badgePro,
                 style: GoogleFonts.inter(
                     color: isPremium ? Colors.amber.shade900 : AppColors.textPrimary,
                     fontWeight: FontWeight.w800,

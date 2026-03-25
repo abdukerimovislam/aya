@@ -1,4 +1,3 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
@@ -7,6 +6,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 
 import '../../core/theme/app_theme.dart';
+import '../../core/utils/intimacy_logging.dart';
 import '../../l10n/app_localizations.dart';
 import '../../data/models/cycle_model.dart';
 import '../../data/providers/cycle_provider.dart';
@@ -27,6 +27,7 @@ class _SymptomLogScreenState extends State<SymptomLogScreen> {
   bool _isLoaded = false;
   bool _isFutureDate = false;
   bool _isSaving = false;
+  double? _suggestedTemperature;
 
   FlowIntensity _initialFlow = FlowIntensity.none;
   bool _initialLHPeak = false;
@@ -58,6 +59,7 @@ class _SymptomLogScreenState extends State<SymptomLogScreen> {
     final today = DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day);
     final target = DateTime(d.year, d.month, d.day);
     _isFutureDate = target.isAfter(today);
+    _suggestedTemperature = null;
 
     if (_isFutureDate) {
       setState(() {
@@ -82,7 +84,7 @@ class _SymptomLogScreenState extends State<SymptomLogScreen> {
         }
       }
       if (lastKnownTemp != null) {
-        _log = _log.copyWith(temperature: lastKnownTemp);
+        _suggestedTemperature = lastKnownTemp;
       }
     }
 
@@ -107,6 +109,7 @@ class _SymptomLogScreenState extends State<SymptomLogScreen> {
 
   Future<void> _handleSaveWithProtection({VoidCallback? onSuccess}) async {
     HapticFeedback.lightImpact();
+    final l10n = AppLocalizations.of(context)!;
 
     if (_isFutureDate) {
       if (onSuccess != null) {
@@ -141,12 +144,12 @@ class _SymptomLogScreenState extends State<SymptomLogScreen> {
         if (diff > 0 && diff < 21) {
           if (diff >= (ovDay - 2) && diff <= (ovDay + 2)) {
             final confirm = await _showAsyncDialog(
-              title: "Cycle Update Warning",
-              message: "Light bleeding is common during ovulation. Logging this as a New Period will reset your entire cycle predictions. Do you want to start a new cycle, or log this as spotting?",
+              title: l10n.symptomLogCycleWarningTitle,
+              message: l10n.symptomLogOvulationSpottingWarningBody,
               icon: CupertinoIcons.exclamationmark_triangle_fill,
               color: Colors.purple,
-              confirmText: "Reset & Start New Cycle",
-              cancelText: "Just Spotting",
+              confirmText: l10n.symptomLogResetStartCycleAction,
+              cancelText: l10n.symptomLogJustSpottingAction,
             );
             if (confirm) {
               shouldForceStartPeriod = true;
@@ -155,12 +158,12 @@ class _SymptomLogScreenState extends State<SymptomLogScreen> {
             }
           } else {
             final confirm = await _showAsyncDialog(
-              title: "Cycle Update Warning",
-              message: "It's been less than 21 days since your last period. Logging this as a New Period will dramatically alter your cycle averages and predictions. Are you sure?",
+              title: l10n.symptomLogCycleWarningTitle,
+              message: l10n.symptomLogShortCycleWarningBody,
               icon: CupertinoIcons.exclamationmark_triangle_fill,
               color: Colors.orange,
-              confirmText: "Reset & Start New Cycle",
-              cancelText: "Just Spotting",
+              confirmText: l10n.symptomLogResetStartCycleAction,
+              cancelText: l10n.symptomLogJustSpottingAction,
             );
             if (confirm) {
               shouldForceStartPeriod = true;
@@ -172,12 +175,12 @@ class _SymptomLogScreenState extends State<SymptomLogScreen> {
           final currentPhase = cycle.getPhaseForDate(_selectedDate);
           if (currentPhase != CyclePhase.menstruation) {
             final confirm = await _showAsyncDialog(
-              title: "Cycle Update Warning",
-              message: "This input will end your current cycle and generate new predictions for your next phases. Are you sure you want to log a New Period today?",
+              title: l10n.symptomLogCycleWarningTitle,
+              message: l10n.symptomLogNewPeriodWarningBody,
               icon: CupertinoIcons.drop_fill,
               color: AppColors.menstruation,
-              confirmText: "Yes, start new cycle",
-              cancelText: "Cancel",
+              confirmText: l10n.symptomLogStartNewCycleAction,
+              cancelText: l10n.btnCancel,
             );
             if (confirm) {
               shouldForceStartPeriod = true;
@@ -190,12 +193,12 @@ class _SymptomLogScreenState extends State<SymptomLogScreen> {
         final currentPhase = cycle.getPhaseForDate(_selectedDate);
         if (currentPhase == CyclePhase.menstruation) {
           final confirm = await _showAsyncDialog(
-            title: "Cycle Update Warning",
-            message: "Removing bleeding from a logged period day will recalculate your cycle history and future predictions. Are you sure?",
+            title: l10n.symptomLogCycleWarningTitle,
+            message: l10n.symptomLogRemoveBleedingWarningBody,
             icon: CupertinoIcons.drop,
             color: Colors.orangeAccent,
-            confirmText: "Remove it",
-            cancelText: "Cancel",
+            confirmText: l10n.symptomLogRemoveAction,
+            cancelText: l10n.btnCancel,
           );
           if (!confirm) return;
         }
@@ -205,12 +208,12 @@ class _SymptomLogScreenState extends State<SymptomLogScreen> {
     if (cycle.isTTCMode) {
       if (lhPeakAdded) {
         final confirm = await _showAsyncDialog(
-          title: "Cycle Update Warning",
-          message: "Logging an LH Peak will immediately shift your predicted ovulation day and adjust your fertile window. Proceed?",
+          title: l10n.symptomLogCycleWarningTitle,
+          message: l10n.symptomLogLhPeakAddedWarningBody,
           icon: CupertinoIcons.sparkles,
           color: Colors.purple,
-          confirmText: "Confirm Shift",
-          cancelText: "Cancel",
+          confirmText: l10n.symptomLogConfirmShiftAction,
+          cancelText: l10n.btnCancel,
         );
         if (confirm) {
           shouldConfirmOvulation = true;
@@ -223,12 +226,12 @@ class _SymptomLogScreenState extends State<SymptomLogScreen> {
         }
       } else if (lhPeakRemoved) {
         final confirm = await _showAsyncDialog(
-          title: "Cycle Update Warning",
-          message: "Removing the LH Peak will revert your ovulation predictions back to standard AI calculations. Are you sure?",
+          title: l10n.symptomLogCycleWarningTitle,
+          message: l10n.symptomLogLhPeakRemovedWarningBody,
           icon: CupertinoIcons.xmark_circle_fill,
           color: Colors.orangeAccent,
-          confirmText: "Remove it",
-          cancelText: "Cancel",
+          confirmText: l10n.symptomLogRemoveAction,
+          cancelText: l10n.btnCancel,
         );
         if (!confirm) return;
       }
@@ -323,9 +326,9 @@ class _SymptomLogScreenState extends State<SymptomLogScreen> {
             Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: color.withOpacity(0.12),
+                color: color.withValues(alpha: 0.12),
                 shape: BoxShape.circle,
-                border: Border.all(color: color.withOpacity(0.18)),
+                border: Border.all(color: color.withValues(alpha: 0.18)),
               ),
               child: Icon(icon, color: color),
             ),
@@ -440,20 +443,20 @@ class _SymptomLogScreenState extends State<SymptomLogScreen> {
                 color: isSelected
                     ? activeColor
                     : isToday
-                    ? activeColor.withOpacity(0.08)
+                    ? activeColor.withValues(alpha: 0.08)
                     : AppColors.tintedSurface,
                 borderRadius: BorderRadius.circular(20),
                 border: Border.all(
                   color: isSelected
                       ? activeColor
                       : isToday
-                      ? activeColor.withOpacity(0.28)
+                      ? activeColor.withValues(alpha: 0.28)
                       : AppColors.divider,
                 ),
                 boxShadow: isSelected
                     ? [
                   BoxShadow(
-                    color: activeColor.withOpacity(0.26),
+                    color: activeColor.withValues(alpha: 0.26),
                     blurRadius: 14,
                     offset: const Offset(0, 8),
                     spreadRadius: -4,
@@ -461,7 +464,7 @@ class _SymptomLogScreenState extends State<SymptomLogScreen> {
                 ]
                     : [
                   BoxShadow(
-                    color: AppColors.textPrimary.withOpacity(0.03),
+                    color: AppColors.textPrimary.withValues(alpha: 0.03),
                     blurRadius: 8,
                     offset: const Offset(0, 4),
                     spreadRadius: -4,
@@ -472,13 +475,15 @@ class _SymptomLogScreenState extends State<SymptomLogScreen> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Text(
-                    isToday ? 'TODAY' : DateFormat('E', l10n?.localeName).format(date).toUpperCase(),
+                    isToday
+                        ? (l10n?.btnToday ?? 'Today').toUpperCase()
+                        : DateFormat('E', l10n?.localeName).format(date).toUpperCase(),
                     style: GoogleFonts.inter(
                       fontSize: isToday ? 9 : 10.5,
                       fontWeight: FontWeight.w800,
                       letterSpacing: 0.3,
                       color: isSelected
-                          ? Colors.white.withOpacity(0.92)
+                          ? Colors.white.withValues(alpha: 0.92)
                           : isToday
                           ? activeColor
                           : AppColors.textSecondary,
@@ -504,7 +509,7 @@ class _SymptomLogScreenState extends State<SymptomLogScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context);
+    final l10n = AppLocalizations.of(context)!;
     final cycle = context.watch<CycleProvider>();
     final bool isTTC = cycle.appMode == AppMode.ttc;
     final dateStr = DateFormat('MMMM d, yyyy').format(_selectedDate);
@@ -573,7 +578,7 @@ class _SymptomLogScreenState extends State<SymptomLogScreen> {
             width: 52,
             height: 5,
             decoration: BoxDecoration(
-              color: AppColors.textSecondary.withOpacity(0.18),
+              color: AppColors.textSecondary.withValues(alpha: 0.18),
               borderRadius: BorderRadius.circular(999),
             ),
           ),
@@ -593,9 +598,9 @@ class _SymptomLogScreenState extends State<SymptomLogScreen> {
                     width: 46,
                     height: 46,
                     decoration: BoxDecoration(
-                      color: accent.withOpacity(0.12),
+                      color: accent.withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: accent.withOpacity(0.18)),
+                      border: Border.all(color: accent.withValues(alpha: 0.18)),
                     ),
                     child: Icon(
                       _isFutureDate ? CupertinoIcons.sparkles : CupertinoIcons.waveform_path_ecg,
@@ -609,8 +614,8 @@ class _SymptomLogScreenState extends State<SymptomLogScreen> {
                       children: [
                         Text(
                           _isFutureDate
-                              ? "Future Prediction"
-                              : (l10n?.logSymptomsTitle ?? "Daily Log"),
+                              ? l10n.symptomLogFuturePredictionTitle
+                              : l10n.logSymptomsTitle,
                           style: GoogleFonts.outfit(
                             fontSize: 22,
                             fontWeight: FontWeight.w800,
@@ -646,7 +651,7 @@ class _SymptomLogScreenState extends State<SymptomLogScreen> {
                         borderRadius: BorderRadius.circular(18),
                         boxShadow: [
                           BoxShadow(
-                            color: accent.withOpacity(0.25),
+                            color: accent.withValues(alpha: 0.25),
                             blurRadius: 12,
                             offset: const Offset(0, 6),
                             spreadRadius: -4,
@@ -654,7 +659,7 @@ class _SymptomLogScreenState extends State<SymptomLogScreen> {
                         ],
                       ),
                       child: Text(
-                        "Done",
+                        l10n.profileDoneAction,
                         style: GoogleFonts.inter(
                           color: Colors.white,
                           fontWeight: FontWeight.w800,
@@ -672,7 +677,7 @@ class _SymptomLogScreenState extends State<SymptomLogScreen> {
           _buildDateRoulette(isTTC, l10n),
           const SizedBox(height: 14),
 
-          Divider(height: 1, color: AppColors.textSecondary.withOpacity(0.08)),
+          Divider(height: 1, color: AppColors.textSecondary.withValues(alpha: 0.08)),
 
           if (_isFutureDate)
             Expanded(
@@ -690,9 +695,9 @@ class _SymptomLogScreenState extends State<SymptomLogScreen> {
                         Container(
                           padding: const EdgeInsets.all(22),
                           decoration: BoxDecoration(
-                            color: AppColors.primary.withOpacity(0.10),
+                            color: AppColors.primary.withValues(alpha: 0.10),
                             shape: BoxShape.circle,
-                            border: Border.all(color: AppColors.primary.withOpacity(0.16)),
+                            border: Border.all(color: AppColors.primary.withValues(alpha: 0.16)),
                           ),
                           child: Icon(
                             CupertinoIcons.sparkles,
@@ -702,7 +707,7 @@ class _SymptomLogScreenState extends State<SymptomLogScreen> {
                         ),
                         const SizedBox(height: 22),
                         Text(
-                          "The Future is Bright",
+                          l10n.symptomLogFutureTitle,
                           style: GoogleFonts.outfit(
                             fontSize: 22,
                             fontWeight: FontWeight.w800,
@@ -711,7 +716,7 @@ class _SymptomLogScreenState extends State<SymptomLogScreen> {
                         ),
                         const SizedBox(height: 10),
                         Text(
-                          "You cannot log symptoms for future dates. Select a past date to enter records.",
+                          l10n.symptomLogFutureBody,
                           textAlign: TextAlign.center,
                           style: GoogleFonts.inter(
                             fontSize: 15,
@@ -742,9 +747,9 @@ class _SymptomLogScreenState extends State<SymptomLogScreen> {
                           Container(
                             padding: const EdgeInsets.all(11),
                             decoration: BoxDecoration(
-                              color: Colors.purple.withOpacity(0.12),
+                              color: Colors.purple.withValues(alpha: 0.12),
                               shape: BoxShape.circle,
-                              border: Border.all(color: Colors.purple.withOpacity(0.18)),
+                              border: Border.all(color: Colors.purple.withValues(alpha: 0.18)),
                             ),
                             child: const Icon(
                               CupertinoIcons.heart_circle_fill,
@@ -757,7 +762,7 @@ class _SymptomLogScreenState extends State<SymptomLogScreen> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  "TTC AI Intelligence",
+                                  l10n.symptomLogTtcAiTitle,
                                   style: GoogleFonts.outfit(
                                     fontWeight: FontWeight.w800,
                                     fontSize: 16,
@@ -766,7 +771,7 @@ class _SymptomLogScreenState extends State<SymptomLogScreen> {
                                 ),
                                 const SizedBox(height: 4),
                                 Text(
-                                  "Log BBT and LH tests below to refine ovulation timing and fertile-window predictions.",
+                                  l10n.symptomLogTtcAiBody,
                                   style: GoogleFonts.inter(
                                     fontSize: 12.5,
                                     color: AppColors.textSecondary,
@@ -783,8 +788,8 @@ class _SymptomLogScreenState extends State<SymptomLogScreen> {
                   ],
 
                   _buildSectionBlock(
-                    title: "Bleeding & Flow",
-                    subtitle: "Choose the intensity for this day",
+                    title: l10n.symptomLogSectionBleedingTitle,
+                    subtitle: l10n.symptomLogSectionBleedingBody,
                     icon: CupertinoIcons.drop_fill,
                     accent: AppColors.menstruation,
                     child: _buildFlowSelector(),
@@ -792,8 +797,8 @@ class _SymptomLogScreenState extends State<SymptomLogScreen> {
                   const SizedBox(height: 18),
 
                   _buildSectionBlock(
-                    title: "Basal Body Temp (BBT)",
-                    subtitle: "Adjust daily basal temperature",
+                    title: l10n.symptomLogSectionBbtTitle,
+                    subtitle: l10n.symptomLogSectionBbtBody,
                     icon: CupertinoIcons.thermometer,
                     accent: Colors.redAccent,
                     child: _buildBBTInput(),
@@ -802,8 +807,8 @@ class _SymptomLogScreenState extends State<SymptomLogScreen> {
 
                   if (isTTC) ...[
                     _buildSectionBlock(
-                      title: "Ovulation Tests (OPK)",
-                      subtitle: "Only one LH status can be active",
+                      title: l10n.symptomLogSectionOpkTitle,
+                      subtitle: l10n.symptomLogSectionOpkBody,
                       icon: CupertinoIcons.sparkles,
                       accent: Colors.purple,
                       child: _buildSymptomGrid(
@@ -816,8 +821,8 @@ class _SymptomLogScreenState extends State<SymptomLogScreen> {
                     const SizedBox(height: 18),
 
                     _buildSectionBlock(
-                      title: "Cervical Mucus",
-                      subtitle: "Track the most relevant type",
+                      title: l10n.symptomLogSectionMucusTitle,
+                      subtitle: l10n.symptomLogSectionMucusBody,
                       icon: CupertinoIcons.drop_triangle_fill,
                       accent: Colors.teal,
                       child: _buildSymptomGrid(
@@ -832,8 +837,10 @@ class _SymptomLogScreenState extends State<SymptomLogScreen> {
 
                   // 🔥 ИНТИМНЫЙ КАЛЕНДАРЬ ТЕПЕРЬ ДОСТУПЕН ВСЕМ (Вынесен из блока if (isTTC))
                   _buildSectionBlock(
-                    title: "Intercourse & Libido",
-                    subtitle: isTTC ? "Helpful for fertility insights" : "Track your intimacy and desire",
+                    title: l10n.symptomLogSectionIntimacyTitle,
+                    subtitle: isTTC
+                        ? l10n.symptomLogSectionIntimacyTtcBody
+                        : l10n.symptomLogSectionIntimacyBody,
                     icon: CupertinoIcons.heart_fill,
                     accent: Colors.pinkAccent,
                     child: _buildSymptomGrid(
@@ -846,28 +853,28 @@ class _SymptomLogScreenState extends State<SymptomLogScreen> {
                   const SizedBox(height: 18),
 
                   _buildSectionBlock(
-                    title: "Vitals",
-                    subtitle: "Quick body check-in for the day",
+                    title: l10n.symptomLogSectionVitalsTitle,
+                    subtitle: l10n.symptomLogSectionVitalsBody,
                     icon: CupertinoIcons.waveform_path_ecg,
                     accent: accent,
                     child: Column(
                       children: [
                         _buildVitalSlider(
-                          "Mood",
+                          l10n.lblMood,
                           _log.mood,
                               (v) => setState(() => _log = _log.copyWith(mood: v.toInt())),
                           CupertinoIcons.smiley,
                           isTTC,
                         ),
                         _buildVitalSlider(
-                          "Energy",
+                          l10n.lblEnergy,
                           _log.energy,
                               (v) => setState(() => _log = _log.copyWith(energy: v.toInt())),
                           CupertinoIcons.bolt_fill,
                           isTTC,
                         ),
                         _buildVitalSlider(
-                          "Sleep",
+                          l10n.catSleep,
                           _log.sleep,
                               (v) => setState(() => _log = _log.copyWith(sleep: v.toInt())),
                           CupertinoIcons.moon_stars_fill,
@@ -879,8 +886,8 @@ class _SymptomLogScreenState extends State<SymptomLogScreen> {
                   const SizedBox(height: 18),
 
                   _buildSectionBlock(
-                    title: "Physical Symptoms",
-                    subtitle: "Body discomfort and physical signs",
+                    title: l10n.symptomLogSectionPhysicalTitle,
+                    subtitle: l10n.symptomLogSectionPhysicalBody,
                     icon: CupertinoIcons.bandage_fill,
                     accent: AppColors.primary,
                     child: _buildSymptomGrid(
@@ -892,8 +899,8 @@ class _SymptomLogScreenState extends State<SymptomLogScreen> {
                   const SizedBox(height: 18),
 
                   _buildSectionBlock(
-                    title: "Mental & Emotional",
-                    subtitle: "Mood, focus, and emotional state",
+                    title: l10n.symptomLogSectionMentalTitle,
+                    subtitle: l10n.symptomLogSectionMentalBody,
                     icon: CupertinoIcons.person_crop_circle,
                     accent: const Color(0xFF8E71C7),
                     child: _buildSymptomGrid(
@@ -905,8 +912,8 @@ class _SymptomLogScreenState extends State<SymptomLogScreen> {
                   const SizedBox(height: 18),
 
                   _buildSectionBlock(
-                    title: "Other Factors",
-                    subtitle: "Context that may affect symptoms",
+                    title: l10n.symptomLogSectionOtherTitle,
+                    subtitle: l10n.symptomLogSectionOtherBody,
                     icon: CupertinoIcons.square_grid_2x2_fill,
                     accent: const Color(0xFF9A7B73),
                     child: _buildSymptomGrid(
@@ -948,9 +955,9 @@ class _SymptomLogScreenState extends State<SymptomLogScreen> {
                 width: 42,
                 height: 42,
                 decoration: BoxDecoration(
-                  color: accent.withOpacity(0.12),
+                  color: accent.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: accent.withOpacity(0.16)),
+                  border: Border.all(color: accent.withValues(alpha: 0.16)),
                 ),
                 child: Icon(icon, color: accent, size: 20),
               ),
@@ -1026,7 +1033,7 @@ class _SymptomLogScreenState extends State<SymptomLogScreen> {
                   if (hasConflict) {
                     _log = _log.copyWith(symptoms: s);
                     _showConflictWarning(
-                      "Menstruation logged. Incompatible symptoms (LH Peak / Mucus) removed.",
+                      AppLocalizations.of(context)!.symptomLogMenstruationConflictRemoved,
                     );
                   }
                 }
@@ -1040,17 +1047,17 @@ class _SymptomLogScreenState extends State<SymptomLogScreen> {
               decoration: BoxDecoration(
                 color: isSelected
                     ? AppColors.menstruation
-                    : AppColors.secondaryBackground.withOpacity(0.7),
+                    : AppColors.secondaryBackground.withValues(alpha: 0.7),
                 border: Border.all(
                   color: isSelected
                       ? AppColors.menstruation
-                      : AppColors.textSecondary.withOpacity(0.16),
+                      : AppColors.textSecondary.withValues(alpha: 0.16),
                 ),
                 borderRadius: BorderRadius.circular(18),
                 boxShadow: isSelected
                     ? [
                   BoxShadow(
-                    color: AppColors.menstruation.withOpacity(0.26),
+                    color: AppColors.menstruation.withValues(alpha: 0.26),
                     blurRadius: 12,
                     offset: const Offset(0, 6),
                     spreadRadius: -3,
@@ -1084,13 +1091,16 @@ class _SymptomLogScreenState extends State<SymptomLogScreen> {
   }
 
   Widget _buildBBTInput() {
-    double currentTemp = _log.temperature ?? 36.60;
-    if (currentTemp == 0.0) currentTemp = 36.60;
+    final l10n = AppLocalizations.of(context)!;
+    final hasLoggedTemperature = _log.temperature != null && _log.temperature! > 0.0;
+    double currentTemp = hasLoggedTemperature
+        ? _log.temperature!
+        : (_suggestedTemperature ?? 36.60);
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
       decoration: BoxDecoration(
-        color: AppColors.secondaryBackground.withOpacity(0.65),
+        color: AppColors.secondaryBackground.withValues(alpha: 0.65),
         borderRadius: BorderRadius.circular(22),
         border: Border.all(color: AppColors.divider),
       ),
@@ -1102,9 +1112,9 @@ class _SymptomLogScreenState extends State<SymptomLogScreen> {
               Container(
                 padding: const EdgeInsets.all(11),
                 decoration: BoxDecoration(
-                  color: Colors.redAccent.withOpacity(0.12),
+                  color: Colors.redAccent.withValues(alpha: 0.12),
                   shape: BoxShape.circle,
-                  border: Border.all(color: Colors.redAccent.withOpacity(0.16)),
+                  border: Border.all(color: Colors.redAccent.withValues(alpha: 0.16)),
                 ),
                 child: const Icon(
                   CupertinoIcons.thermometer,
@@ -1126,7 +1136,11 @@ class _SymptomLogScreenState extends State<SymptomLogScreen> {
                     ),
                   ),
                   Text(
-                    "Basal temperature",
+                    hasLoggedTemperature
+                        ? l10n.symptomLogBbtMeasuredLabel
+                        : (_suggestedTemperature != null
+                            ? l10n.symptomLogBbtSuggestedLabel
+                            : l10n.symptomLogBbtMeasuredLabel),
                     style: GoogleFonts.inter(
                       fontSize: 12.5,
                       fontWeight: FontWeight.w600,
@@ -1147,6 +1161,7 @@ class _SymptomLogScreenState extends State<SymptomLogScreen> {
                 onTap: () {
                   HapticFeedback.selectionClick();
                   setState(() {
+                    _suggestedTemperature = null;
                     _log = _log.copyWith(
                       temperature: (currentTemp - 0.05).clamp(35.0, 40.0),
                     );
@@ -1156,12 +1171,13 @@ class _SymptomLogScreenState extends State<SymptomLogScreen> {
               const SizedBox(width: 10),
               _buildStepperButton(
                 icon: CupertinoIcons.add,
-                background: Colors.redAccent.withOpacity(0.10),
-                borderColor: Colors.redAccent.withOpacity(0.18),
+                background: Colors.redAccent.withValues(alpha: 0.10),
+                borderColor: Colors.redAccent.withValues(alpha: 0.18),
                 iconColor: Colors.redAccent,
                 onTap: () {
                   HapticFeedback.selectionClick();
                   setState(() {
+                    _suggestedTemperature = null;
                     _log = _log.copyWith(
                       temperature: (currentTemp + 0.05).clamp(35.0, 40.0),
                     );
@@ -1211,7 +1227,7 @@ class _SymptomLogScreenState extends State<SymptomLogScreen> {
       child: Container(
         padding: const EdgeInsets.fromLTRB(14, 12, 14, 8),
         decoration: BoxDecoration(
-          color: AppColors.secondaryBackground.withOpacity(0.58),
+          color: AppColors.secondaryBackground.withValues(alpha: 0.58),
           borderRadius: BorderRadius.circular(20),
           border: Border.all(color: AppColors.divider),
         ),
@@ -1220,9 +1236,9 @@ class _SymptomLogScreenState extends State<SymptomLogScreen> {
             Container(
               padding: const EdgeInsets.all(9),
               decoration: BoxDecoration(
-                color: activeColor.withOpacity(0.10),
+                color: activeColor.withValues(alpha: 0.10),
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: activeColor.withOpacity(0.12)),
+                border: Border.all(color: activeColor.withValues(alpha: 0.12)),
               ),
               child: Icon(icon, color: activeColor, size: 19),
             ),
@@ -1245,7 +1261,7 @@ class _SymptomLogScreenState extends State<SymptomLogScreen> {
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                         decoration: BoxDecoration(
-                          color: activeColor.withOpacity(0.10),
+                          color: activeColor.withValues(alpha: 0.10),
                           borderRadius: BorderRadius.circular(999),
                         ),
                         child: Text(
@@ -1263,9 +1279,9 @@ class _SymptomLogScreenState extends State<SymptomLogScreen> {
                     data: SliderThemeData(
                       trackHeight: 4,
                       activeTrackColor: activeColor,
-                      inactiveTrackColor: AppColors.textSecondary.withOpacity(0.12),
+                      inactiveTrackColor: AppColors.textSecondary.withValues(alpha: 0.12),
                       thumbColor: activeColor,
-                      overlayColor: activeColor.withOpacity(0.16),
+                      overlayColor: activeColor.withValues(alpha: 0.16),
                       thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 9),
                     ),
                     child: Slider(
@@ -1301,7 +1317,9 @@ class _SymptomLogScreenState extends State<SymptomLogScreen> {
       spacing: 10,
       runSpacing: 10,
       children: options.map((symptom) {
-        final isSelected = selectedList.contains(symptom);
+        final isSelected = symptom == genericIntimacySymptom
+            ? _log.hasAnyIntimacy
+            : selectedList.contains(symptom);
 
         return GestureDetector(
           onTap: () {
@@ -1310,7 +1328,11 @@ class _SymptomLogScreenState extends State<SymptomLogScreen> {
               final list = List<String>.from(selectedList);
 
               if (isSelected) {
-                list.remove(symptom);
+                if (symptom == genericIntimacySymptom) {
+                  list.removeWhere(isIntimacySymptom);
+                } else {
+                  list.remove(symptom);
+                }
               } else {
                 if (symptom.startsWith("LH:")) {
                   list.removeWhere((e) => e.startsWith("LH:"));
@@ -1318,24 +1340,24 @@ class _SymptomLogScreenState extends State<SymptomLogScreen> {
                 if (symptom.contains("Mucus")) {
                   list.removeWhere((e) => e.contains("Mucus"));
                 }
-                if (symptom == 'Intimacy') {
-                  list.remove('Protected Sex');
-                  list.remove('Unprotected Sex');
+                if (symptom == genericIntimacySymptom) {
+                  list.removeWhere(isIntimacySymptom);
+                  list.add(genericIntimacySymptom);
+                } else {
+                  list.add(symptom);
                 }
-
-                list.add(symptom);
 
                 if (symptom == 'LH: Peak' && _log.flow != FlowIntensity.none) {
                   _log = _log.copyWith(flow: FlowIntensity.none);
                   _showConflictWarning(
-                    "Bleeding removed. Menstruation and ovulation cannot co-occur.",
+                    AppLocalizations.of(context)!.symptomLogBleedingRemovedOvulationConflict,
                   );
                 }
 
                 if (symptom.contains('Mucus') && _log.flow != FlowIntensity.none) {
                   _log = _log.copyWith(flow: FlowIntensity.none);
                   _showConflictWarning(
-                    "Bleeding removed. Cervical mucus is not tracked during menstruation.",
+                    AppLocalizations.of(context)!.symptomLogBleedingRemovedMucusConflict,
                   );
                 }
               }
@@ -1354,17 +1376,17 @@ class _SymptomLogScreenState extends State<SymptomLogScreen> {
             decoration: BoxDecoration(
               color: isSelected
                   ? activeColor
-                  : AppColors.secondaryBackground.withOpacity(0.45),
+                  : AppColors.secondaryBackground.withValues(alpha: 0.45),
               borderRadius: BorderRadius.circular(18),
               border: Border.all(
                 color: isSelected
                     ? activeColor
-                    : AppColors.textSecondary.withOpacity(0.14),
+                    : AppColors.textSecondary.withValues(alpha: 0.14),
               ),
               boxShadow: isSelected
                   ? [
                 BoxShadow(
-                  color: activeColor.withOpacity(0.22),
+                  color: activeColor.withValues(alpha: 0.22),
                   blurRadius: 12,
                   offset: const Offset(0, 6),
                   spreadRadius: -4,

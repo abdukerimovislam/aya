@@ -10,10 +10,10 @@ import 'package:cryptography/cryptography.dart';
 ///   "alg": "AES-GCM-256",
 ///   "kdf": "PBKDF2-HMAC-SHA256",
 ///   "iter": 200000,
-///   "salt": "<base64>",
-///   "nonce": "<base64>",
-///   "ciphertext": "<base64>",
-///   "mac": "<base64>"
+///   "salt": "base64-string",
+///   "nonce": "base64-string",
+///   "ciphertext": "base64-string",
+///   "mac": "base64-string"
 /// }
 class BackupCrypto {
   static const int currentVersion = 2; // 🔥 Добавлена версия для миграций

@@ -55,6 +55,7 @@ class _PremiumPaywallSheetState extends State<PremiumPaywallSheet> {
       // Мы не спрашиваем "есть ли премиум?", мы ПРИНУДИТЕЛЬНО его включаем,
       // так как только что получили подтверждение успешной оплаты.
       await context.read<SettingsProvider>().setPremiumStatus(true);
+      if (!mounted) return;
 
       Navigator.pop(context, true); // Закрываем окно
     } else {
@@ -67,6 +68,7 @@ class _PremiumPaywallSheetState extends State<PremiumPaywallSheet> {
     final success = await SubscriptionService.restorePurchases();
     if (success && mounted) {
       await context.read<SettingsProvider>().refreshPremium();
+      if (!mounted) return;
       Navigator.pop(context, true);
     } else {
       if (mounted) {
@@ -92,12 +94,12 @@ class _PremiumPaywallSheetState extends State<PremiumPaywallSheet> {
         child: Container(
           height: h * 0.92,
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.92),
+            color: Colors.white.withValues(alpha: 0.92),
             borderRadius: const BorderRadius.vertical(top: Radius.circular(34)),
-            border: Border.all(color: Colors.white.withOpacity(0.6)),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.6)),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.10),
+                color: Colors.black.withValues(alpha: 0.10),
                 blurRadius: 30,
                 offset: const Offset(0, -10),
               )
@@ -111,7 +113,7 @@ class _PremiumPaywallSheetState extends State<PremiumPaywallSheet> {
                 left: -120,
                 child: _blurBlob(
                   size: 320,
-                  color: AppColors.primary.withOpacity(0.14),
+                  color: AppColors.primary.withValues(alpha: 0.14),
                   blur: 60,
                 ),
               ),
@@ -120,7 +122,7 @@ class _PremiumPaywallSheetState extends State<PremiumPaywallSheet> {
                 right: -140,
                 child: _blurBlob(
                   size: 360,
-                  color: AppColors.menstruation.withOpacity(0.10),
+                  color: AppColors.menstruation.withValues(alpha: 0.10),
                   blur: 70,
                 ),
               ),
@@ -129,7 +131,7 @@ class _PremiumPaywallSheetState extends State<PremiumPaywallSheet> {
                 left: -160,
                 child: _blurBlob(
                   size: 440,
-                  color: AppColors.ovulation.withOpacity(0.08),
+                  color: AppColors.ovulation.withValues(alpha: 0.08),
                   blur: 80,
                 ),
               ),
@@ -143,7 +145,7 @@ class _PremiumPaywallSheetState extends State<PremiumPaywallSheet> {
                     width: 44,
                     height: 5,
                     decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.10),
+                      color: Colors.black.withValues(alpha: 0.10),
                       borderRadius: BorderRadius.circular(20),
                     ),
                   ),
@@ -207,7 +209,7 @@ class _PremiumPaywallSheetState extends State<PremiumPaywallSheet> {
                               style: TextStyle(
                                 fontSize: 14,
                                 fontWeight: FontWeight.w700,
-                                color: AppColors.textPrimary.withOpacity(0.85),
+                                color: AppColors.textPrimary.withValues(alpha: 0.85),
                               ),
                             ),
                           ),
@@ -233,7 +235,7 @@ class _PremiumPaywallSheetState extends State<PremiumPaywallSheet> {
                               ),
                             )
                           else
-                            ..._packages.map((pkg) => _buildPackageOption(pkg, l10n)).toList(),
+                            ..._packages.map((pkg) => _buildPackageOption(pkg, l10n)),
 
                           const SizedBox(height: 90),
                         ],
@@ -261,9 +263,9 @@ class _PremiumPaywallSheetState extends State<PremiumPaywallSheet> {
             width: 46,
             height: 46,
             decoration: BoxDecoration(
-              color: AppColors.primary.withOpacity(0.10),
+              color: AppColors.primary.withValues(alpha: 0.10),
               borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: Colors.white.withOpacity(0.8)),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.8)),
             ),
             child: Icon(Icons.diamond_rounded, color: AppColors.primary, size: 24),
           ),
@@ -290,7 +292,7 @@ class _PremiumPaywallSheetState extends State<PremiumPaywallSheet> {
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     fontSize: 13,
-                    color: AppColors.textSecondary.withOpacity(0.95),
+                    color: AppColors.textSecondary.withValues(alpha: 0.95),
                     height: 1.25,
                   ),
                 ),
@@ -300,7 +302,7 @@ class _PremiumPaywallSheetState extends State<PremiumPaywallSheet> {
           const SizedBox(width: 10),
           IconButton(
             onPressed: () => Navigator.pop(context, false),
-            icon: Icon(Icons.close_rounded, color: AppColors.textSecondary.withOpacity(0.7)),
+            icon: Icon(Icons.close_rounded, color: AppColors.textSecondary.withValues(alpha: 0.7)),
             splashRadius: 18,
           ),
         ],
@@ -316,9 +318,9 @@ class _PremiumPaywallSheetState extends State<PremiumPaywallSheet> {
     return Container(
       padding: const EdgeInsets.fromLTRB(18, 12, 18, 18),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.75),
+        color: Colors.white.withValues(alpha: 0.75),
         border: Border(
-          top: BorderSide(color: Colors.black.withOpacity(0.05)),
+          top: BorderSide(color: Colors.black.withValues(alpha: 0.05)),
         ),
       ),
       child: SafeArea(
@@ -333,7 +335,7 @@ class _PremiumPaywallSheetState extends State<PremiumPaywallSheet> {
                 onPressed: _isLoading ? null : _buy,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primary,
-                  disabledBackgroundColor: AppColors.primary.withOpacity(0.35),
+                  disabledBackgroundColor: AppColors.primary.withValues(alpha: 0.35),
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
                   elevation: 0,
@@ -378,7 +380,7 @@ class _PremiumPaywallSheetState extends State<PremiumPaywallSheet> {
                   l10n.paywallTerms,
                   style: TextStyle(
                     fontSize: 12,
-                    color: AppColors.textSecondary.withOpacity(0.75),
+                    color: AppColors.textSecondary.withValues(alpha: 0.75),
                   ),
                 ),
               ],
@@ -393,7 +395,7 @@ class _PremiumPaywallSheetState extends State<PremiumPaywallSheet> {
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 11,
-                color: AppColors.textSecondary.withOpacity(0.65),
+                color: AppColors.textSecondary.withValues(alpha: 0.65),
                 height: 1.2,
               ),
             ),
@@ -411,7 +413,7 @@ class _PremiumPaywallSheetState extends State<PremiumPaywallSheet> {
         text,
         style: TextStyle(
           fontSize: 12,
-          color: AppColors.textSecondary.withOpacity(onTap == null ? 0.35 : 0.85),
+          color: AppColors.textSecondary.withValues(alpha: onTap == null ? 0.35 : 0.85),
           decoration: TextDecoration.underline,
         ),
       ),
@@ -436,14 +438,14 @@ class _PremiumPaywallSheetState extends State<PremiumPaywallSheet> {
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(18),
-          color: isSelected ? AppColors.primary.withOpacity(0.08) : Colors.white.withOpacity(0.75),
+          color: isSelected ? AppColors.primary.withValues(alpha: 0.08) : Colors.white.withValues(alpha: 0.75),
           border: Border.all(
-            color: isSelected ? AppColors.primary.withOpacity(0.55) : Colors.black.withOpacity(0.06),
+            color: isSelected ? AppColors.primary.withValues(alpha: 0.55) : Colors.black.withValues(alpha: 0.06),
             width: isSelected ? 1.6 : 1.0,
           ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(isSelected ? 0.08 : 0.05),
+              color: Colors.black.withValues(alpha: isSelected ? 0.08 : 0.05),
               blurRadius: isSelected ? 18 : 14,
               offset: const Offset(0, 8),
             ),
@@ -458,7 +460,7 @@ class _PremiumPaywallSheetState extends State<PremiumPaywallSheet> {
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 border: Border.all(
-                  color: isSelected ? AppColors.primary : Colors.black.withOpacity(0.15),
+                  color: isSelected ? AppColors.primary : Colors.black.withValues(alpha: 0.15),
                   width: 2,
                 ),
                 color: isSelected ? AppColors.primary : Colors.transparent,
@@ -484,7 +486,7 @@ class _PremiumPaywallSheetState extends State<PremiumPaywallSheet> {
                           style: TextStyle(
                             fontWeight: FontWeight.w800,
                             fontSize: 16,
-                            color: AppColors.textPrimary.withOpacity(0.95),
+                            color: AppColors.textPrimary.withValues(alpha: 0.95),
                           ),
                         ),
                       ),
@@ -501,7 +503,7 @@ class _PremiumPaywallSheetState extends State<PremiumPaywallSheet> {
                     'Billed via App Store',
                     style: TextStyle(
                       fontSize: 12,
-                      color: AppColors.textSecondary.withOpacity(0.80),
+                      color: AppColors.textSecondary.withValues(alpha: 0.80),
                     ),
                   ),
                 ],
@@ -528,7 +530,7 @@ class _PremiumPaywallSheetState extends State<PremiumPaywallSheet> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: Colors.black.withOpacity(0.85),
+        color: Colors.black.withValues(alpha: 0.85),
         borderRadius: BorderRadius.circular(999),
       ),
       child: Text(
@@ -555,9 +557,9 @@ class _PremiumPaywallSheetState extends State<PremiumPaywallSheet> {
           width: 38,
           height: 38,
           decoration: BoxDecoration(
-            color: AppColors.primary.withOpacity(0.10),
+            color: AppColors.primary.withValues(alpha: 0.10),
             borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: Colors.white.withOpacity(0.85)),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.85)),
           ),
           child: Icon(icon, color: AppColors.primary, size: 20),
         ),
@@ -571,7 +573,7 @@ class _PremiumPaywallSheetState extends State<PremiumPaywallSheet> {
                 style: TextStyle(
                   fontWeight: FontWeight.w800,
                   fontSize: 15,
-                  color: AppColors.textPrimary.withOpacity(0.95),
+                  color: AppColors.textPrimary.withValues(alpha: 0.95),
                   height: 1.15,
                 ),
               ),
@@ -579,7 +581,7 @@ class _PremiumPaywallSheetState extends State<PremiumPaywallSheet> {
               Text(
                 subtitle,
                 style: TextStyle(
-                  color: AppColors.textSecondary.withOpacity(0.85),
+                  color: AppColors.textSecondary.withValues(alpha: 0.85),
                   fontSize: 12.5,
                   height: 1.2,
                 ),
@@ -600,12 +602,12 @@ class _PremiumPaywallSheetState extends State<PremiumPaywallSheet> {
           width: double.infinity,
           padding: padding ?? const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.65),
+            color: Colors.white.withValues(alpha: 0.65),
             borderRadius: BorderRadius.circular(22),
-            border: Border.all(color: Colors.white.withOpacity(0.75)),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.75)),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.06),
+                color: Colors.black.withValues(alpha: 0.06),
                 blurRadius: 22,
                 offset: const Offset(0, 10),
               ),

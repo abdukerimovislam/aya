@@ -50,7 +50,7 @@ class PillBlisterCard extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
-                  color: currentDay > 28 ? Colors.red.withOpacity(0.1) : AppColors.primary.withOpacity(0.1),
+                  color: currentDay > 28 ? Colors.red.withValues(alpha: 0.1) : AppColors.primary.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
@@ -97,8 +97,11 @@ class PillBlisterCard extends StatelessWidget {
                   if (isVoid) return;
                   if (pillNumber <= currentDay) {
                     HapticFeedback.mediumImpact();
-                    if (isTaken) coc.undoTakePillOnDate(pillDate);
-                    else coc.takePillOnDate(pillDate);
+                    if (isTaken) {
+                      coc.undoTakePillOnDate(pillDate);
+                    } else {
+                      coc.takePillOnDate(pillDate);
+                    }
                   } else {
                     HapticFeedback.lightImpact();
                   }
@@ -161,13 +164,13 @@ class _PillItem extends StatelessWidget {
       return Container(
         decoration: BoxDecoration(
           shape: BoxShape.circle,
-          border: Border.all(color: Colors.black.withOpacity(0.05), width: 1),
+          border: Border.all(color: Colors.black.withValues(alpha: 0.05), width: 1),
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [
-              Colors.black.withOpacity(0.05),
-              Colors.white.withOpacity(0.1),
+              Colors.black.withValues(alpha: 0.05),
+              Colors.white.withValues(alpha: 0.1),
             ],
           ),
         ),
@@ -193,7 +196,7 @@ class _PillItem extends StatelessWidget {
             : [Colors.redAccent.shade100, Colors.redAccent],
       );
       shadows = [
-        BoxShadow(color: (isActiveType ? Colors.teal : Colors.redAccent).withOpacity(0.4), blurRadius: 4, offset: const Offset(0, 2))
+        BoxShadow(color: (isActiveType ? Colors.teal : Colors.redAccent).withValues(alpha: 0.4), blurRadius: 4, offset: const Offset(0, 2))
       ];
       icon = const Icon(Icons.check, size: 18, color: Colors.white);
 
@@ -203,31 +206,31 @@ class _PillItem extends StatelessWidget {
           gradient = LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [Colors.white, AppColors.primary.withOpacity(0.1)],
+            colors: [Colors.white, AppColors.primary.withValues(alpha: 0.1)],
           );
           borderColor = AppColors.primary;
           textColor = AppColors.primary;
           shadows = [
-            BoxShadow(color: AppColors.primary.withOpacity(0.4), blurRadius: 8, spreadRadius: 1)
+            BoxShadow(color: AppColors.primary.withValues(alpha: 0.4), blurRadius: 8, spreadRadius: 1)
           ];
         } else {
           gradient = LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [Colors.white.withOpacity(0.9), Colors.grey.withOpacity(0.1)],
+            colors: [Colors.white.withValues(alpha: 0.9), Colors.grey.withValues(alpha: 0.1)],
           );
-          borderColor = AppColors.primary.withOpacity(0.3);
-          textColor = AppColors.primary.withOpacity(0.6);
+          borderColor = AppColors.primary.withValues(alpha: 0.3);
+          textColor = AppColors.primary.withValues(alpha: 0.6);
         }
       } else {
         if (isCurrentDay) {
           borderColor = Colors.redAccent;
           textColor = Colors.redAccent;
-          gradient = LinearGradient(colors: [Colors.white, Colors.red.withOpacity(0.05)]);
+          gradient = LinearGradient(colors: [Colors.white, Colors.red.withValues(alpha: 0.05)]);
         } else {
-          borderColor = Colors.red.withOpacity(0.2);
-          textColor = Colors.red.withOpacity(0.4);
-          gradient = LinearGradient(colors: [Colors.white.withOpacity(0.8), Colors.red.withOpacity(0.05)]);
+          borderColor = Colors.red.withValues(alpha: 0.2);
+          textColor = Colors.red.withValues(alpha: 0.4);
+          gradient = LinearGradient(colors: [Colors.white.withValues(alpha: 0.8), Colors.red.withValues(alpha: 0.05)]);
         }
       }
     }
@@ -241,7 +244,7 @@ class _PillItem extends StatelessWidget {
           shape: BoxShape.circle,
           gradient: gradient,
           border: Border.all(
-              color: isCurrentDay && !isTaken ? borderColor : borderColor.withOpacity(0.5),
+              color: isCurrentDay && !isTaken ? borderColor : borderColor.withValues(alpha: 0.5),
               width: isCurrentDay && !isTaken ? 2 : 1
           ),
           boxShadow: shadows,
@@ -274,7 +277,7 @@ class _LegendItem extends StatelessWidget {
             decoration: BoxDecoration(
                 color: color,
                 shape: BoxShape.circle,
-                boxShadow: [BoxShadow(color: color.withOpacity(0.4), blurRadius: 4)]
+                boxShadow: [BoxShadow(color: color.withValues(alpha: 0.4), blurRadius: 4)]
             )
         ),
         const SizedBox(width: 6),

@@ -1,5 +1,4 @@
 import '../models/cycle_model.dart';
-import 'dart:math' as math;
 
 class CycleCalculator {
   /// Безопасная нормализация даты (защита от багов с DST)

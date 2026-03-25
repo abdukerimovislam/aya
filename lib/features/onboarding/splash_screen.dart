@@ -6,13 +6,17 @@ import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../core/theme/app_theme.dart';
+import '../../core/navigation/app_navigation.dart';
 import '../../data/providers/cycle_provider.dart';
 import '../../data/providers/settings_provider.dart';
 import '../../data/providers/wellness_provider.dart';
+import '../../l10n/app_localizations.dart';
 import 'onboarding_screen.dart';
 import '../../ayla_app.dart';
 
 class SplashScreen extends StatefulWidget {
+  static bool isActive = false;
+
   const SplashScreen({super.key});
 
   @override
@@ -35,6 +39,8 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
   @override
   void initState() {
     super.initState();
+    SplashScreen.isActive = true;
+
     _generateParticles();
 
     // 1. Плавное проявление (2.5 секунды)
@@ -112,8 +118,10 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
 
   void _navigateToNext() {
     final settings = context.read<SettingsProvider>();
-
-    Widget nextScreen = settings.hasSeenOnboarding ? const MainScreen() : const OnboardingScreen();
+    final queuedRoute = settings.hasSeenOnboarding ? takeQueuedNotificationRoute() : null;
+    final Widget nextScreen = settings.hasSeenOnboarding
+        ? buildScreenForRoute(queuedRoute, fallback: const MainScreen())
+        : const OnboardingScreen();
 
     Navigator.of(context).pushReplacement(
       PageRouteBuilder(
@@ -128,6 +136,7 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
 
   @override
   void dispose() {
+    SplashScreen.isActive = false;
     _entranceController.dispose();
     _floatingController.dispose();
     super.dispose();
@@ -135,6 +144,7 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
       statusBarColor: Colors.transparent,
       statusBarIconBrightness: Brightness.dark,
@@ -159,19 +169,19 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
                   Positioned(
                     left: size.width * 0.1 + math.cos(t) * 40,
                     top: size.height * 0.2 + math.sin(t) * 50,
-                    child: _buildAuraBlob(AppColors.primary.withOpacity(0.25), size.width * 0.7),
+                    child: _buildAuraBlob(AppColors.primary.withValues(alpha: 0.25), size.width * 0.7),
                   ),
                   // Пятно 2: Пудрово-розовый
                   Positioned(
                     right: size.width * 0.05 + math.sin(t + math.pi / 2) * 40,
                     bottom: size.height * 0.3 + math.cos(t) * 60,
-                    child: _buildAuraBlob(const Color(0xFFFFB3C6).withOpacity(0.25), size.width * 0.8),
+                    child: _buildAuraBlob(const Color(0xFFFFB3C6).withValues(alpha: 0.25), size.width * 0.8),
                   ),
                   // Пятно 3: Легкий персиковый
                   Positioned(
                     left: size.width * 0.3 + math.cos(t + math.pi) * 30,
                     bottom: size.height * 0.1 + math.sin(t * 1.5) * 40,
-                    child: _buildAuraBlob(const Color(0xFFFFD6A5).withOpacity(0.2), size.width * 0.6),
+                    child: _buildAuraBlob(const Color(0xFFFFD6A5).withValues(alpha: 0.2), size.width * 0.6),
                   ),
                 ],
               );
@@ -205,10 +215,10 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    "AYLA",
+                    l10n.splashBrand,
                     style: GoogleFonts.outfit(
                       fontSize: 52,
-                      color: AppColors.textPrimary.withOpacity(0.85),
+                      color: AppColors.textPrimary.withValues(alpha: 0.85),
                       letterSpacing: 16.0, // Огромный интервал дает легкость
                       fontWeight: FontWeight.w200, // Очень тонкий шрифт (воздушность)
                     ),
@@ -218,14 +228,14 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
                   Container(
                       width: 30,
                       height: 1,
-                      color: AppColors.textSecondary.withOpacity(0.2)
+                      color: AppColors.textSecondary.withValues(alpha: 0.2)
                   ),
                   const SizedBox(height: 16),
                   Text(
-                    "breathe & bloom", // Легкий слоган
+                    l10n.splashTagline,
                     style: GoogleFonts.inter(
                       fontSize: 12,
-                      color: AppColors.textSecondary.withOpacity(0.6),
+                      color: AppColors.textSecondary.withValues(alpha: 0.6),
                       letterSpacing: 6.0,
                       fontWeight: FontWeight.w300,
                     ),
@@ -285,7 +295,7 @@ class _AirParticlePainter extends CustomPainter {
       if (p.y < 0.2) edgeFade = p.y / 0.2;
       if (p.y > 0.8) edgeFade = (1.0 - p.y) / 0.2;
 
-      paint.color = AppColors.primary.withOpacity((0.3 * edgeFade).clamp(0.0, 1.0));
+      paint.color = AppColors.primary.withValues(alpha: (0.3 * edgeFade).clamp(0.0, 1.0));
 
       canvas.drawCircle(
         Offset(p.x * size.width, p.y * size.height),

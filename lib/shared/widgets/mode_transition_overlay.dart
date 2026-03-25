@@ -129,7 +129,7 @@ class _ModeTransitionOverlayState extends State<ModeTransitionOverlay> with Sing
         builder: (context, child) {
           return Container(
             // Затемнение фона
-            color: AppColors.background.withOpacity(_bgOpacity.value * 0.95),
+            color: AppColors.background.withValues(alpha: _bgOpacity.value * 0.95),
             child: Center(
               child: Stack(
                 alignment: Alignment.center,
@@ -151,7 +151,7 @@ class _ModeTransitionOverlayState extends State<ModeTransitionOverlay> with Sing
                         ),
                         boxShadow: [
                           BoxShadow(
-                            color: bgColor.withOpacity(0.4),
+                            color: bgColor.withValues(alpha: 0.4),
                             blurRadius: 40,
                             spreadRadius: 10,
                           )

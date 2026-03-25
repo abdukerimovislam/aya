@@ -91,24 +91,24 @@ class _ActivePillCard extends StatelessWidget {
           gradient: isTaken
               ? const LinearGradient(colors: [Color(0xFF69F0AE), Color(0xFF00C853)])
               : isLate
-              ? LinearGradient(colors: [Colors.orangeAccent.withOpacity(0.9), Colors.deepOrangeAccent.withOpacity(0.8)])
-              : LinearGradient(colors: [Colors.white.withOpacity(0.8), Colors.white.withOpacity(0.5)]),
+              ? LinearGradient(colors: [Colors.orangeAccent.withValues(alpha: 0.9), Colors.deepOrangeAccent.withValues(alpha: 0.8)])
+              : LinearGradient(colors: [Colors.white.withValues(alpha: 0.8), Colors.white.withValues(alpha: 0.5)]),
           borderRadius: BorderRadius.circular(24),
           border: Border.all(
             color: isTaken
                 ? Colors.transparent
                 : isLate
                 ? Colors.deepOrangeAccent
-                : Colors.white.withOpacity(0.8),
+                : Colors.white.withValues(alpha: 0.8),
             width: 1.5,
           ),
           boxShadow: [
             BoxShadow(
               color: isTaken
-                  ? const Color(0xFF00C853).withOpacity(0.3)
+                  ? const Color(0xFF00C853).withValues(alpha: 0.3)
                   : isLate
-                  ? Colors.orangeAccent.withOpacity(0.3)
-                  : Colors.black.withOpacity(0.05),
+                  ? Colors.orangeAccent.withValues(alpha: 0.3)
+                  : Colors.black.withValues(alpha: 0.05),
               blurRadius: 20,
               offset: const Offset(0, 8),
             )
@@ -121,7 +121,7 @@ class _ActivePillCard extends StatelessWidget {
               decoration: BoxDecoration(
                 color: Colors.white,
                 shape: BoxShape.circle,
-                boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 5)],
+                boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 5)],
               ),
               child: Icon(
                 isLate && !isTaken ? Icons.notification_important_rounded : Icons.medication_rounded,
@@ -144,7 +144,7 @@ class _ActivePillCard extends StatelessWidget {
                       isTaken
                           ? l10n.pillTaken
                           : isLate
-                          ? "Missed pill?" // TODO: Добавить l10n.pillMissed
+                          ? l10n.pillMissed
                           : l10n.pillTake,
                       key: ValueKey("$isTaken-$isLate"),
                       style: TextStyle(
@@ -158,11 +158,11 @@ class _ActivePillCard extends StatelessWidget {
                   if (!isTaken)
                     Text(
                       isLate
-                          ? "It was scheduled for ${coc.reminderTime.format(context)}"
+                          ? l10n.pillScheduledFor(coc.reminderTime.format(context))
                           : l10n.pillScheduled(coc.reminderTime.format(context)),
                       style: TextStyle(
                           fontSize: 13,
-                          color: isLate ? Colors.white.withOpacity(0.9) : AppColors.textSecondary
+                          color: isLate ? Colors.white.withValues(alpha: 0.9) : AppColors.textSecondary
                       ),
                     ),
                 ],
@@ -183,7 +183,7 @@ class _ActivePillCard extends StatelessWidget {
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: const Text("Take now", style: TextStyle(color: Colors.deepOrangeAccent, fontWeight: FontWeight.bold, fontSize: 12)),
+                child: Text(l10n.pillTakeNow, style: const TextStyle(color: Colors.deepOrangeAccent, fontWeight: FontWeight.bold, fontSize: 12)),
               )
                   : const SizedBox.shrink(key: ValueKey('empty')),
             ),
@@ -207,7 +207,7 @@ class _BreakWeekCard extends StatelessWidget {
       margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFFEDE7F6).withOpacity(0.9),
+        color: const Color(0xFFEDE7F6).withValues(alpha: 0.9),
         borderRadius: BorderRadius.circular(24),
         border: Border.all(color: Colors.white, width: 2),
       ),
@@ -229,7 +229,7 @@ class _BreakWeekCard extends StatelessWidget {
                 ),
                 Text(
                   l10n.cocDayInfo(currentDay),
-                  style: TextStyle(fontSize: 13, color: Colors.deepPurple.withOpacity(0.7)),
+                  style: TextStyle(fontSize: 13, color: Colors.deepPurple.withValues(alpha: 0.7)),
                 ),
               ],
             ),

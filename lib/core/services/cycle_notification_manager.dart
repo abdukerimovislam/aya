@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 
 import 'notification_service.dart';
+import 'secure_storage_service.dart';
 import '../../l10n/app_localizations.dart';
 
 class CycleNotificationManager {
@@ -21,8 +22,9 @@ class CycleNotificationManager {
     if (notificationService == null) return;
 
     try {
-      final box = await Hive.openBox('settings');
-      final notificationsEnabled = box.get('notifications_enabled', defaultValue: true) as bool;
+      if (!Hive.isBoxOpen('settings')) return;
+      final box = Hive.box('settings');
+      final notificationsEnabled = await SecureStorageService().getNotificationsEnabled();
 
       for (int id in _cycleNotificationIds) {
         await notificationService.cancelNotification(id);
@@ -44,7 +46,7 @@ class CycleNotificationManager {
       final nextPeriodStart = cycleStartDate.add(Duration(days: cycleLength));
 
       // 1. 🔥 ЕЖЕДНЕВНЫЙ ЖУРНАЛ СИМПТОМОВ
-      final dailyLogEnabled = box.get('daily_log_enabled', defaultValue: true) as bool;
+      final dailyLogEnabled = box.get('daily_log_enabled', defaultValue: false) as bool;
       if (dailyLogEnabled) {
         await notificationService.scheduleDailyNotification(
           id: 300,
@@ -89,8 +91,8 @@ class CycleNotificationManager {
           notificationService,
           206,
           lateDay5,
-          "Period is 5 days late",
-          "Consider taking a pregnancy test if you've been sexually active.",
+          l10n.notifLateFiveDaysTitle,
+          l10n.notifLateFiveDaysBody,
           payload: "screen_calendar"
       );
 
@@ -103,21 +105,14 @@ class CycleNotificationManager {
     final now = DateTime.now();
     DateTime scheduleTime = DateTime(date.year, date.month, date.day, 9, 0);
 
-    // 🔥 ИСПРАВЛЕНИЕ: Если событие СЕГОДНЯ, но 09:00 уже прошло, ставим пуш через 5 секунд!
-    if (scheduleTime.year == now.year && scheduleTime.month == now.month && scheduleTime.day == now.day) {
-      if (now.hour >= 9) {
-        scheduleTime = now.add(const Duration(seconds: 5));
-      }
-    }
+    if (!scheduleTime.isAfter(now)) return;
 
-    if (scheduleTime.isAfter(now)) {
-      await service.scheduleNotification(
-          id: id,
-          title: title,
-          body: body,
-          scheduledDate: scheduleTime,
-          payload: payload ?? 'screen_calendar'
-      );
-    }
+    await service.scheduleNotification(
+        id: id,
+        title: title,
+        body: body,
+        scheduledDate: scheduleTime,
+        payload: payload ?? 'screen_calendar'
+    );
   }
 }

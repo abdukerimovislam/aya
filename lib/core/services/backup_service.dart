@@ -11,6 +11,7 @@ import 'package:share_plus/share_plus.dart';
 
 import '../../data/models/cycle_model.dart';
 import '../../data/providers/cycle_provider.dart';
+import '../../data/providers/medication_provider.dart';
 import '../../data/providers/settings_provider.dart';
 import '../../data/providers/wellness_provider.dart';
 import '../../l10n/app_localizations.dart';
@@ -18,8 +19,18 @@ import 'auth_service.dart';
 import 'backup_crypto.dart';
 
 class BackupService {
+  static const Set<String> _encryptedBoxes = {
+    'settings',
+    'cycles',
+    'symptom_logs',
+    'coc_settings',
+  };
+
   static Future<Box> _getBox(String name) async {
     if (Hive.isBoxOpen(name)) return Hive.box(name);
+    if (_encryptedBoxes.contains(name)) {
+      throw StateError("Encrypted Hive box '$name' must already be open before backup operations.");
+    }
     return Hive.openBox(name);
   }
 
@@ -83,12 +94,14 @@ class BackupService {
     final settings = context.read<SettingsProvider>();
     if (!settings.biometricsEnabled) return true;
 
+    final l10n = AppLocalizations.of(context);
+    final fallbackReason = _t(context, 'Scan to continue', 'Подтвердите для продолжения');
+    final reason = l10n?.authReason ?? fallbackReason;
+
     final auth = AuthService();
     final canCheck = await auth.canCheckBiometrics;
     if (!canCheck) return true;
 
-    final l10n = AppLocalizations.of(context);
-    final reason = l10n?.authReason ?? _t(context, 'Scan to continue', 'Подтвердите для продолжения');
     return auth.authenticate(reason);
   }
 
@@ -196,6 +209,9 @@ class BackupService {
   /// 📤 CREATE BACKUP
   static Future<void> createBackup(BuildContext context) async {
     final l10n = AppLocalizations.of(context);
+    final isRu = _isRu(context);
+    final authFailedMessage = isRu ? 'Не удалось подтвердить доступ' : 'Authentication failed';
+    final backupSubject = l10n?.backupSubject ?? (isRu ? 'Бэкап EviMoon' : 'EviMoon Backup');
 
     final confirmed = await _confirmSensitiveAction(
       context,
@@ -207,12 +223,15 @@ class BackupService {
       confirmRu: 'Продолжить',
     );
     if (!confirmed) return;
+    if (!context.mounted) return;
 
     final authed = await _requireAuthIfEnabled(context);
     if (!authed) {
-      await _showSnack(context, message: _t(context, 'Authentication failed', 'Не удалось подтвердить доступ'), success: false);
+      if (!context.mounted) return;
+      await _showSnack(context, message: authFailedMessage, success: false);
       return;
     }
+    if (!context.mounted) return;
 
     final password = await _askPassword(
       context, confirm: true, titleEn: 'Set backup password', titleRu: 'Пароль для бэкапа', hintEn: 'Password', hintRu: 'Пароль',
@@ -223,6 +242,8 @@ class BackupService {
       final cycleBox = await _getBox('cycles');
       final settingsBox = await _getBox('settings');
       final wellnessBox = await _getBox('symptom_logs');
+      final medicationRegistryBox = await _getBox('medications_registry');
+      final medicationLogsBox = await _getBox('medications_logs');
 
       // 1. Бэкап Циклов (для обратной совместимости)
       final List<Map<String, dynamic>> cyclesJson = cycleBox.values.map((e) {
@@ -273,13 +294,25 @@ class BackupService {
         };
       }
 
+      final List<dynamic> medicationsRegistryJson = List<dynamic>.from(
+        medicationRegistryBox.get('items', defaultValue: const <dynamic>[]),
+      );
+
+      final Map<String, dynamic> medicationsLogsJson = {};
+      for (var key in medicationLogsBox.keys) {
+        final taken = medicationLogsBox.get(key, defaultValue: const <String>[]);
+        medicationsLogsJson[key.toString()] = List<String>.from(taken as List);
+      }
+
       final Map<String, dynamic> backupData = {
-        'version': 2, // Обновили версию бэкапа
+        'version': 3,
         'app': 'EviMoon',
         'timestamp': DateTime.now().toIso8601String(),
         'cycles': cyclesJson,
         'settings': settingsJson,
-        'symptom_logs': logsJson, // Добавили логи
+        'symptom_logs': logsJson,
+        'medications_registry': medicationsRegistryJson,
+        'medications_logs': medicationsLogsJson,
       };
 
       final innerJson = jsonEncode(backupData);
@@ -292,6 +325,7 @@ class BackupService {
       final dateStr = DateFormat('yyyy-MM-dd').format(DateTime.now());
       final file = File('${directory.path}/EviMoon_Backup_$dateStr.enc.json');
       await file.writeAsString(envelopeJson);
+      if (!context.mounted) return;
 
       final box = context.findRenderObject() as RenderBox?;
       Rect? shareOrigin;
@@ -301,18 +335,41 @@ class BackupService {
 
       await Share.shareXFiles(
         [XFile(file.path)],
-        subject: l10n?.backupSubject ?? _t(context, 'EviMoon Backup', 'Бэкап EviMoon'),
-        text: _t(context, 'Encrypted backup created on $dateStr', 'Зашифрованный бэкап создан: $dateStr'),
+        subject: backupSubject,
+        text: isRu
+            ? 'Зашифрованный бэкап создан: $dateStr'
+            : 'Encrypted backup created on $dateStr',
         sharePositionOrigin: shareOrigin,
       );
     } catch (e) {
       debugPrint("Backup Error: $e");
-      await _showSnack(context, message: _t(context, 'Backup failed: $e', 'Ошибка бэкапа: $e'), success: false);
+      if (!context.mounted) return;
+      await _showSnack(
+        context,
+        message: isRu ? 'Ошибка бэкапа: $e' : 'Backup failed: $e',
+        success: false,
+      );
     }
   }
 
   /// 📥 RESTORE FROM BACKUP
   static Future<void> restoreBackup(BuildContext context) async {
+    final isRu = _isRu(context);
+    final authFailedMessage = isRu ? 'Не удалось подтвердить доступ' : 'Authentication failed';
+    final emptyPathMessage = isRu ? 'Путь к файлу пуст' : 'File path is empty';
+    final wrongPasswordMessage = isRu
+        ? 'Неверный пароль или файл бэкапа повреждён'
+        : 'Wrong password or corrupted backup';
+    final invalidBackupMessage = isRu
+        ? 'Неверный формат файла бэкапа'
+        : 'Invalid backup file format';
+    final invalidFileMessage = isRu
+        ? 'Ошибка восстановления: файл повреждён или неверный формат'
+        : 'Restore failed: corrupted file or wrong format';
+    final successMessage = isRu
+        ? 'Данные успешно восстановлены!'
+        : 'Data restored successfully!';
+
     final confirmed = await _confirmSensitiveAction(
       context,
       titleEn: 'Restore backup',
@@ -323,10 +380,12 @@ class BackupService {
       confirmRu: 'Восстановить',
     );
     if (!confirmed) return;
+    if (!context.mounted) return;
 
     final authed = await _requireAuthIfEnabled(context);
     if (!authed) {
-      await _showSnack(context, message: _t(context, 'Authentication failed', 'Не удалось подтвердить доступ'), success: false);
+      if (!context.mounted) return;
+      await _showSnack(context, message: authFailedMessage, success: false);
       return;
     }
 
@@ -335,7 +394,7 @@ class BackupService {
       if (result == null) return;
 
       final path = result.files.single.path;
-      if (path == null || path.isEmpty) throw Exception(_t(context, 'File path is empty', 'Путь к файлу пуст'));
+      if (path == null || path.isEmpty) throw Exception(emptyPathMessage);
 
       final file = File(path);
       final raw = await file.readAsString();
@@ -345,6 +404,7 @@ class BackupService {
       final isEncryptedEnvelope = top is Map && top['version'] != null && top['version'] <= BackupCrypto.currentVersion && top['alg'] == 'AES-GCM-256' && top['ciphertext'] != null && top['mac'] != null;
 
       if (isEncryptedEnvelope) {
+        if (!context.mounted) return;
         final password = await _askPassword(
           context, confirm: false, titleEn: 'Enter backup password', titleRu: 'Введите пароль бэкапа', hintEn: 'Password', hintRu: 'Пароль',
         );
@@ -356,21 +416,24 @@ class BackupService {
           if (decoded is! Map<String, dynamic>) throw const FormatException('Inner JSON is not a map');
           appData = decoded;
         } catch (e) {
-          await _showSnack(context, message: _t(context, 'Wrong password or corrupted backup', 'Неверный пароль или файл бэкапа повреждён'), success: false);
+          if (!context.mounted) return;
+          await _showSnack(context, message: wrongPasswordMessage, success: false);
           return;
         }
       } else {
-        if (top is! Map<String, dynamic>) throw Exception(_t(context, 'Invalid backup format', 'Неверный формат бэкапа'));
+        if (top is! Map<String, dynamic>) throw Exception(invalidBackupMessage);
         appData = top;
       }
 
       if (appData['app'] != 'EviMoon' || !appData.containsKey('cycles') || !appData.containsKey('settings')) {
-        throw Exception(_t(context, 'Invalid backup file format', 'Неверный формат файла бэкапа'));
+        throw Exception(invalidBackupMessage);
       }
 
       final cycleBox = await _getBox('cycles');
       final settingsBox = await _getBox('settings');
       final wellnessBox = await _getBox('symptom_logs');
+      final medicationRegistryBox = await _getBox('medications_registry');
+      final medicationLogsBox = await _getBox('medications_logs');
 
       await cycleBox.clear();
 
@@ -416,6 +479,24 @@ class BackupService {
         }
       }
 
+      await medicationRegistryBox.clear();
+      await medicationLogsBox.clear();
+
+      if (appData.containsKey('medications_registry')) {
+        final registry = List<dynamic>.from(appData['medications_registry']);
+        await medicationRegistryBox.put(
+          'items',
+          registry.map((item) => Map<String, dynamic>.from(item as Map)).toList(),
+        );
+      }
+
+      if (appData.containsKey('medications_logs')) {
+        final Map<String, dynamic> medsLogMap = Map<String, dynamic>.from(appData['medications_logs']);
+        for (var entry in medsLogMap.entries) {
+          await medicationLogsBox.put(entry.key, List<String>.from(entry.value as List));
+        }
+      }
+
       // 3. Восстанавливаем настройки и триггеры
       final Map<String, dynamic> settingsMap = Map<String, dynamic>.from(appData['settings']);
       final keysToBackup = [
@@ -424,6 +505,8 @@ class BackupService {
         'current_ovulation_override', 'current_ovulation_override_source',
         'ttc_strategy', 'coc_active_count', 'coc_break_days'
       ];
+
+      await settingsBox.deleteAll(keysToBackup);
 
       for (var k in keysToBackup) {
         if (settingsMap.containsKey(k)) {
@@ -440,12 +523,14 @@ class BackupService {
         context.read<CycleProvider>().reload();
         context.read<WellnessProvider>().reload(); // Обновляем логи на UI
         context.read<SettingsProvider>().reload();
+        context.read<MedicationProvider>().reload();
 
-        await _showSnack(context, message: _t(context, 'Data restored successfully!', 'Данные успешно восстановлены!'), success: true);
+        await _showSnack(context, message: successMessage, success: true);
       }
     } catch (e) {
       debugPrint("Restore Error: $e");
-      await _showSnack(context, message: _t(context, 'Restore failed: corrupted file or wrong format', 'Ошибка восстановления: файл повреждён или неверный формат'), success: false);
+      if (!context.mounted) return;
+      await _showSnack(context, message: invalidFileMessage, success: false);
     }
   }
 }

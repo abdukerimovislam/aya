@@ -39,8 +39,10 @@ class MedicationItem {
 }
 
 class MedicationProvider extends ChangeNotifier {
+  final Future<Box> Function(String name)? _boxOpener;
   Box? _registryBox;
   Box? _logsBox;
+  late final Future<void> _initialization;
 
   List<MedicationItem> _medications = [];
   bool _isLoaded = false;
@@ -51,13 +53,33 @@ class MedicationProvider extends ChangeNotifier {
   List<MedicationItem> get activeMedications =>
       List.unmodifiable(_medications.where((m) => !m.isArchived));
 
-  MedicationProvider() {
-    _init();
+  MedicationProvider({Future<Box> Function(String name)? boxOpener})
+      : _boxOpener = boxOpener {
+    _initialization = _init();
   }
 
   Future<void> _init() async {
-    _registryBox = await Hive.openBox('medications_registry');
-    _logsBox = await Hive.openBox('medications_logs');
+    _registryBox = await _openBox('medications_registry');
+    _logsBox = await _openBox('medications_logs');
+    _loadRegistry();
+  }
+
+  Future<Box> _openBox(String name) {
+    return _boxOpener != null ? _boxOpener!(name) : Hive.openBox(name);
+  }
+
+  Future<void> _ensureReady() async {
+    await _initialization;
+  }
+
+  Future<void> reload() async {
+    await _ensureReady();
+    if (_registryBox == null || !_registryBox!.isOpen) {
+      _registryBox = await _openBox('medications_registry');
+    }
+    if (_logsBox == null || !_logsBox!.isOpen) {
+      _logsBox = await _openBox('medications_logs');
+    }
     _loadRegistry();
   }
 
@@ -71,6 +93,7 @@ class MedicationProvider extends ChangeNotifier {
   }
 
   Future<void> addMedication(String name, String dosage, String iconStr) async {
+    await _ensureReady();
     final newItem = MedicationItem(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
       name: name,
@@ -82,6 +105,7 @@ class MedicationProvider extends ChangeNotifier {
   }
 
   Future<void> removeMedication(String id) async {
+    await _ensureReady();
     // 🔥 SOFT DELETE: Архивация вместо удаления
     final index = _medications.indexWhere((e) => e.id == id);
     if (index != -1) {
@@ -107,6 +131,7 @@ class MedicationProvider extends ChangeNotifier {
   }
 
   Future<void> toggleMedication(String medId, DateTime date) async {
+    await _ensureReady();
     if (_logsBox == null) return;
 
     final key = _dateKey(date);
@@ -124,6 +149,16 @@ class MedicationProvider extends ChangeNotifier {
       await _logsBox!.put(key, taken);
     }
 
+    notifyListeners();
+  }
+
+  Future<void> wipeData() async {
+    await _ensureReady();
+
+    await _registryBox?.clear();
+    await _logsBox?.clear();
+    _medications = [];
+    _isLoaded = true;
     notifyListeners();
   }
 

@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:ui' show PlatformDispatcher;
-import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -24,7 +23,8 @@ import 'core/services/ai_oracle_service.dart';
 
 // 🔥 Инструменты надежности (Оффлайн + Аналитика + Пуши)
 import 'package:connectivity_plus/connectivity_plus.dart';
-import 'core/services/fcm_service.dart'; // 🔥 ИМПОРТ FCM СЕРВИСА
+import 'core/navigation/app_navigation.dart';
+import 'core/services/fcm_service.dart';
 
 // Новая архитектура Ayla
 import 'ayla_app.dart';
@@ -44,15 +44,12 @@ import 'data/providers/wellness_provider.dart';
 // Экраны
 import 'features/onboarding/onboarding_screen.dart';
 import 'features/onboarding/splash_screen.dart';
-import 'features/profile/profile_screen.dart';
 import 'l10n/app_localizations.dart';
-
-final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 // --- ГЛОБАЛЬНЫЙ СЕРВИС СЕТИ (OFFLINE-FIRST) ---
 class ConnectivityService {
   static final Connectivity _connectivity = Connectivity();
-  static bool hasInternet = true; // По умолчанию считаем, что есть
+  static bool hasInternet = true;
 
   static void init() {
     _connectivity.onConnectivityChanged.listen((List<ConnectivityResult> results) {
@@ -66,26 +63,22 @@ class ConnectivityService {
   }
 }
 
-// 🔥 Точка входа для фоновых задач (Должна быть Top-Level функцией!)
+// 🔥 Точка входа для фоновых задач
 @pragma('vm:entry-point')
 void callbackDispatcher() {
   Workmanager().executeTask((task, inputData) async {
     try {
-      // 1. Инициализируем Flutter биндинги
       WidgetsFlutterBinding.ensureInitialized();
 
-      // 🚀 ОБЯЗАТЕЛЬНО: Инициализируем Firebase даже в фоновом изоляте!
       await Firebase.initializeApp(
         options: DefaultFirebaseOptions.currentPlatform,
       );
 
       await Hive.initFlutter();
 
-      // 2. Достаем ключ шифрования для фонового изолята
       final storageService = SecureStorageService();
       final encryptionKey = await storageService.getOrCreateHiveCipherKey();
 
-      // 3. Регистрируем адаптеры в новом изоляте
       try {
         if (!Hive.isAdapterRegistered(0)) Hive.registerAdapter(CycleModelAdapter());
         if (!Hive.isAdapterRegistered(1)) Hive.registerAdapter(SymptomLogAdapter());
@@ -98,12 +91,10 @@ void callbackDispatcher() {
         debugPrint("Background adapters already registered");
       }
 
-      // 4. Безопасно открываем базы С ШИФРОВАНИЕМ, чтобы ИИ мог их прочитать
       if (!Hive.isBoxOpen('settings')) await Hive.openBox('settings', encryptionCipher: HiveAesCipher(encryptionKey));
       if (!Hive.isBoxOpen('cycles')) await Hive.openBox('cycles', encryptionCipher: HiveAesCipher(encryptionKey));
       if (!Hive.isBoxOpen('symptom_logs')) await Hive.openBox('symptom_logs', encryptionCipher: HiveAesCipher(encryptionKey));
 
-      // 5. Запускаем ИИ анализ
       await AiOracleService.fetchDailyInsight(isManual: false);
 
       return Future.value(true);
@@ -119,14 +110,12 @@ void main() async {
   PlatformDispatcher.instance.onError = (Object error, StackTrace stack) {
     debugPrint('🔥 Unhandled PlatformDispatcher error: $error');
     FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
-    return true; // handled
+    return true;
   };
 
   await runZonedGuarded(() async {
-    // 0) Инициализируем Flutter биндинги
     WidgetsFlutterBinding.ensureInitialized();
 
-    // 🚀 1) ЗАПУСКАЕМ FIREBASE ДЛЯ REMOTE CONFIG И CRASHLYTICS
     try {
       await Firebase.initializeApp(
         options: DefaultFirebaseOptions.currentPlatform,
@@ -140,17 +129,13 @@ void main() async {
       debugPrint("🔥 Ошибка инициализации Firebase: $e");
     }
 
-    // 2) Critical services
     await SubscriptionService.init();
     final storageService = SecureStorageService();
 
-    // 🌟 Инициализируем слушатель Интернета
     ConnectivityService.init();
 
-    // 3) Получаем или создаем ключ для шифрования Hive
     final encryptionKey = await storageService.getOrCreateHiveCipherKey();
 
-    // 4) System UI
     SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
       statusBarColor: Colors.transparent,
       statusBarIconBrightness: Brightness.dark,
@@ -162,10 +147,8 @@ void main() async {
       DeviceOrientation.portraitDown,
     ]);
 
-    // 5) Hive init
     await Hive.initFlutter();
 
-    // 🔥 ЗАЩИТА ОТ КРАША КЕЙСТОРА ANDROID 🔥
     if (storageService.wasHiveKeyReset) {
       debugPrint("🚨 ВНИМАНИЕ: Зафиксирован сброс ключа шифрования! Удаляем старые нечитаемые базы...");
       try {
@@ -180,7 +163,6 @@ void main() async {
       }
     }
 
-    // 6) Register adapters (safe)
     try {
       if (!Hive.isAdapterRegistered(0)) Hive.registerAdapter(CycleModelAdapter());
       if (!Hive.isAdapterRegistered(1)) Hive.registerAdapter(SymptomLogAdapter());
@@ -193,36 +175,31 @@ void main() async {
       debugPrint("⚠️ Hive Adapter Registration Warning: $e");
     }
 
-    // 7) Open boxes safely with ENCRYPTION
     final settingsBox = await _openBoxSafely('settings', encryptionKey);
     final cycleBox = await _openBoxSafely('cycles', encryptionKey);
     final wellnessBox = await _openBoxSafely('symptom_logs', encryptionKey);
     final cocBox = await _openBoxSafely('coc_settings', encryptionKey);
 
-    // 8) Локальные уведомления
     final notificationService = NotificationService();
     await notificationService.init(
       onNotificationTap: (payload) {
         debugPrint("🚀 Notification Payload: $payload");
         Future.delayed(const Duration(milliseconds: 500), () {
-          if (payload == NotificationService.payloadCOC) {
-            navigatorKey.currentState?.pushNamed('/profile');
-          } else if (payload == NotificationService.payloadCalendar) {
-            navigatorKey.currentState?.pushNamed('/calendar');
+          if (SplashScreen.isActive) {
+            queueNotificationNavigation(payload);
+            return;
           }
+          navigateToNotificationPayload(payload);
         });
       },
     );
+    queueNotificationNavigation(await notificationService.getLaunchPayload());
 
-    // 🔥 9) УДАЛЕННЫЕ УВЕДОМЛЕНИЯ (MARKETING PUSHES) 🔥
-    // Запускаем слушатель Firebase Cloud Messaging
     await FCMService.init();
 
-    // 10) Инициализация Workmanager
     try {
       Workmanager().initialize(
         callbackDispatcher,
-        isInDebugMode: false,
       );
 
       Workmanager().registerPeriodicTask(
@@ -254,7 +231,6 @@ void main() async {
   });
 }
 
-/// Opens Hive box safely with Encryption to prevent crash loops
 Future<Box> _openBoxSafely(String name, Uint8List key) async {
   try {
     return await Hive.openBox(name, encryptionCipher: HiveAesCipher(key));
@@ -311,6 +287,7 @@ class AylaAppRoot extends StatelessWidget {
             cycleBox,
             settingsBox,
             notificationService,
+            encryptedBoxOpener,
           ),
         ),
         ChangeNotifierProvider(
@@ -346,19 +323,16 @@ class AylaApp extends StatelessWidget {
     return MaterialApp(
       title: 'Ayla',
       debugShowCheckedModeBanner: false,
-
       locale: settings.locale,
-
       supportedLocales: const [
-        Locale('en'), // English
-        Locale('ru'), // Русский
-        Locale('es'), // Español
-        Locale('de'), // Deutsch
-        Locale('pt'), // Português
-        Locale('tr'), // Türkçe
-        Locale('pl'), // Polski
+        Locale('en'),
+        Locale('ru'),
+        Locale('es'),
+        Locale('de'),
+        Locale('pt'),
+        Locale('tr'),
+        Locale('pl'),
       ],
-
       localeResolutionCallback: (deviceLocale, supportedLocales) {
         if (deviceLocale == null) return supportedLocales.first;
         for (var locale in supportedLocales) {
@@ -368,23 +342,26 @@ class AylaApp extends StatelessWidget {
         }
         return supportedLocales.first;
       },
-
       localizationsDelegates: const [
         AppLocalizations.delegate,
         GlobalMaterialLocalizations.delegate,
         GlobalWidgetsLocalizations.delegate,
         GlobalCupertinoLocalizations.delegate,
       ],
-
       navigatorKey: navigatorKey,
+
+      builder: (context, child) {
+        return AuthGuard(child: child ?? const SizedBox.shrink());
+      },
+
       routes: {
-        '/profile': (context) => const Scaffold(
-          body: SafeArea(child: ProfileScreen()),
-        ),
-        '/calendar': (context) => const MainScreen(),
+        '/home': (context) => const MainScreen(initialIndex: 0),
+        '/calendar': (context) => const MainScreen(initialIndex: 1),
+        '/insights': (context) => const MainScreen(initialIndex: 2),
+        '/profile': (context) => const MainScreen(initialIndex: 3),
         '/onboarding': (context) => const OnboardingScreen(),
       },
-      home: const AuthGuard(child: SplashScreen()),
+      home: const SplashScreen(),
     );
   }
 }
@@ -396,22 +373,56 @@ class AuthGuard extends StatefulWidget {
   State<AuthGuard> createState() => _AuthGuardState();
 }
 
-class _AuthGuardState extends State<AuthGuard> {
+class _AuthGuardState extends State<AuthGuard> with WidgetsBindingObserver {
   bool _isAuthenticated = false;
   bool _isChecking = true;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _checkAuth();
     });
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused) {
+      final settings = context.read<SettingsProvider>();
+      if (settings.biometricsEnabled) {
+        setState(() {
+          _isAuthenticated = false;
+        });
+      }
+    }
+    else if (state == AppLifecycleState.resumed) {
+      debugPrint("🔄 Приложение развернуто. Проверяем данные и авторизацию...");
+
+      try {
+        context.read<CycleProvider>().reload();
+      } catch (e) {
+        debugPrint("Ошибка при фоновом обновлении данных: $e");
+      }
+
+      final settings = context.read<SettingsProvider>();
+      if (settings.biometricsEnabled && !_isAuthenticated) {
+        _checkAuth();
+      }
+    }
   }
 
   Future<void> _checkAuth() async {
     if (!mounted) return;
 
     final settings = context.read<SettingsProvider>();
+    final unlockReason = AppLocalizations.of(context)?.authUnlockShortReason ?? "Scan to unlock Ayla";
 
     if (!settings.biometricsEnabled) {
       if (mounted) {
@@ -427,9 +438,7 @@ class _AuthGuardState extends State<AuthGuard> {
     final bool canCheck = await auth.canCheckBiometrics;
 
     if (canCheck) {
-      final reason = "Scan to unlock Ayla";
-
-      final bool success = await auth.authenticate(reason);
+      final bool success = await auth.authenticate(unlockReason);
 
       if (mounted) {
         setState(() {
@@ -449,6 +458,21 @@ class _AuthGuardState extends State<AuthGuard> {
 
   @override
   Widget build(BuildContext context) {
+    // 🔥 ИСПРАВЛЕНИЕ: Используем Stack, чтобы навигатор ВСЕГДА оставался в дереве!
+    // Мы просто накрываем его экраном блокировки сверху, не уничтожая стейт.
+    return Stack(
+      children: [
+        widget.child, // Оригинальный навигатор (всегда живой)
+
+        if (_isChecking || !_isAuthenticated)
+          Positioned.fill(
+            child: _buildLockScreen(context),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildLockScreen(BuildContext context) {
     if (_isChecking) {
       return Scaffold(
         backgroundColor: AppColors.background,
@@ -458,9 +482,7 @@ class _AuthGuardState extends State<AuthGuard> {
 
     final l10n = AppLocalizations.of(context);
 
-    return _isAuthenticated
-        ? widget.child
-        : Scaffold(
+    return Scaffold(
       backgroundColor: AppColors.background,
       body: Center(
         child: Column(

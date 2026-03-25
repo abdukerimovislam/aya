@@ -74,6 +74,14 @@ class NotificationService {
     debugPrint("✅ NotificationService initialized");
   }
 
+  Future<String?> getLaunchPayload() async {
+    final details = await _notificationsPlugin.getNotificationAppLaunchDetails();
+    if (details?.didNotificationLaunchApp ?? false) {
+      return details?.notificationResponse?.payload;
+    }
+    return null;
+  }
+
   Future<void> _configureLocalTimeZone() async {
     tz.initializeTimeZones();
     try {

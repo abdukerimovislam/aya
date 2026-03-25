@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:intl/intl.dart';
 import 'package:http/http.dart' as http;
@@ -8,6 +9,7 @@ import 'package:firebase_remote_config/firebase_remote_config.dart';
 
 import 'notification_service.dart';
 import '../../data/models/cycle_model.dart';
+import '../../l10n/app_localizations.dart';
 
 class AiOracleService {
   // 🔥 Fallback URL на случай, если Firebase недоступен (нет интернета)
@@ -15,6 +17,9 @@ class AiOracleService {
 
   static String? _inMemoryToken;
   static String? _inMemoryProxyUrl;
+
+  static AppLocalizations get _englishL10n =>
+      lookupAppLocalizations(const Locale('en'));
 
   // 🔥 Получаем динамический URL сервера из облака
   static Future<String> _getProxyUrl() async {
@@ -191,7 +196,7 @@ class AiOracleService {
       return cleanText;
     } catch (e) {
       if (kDebugMode) debugPrint("🔥 AI Oracle Error: $e");
-      return "It looks like my AI engine is currently resting. Please check your internet connection and try again in a moment. I'm here for you! ✨";
+      return _englishL10n.chatConnectionIssue;
     }
   }
 
@@ -221,11 +226,11 @@ class AiOracleService {
       final safeToken = await _getSecretToken();
       final apiUrl = await _getProxyUrl();
 
-      final cycleBox = await Hive.openBox('cycles');
-      final wellnessBox = await Hive.openBox('symptom_logs');
+      final cycleBox = Hive.isBoxOpen('cycles') ? Hive.box('cycles') : null;
+      final wellnessBox = Hive.isBoxOpen('symptom_logs') ? Hive.box('symptom_logs') : null;
 
-      int totalCycles = cycleBox.length;
-      int totalLogs = wellnessBox.length;
+      int totalCycles = cycleBox?.length ?? 0;
+      int totalLogs = wellnessBox?.length ?? 0;
 
       final String contextData = """
       Пользователь приложения Ayla. 
@@ -285,25 +290,26 @@ class AiOracleService {
       final String? generatedText = parts.first['text'] as String?;
       if (generatedText == null || generatedText.trim().isEmpty) throw Exception("Generated text is completely empty.");
 
+      // 🔥 ИСПРАВЛЕНИЕ: Бронебойный парсер JSON (Вытащит JSON даже если ИИ налил воды вокруг)
       String cleanJsonStr = generatedText.trim();
-      if (cleanJsonStr.startsWith('```json')) {
-        cleanJsonStr = cleanJsonStr.replaceFirst('```json', '');
-        if (cleanJsonStr.endsWith('```')) cleanJsonStr = cleanJsonStr.substring(0, cleanJsonStr.length - 3);
-      } else if (cleanJsonStr.startsWith('```')) {
-        cleanJsonStr = cleanJsonStr.replaceFirst('```', '');
-        if (cleanJsonStr.endsWith('```')) cleanJsonStr = cleanJsonStr.substring(0, cleanJsonStr.length - 3);
+      final RegExp regex = RegExp(r'\{.*\}', dotAll: true);
+      final match = regex.firstMatch(cleanJsonStr);
+
+      if (match != null) {
+        cleanJsonStr = match.group(0)!;
+      } else {
+        throw Exception("AI did not return a valid JSON object.");
       }
-      cleanJsonStr = cleanJsonStr.trim();
 
       Map<String, dynamic> jsonInsight;
       try {
         jsonInsight = jsonDecode(cleanJsonStr);
       } catch (e) {
-        throw Exception("AI JSON Format Error.");
+        throw Exception("AI JSON Format Error: $e");
       }
 
-      final title = jsonInsight['title']?.toString() ?? "Daily Insight";
-      final bodyText = jsonInsight['body']?.toString() ?? "Listen to your body today.";
+      final title = jsonInsight['title']?.toString() ?? _englishL10n.aiDailyInsightTitle;
+      final bodyText = jsonInsight['body']?.toString() ?? _englishL10n.aiDailyInsightBody;
       String type = jsonInsight['type']?.toString().toLowerCase() ?? "neutral";
       if (type != 'warning' && type != 'positive') type = 'neutral';
 
@@ -318,13 +324,7 @@ class AiOracleService {
     } catch (e) {
       if (kDebugMode) debugPrint("🔥 AI Oracle Error (Falling back to local AI): $e");
 
-      if (e.toString().contains("RateLimit") == false) {
-        try {
-          final aiBox = await Hive.openBox('ai_insights');
-          await aiBox.delete('last_manual_request_ms');
-        } catch (_) {}
-      }
-
+      // 🔥 ИСПРАВЛЕНИЕ: Не удаляем rate limit при ошибках (чтобы не заддосить прокси при сбоях ИИ)
       try {
         final aiBox = await Hive.openBox('ai_insights');
         await aiBox.put('is_offline', true);
@@ -338,14 +338,21 @@ class AiOracleService {
 
     if (now.hour >= 10 && now.hour <= 20) {
       notificationService.showLocalNotification(
-        id: 999, title: "Ayla Insight ✨", body: title, payload: "/home",
+        id: 999,
+        title: _englishL10n.notifAylaInsightTitle,
+        body: title,
+        payload: "/home",
       );
     } else {
       var scheduledTime = DateTime(now.year, now.month, now.day, 10, 0);
       if (now.hour > 20) scheduledTime = scheduledTime.add(const Duration(days: 1));
 
       notificationService.scheduleNotification(
-        id: 999, title: "Ayla Insight ✨", body: title, scheduledDate: scheduledTime,
+        id: 999,
+        title: _englishL10n.notifAylaInsightTitle,
+        body: title,
+        scheduledDate: scheduledTime,
+        payload: "/home",
       );
     }
   }
@@ -422,7 +429,7 @@ class AiOracleService {
       return generatedText;
     } catch (e) {
       if (kDebugMode) debugPrint("🔥 AI Chat Error: $e");
-      return "I'm having a little trouble connecting right now. Please check your internet or try again in a moment. 💜";
+      return _englishL10n.chatConnectionIssue;
     }
   }
 }

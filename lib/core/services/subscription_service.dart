@@ -84,7 +84,9 @@ class SubscriptionService {
 
     try {
       // Покупка для SDK v9+
-      final purchaseResult = await Purchases.purchasePackage(package);
+      final purchaseResult = await Purchases.purchase(
+        PurchaseParams.package(package),
+      );
       final CustomerInfo info = purchaseResult.customerInfo;
 
       return _updateStream(info);

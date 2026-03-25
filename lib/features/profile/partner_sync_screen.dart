@@ -1,4 +1,3 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
@@ -8,6 +7,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../../core/theme/app_theme.dart';
 import '../../core/services/partner_sync_service.dart';
+import '../../l10n/app_localizations.dart';
 import '../../shared/widgets/premium_glass_card.dart';
 
 class PartnerSyncScreen extends StatefulWidget {
@@ -30,16 +30,17 @@ class _PartnerSyncScreenState extends State<PartnerSyncScreen> {
   }
 
   Future<void> _unlink() async {
+    final l10n = AppLocalizations.of(context)!;
     HapticFeedback.heavyImpact();
 
     final confirm = await showCupertinoDialog<bool>(
         context: context,
         builder: (ctx) => CupertinoAlertDialog(
-          title: const Text("Unlink Partner?"),
-          content: const Text("Your partner will immediately lose access to your cycle updates."),
+          title: Text(l10n.partnerSyncUnlinkTitle),
+          content: Text(l10n.partnerSyncUnlinkBody),
           actions: [
-            CupertinoDialogAction(child: const Text("Cancel"), onPressed: () => Navigator.pop(ctx, false)),
-            CupertinoDialogAction(isDestructiveAction: true, child: const Text("Unlink"), onPressed: () => Navigator.pop(ctx, true)),
+            CupertinoDialogAction(child: Text(l10n.btnCancel), onPressed: () => Navigator.pop(ctx, false)),
+            CupertinoDialogAction(isDestructiveAction: true, child: Text(l10n.partnerSyncUnlinkAction), onPressed: () => Navigator.pop(ctx, true)),
           ],
         )
     );
@@ -53,6 +54,8 @@ class _PartnerSyncScreenState extends State<PartnerSyncScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
@@ -62,7 +65,7 @@ class _PartnerSyncScreenState extends State<PartnerSyncScreen> {
           icon: Icon(Icons.arrow_back_ios_new_rounded, color: AppColors.textPrimary, size: 20),
           onPressed: () => Navigator.pop(context),
         ),
-        title: Text("Partner Sync", style: GoogleFonts.outfit(color: AppColors.textPrimary, fontWeight: FontWeight.w800, fontSize: 20)),
+        title: Text(l10n.partnerSyncTitle, style: GoogleFonts.outfit(color: AppColors.textPrimary, fontWeight: FontWeight.w800, fontSize: 20)),
         centerTitle: true,
       ),
       body: ValueListenableBuilder(
@@ -101,6 +104,8 @@ class _PartnerSyncScreenState extends State<PartnerSyncScreen> {
   }
 
   Widget _buildUnlinkedState() {
+    final l10n = AppLocalizations.of(context)!;
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24),
       child: Column(
@@ -110,18 +115,18 @@ class _PartnerSyncScreenState extends State<PartnerSyncScreen> {
             width: 120, height: 120,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: const Color(0xFF8E71C7).withOpacity(0.1),
+              color: const Color(0xFF8E71C7).withValues(alpha: 0.1),
             ),
             child: const Center(child: Text("💑", style: TextStyle(fontSize: 60))),
           ),
           const SizedBox(height: 32),
           Text(
-            "Invite Your Partner",
+            l10n.partnerSyncInviteTitle,
             style: GoogleFonts.outfit(fontSize: 28, fontWeight: FontWeight.w800, color: AppColors.textPrimary),
           ),
           const SizedBox(height: 12),
           Text(
-            "Share your cycle phase and mood so your partner knows when you need extra support, chocolate, or space.",
+            l10n.partnerSyncInviteBody,
             textAlign: TextAlign.center,
             style: GoogleFonts.inter(fontSize: 15, color: AppColors.textSecondary, height: 1.5),
           ),
@@ -135,7 +140,7 @@ class _PartnerSyncScreenState extends State<PartnerSyncScreen> {
               onPressed: _isLoading ? null : _generateCode,
               child: _isLoading
                   ? const CupertinoActivityIndicator(color: Colors.white)
-                  : Text("Generate Invite Code", style: GoogleFonts.inter(fontWeight: FontWeight.w700, color: Colors.white)),
+                  : Text(l10n.partnerSyncGenerateCode, style: GoogleFonts.inter(fontWeight: FontWeight.w700, color: Colors.white)),
             ),
           ),
           const SizedBox(height: 16),
@@ -144,7 +149,7 @@ class _PartnerSyncScreenState extends State<PartnerSyncScreen> {
             children: [
               const Icon(CupertinoIcons.lock_shield_fill, size: 14, color: Colors.green),
               const SizedBox(width: 6),
-              Text("You control what they see.", style: GoogleFonts.inter(fontSize: 12, color: AppColors.textSecondary, fontWeight: FontWeight.w600)),
+              Text(l10n.partnerSyncPrivacyFootnote, style: GoogleFonts.inter(fontSize: 12, color: AppColors.textSecondary, fontWeight: FontWeight.w600)),
             ],
           )
         ],
@@ -153,6 +158,8 @@ class _PartnerSyncScreenState extends State<PartnerSyncScreen> {
   }
 
   Widget _buildLinkedState(bool isLinked, String? inviteCode, bool shareMood, bool shareTtc) {
+    final l10n = AppLocalizations.of(context)!;
+
     return ListView(
       padding: const EdgeInsets.all(24),
       physics: const BouncingScrollPhysics(),
@@ -166,7 +173,7 @@ class _PartnerSyncScreenState extends State<PartnerSyncScreen> {
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: isLinked ? Colors.green.withOpacity(0.1) : AppColors.primary.withOpacity(0.1),
+                  color: isLinked ? Colors.green.withValues(alpha: 0.1) : AppColors.primary.withValues(alpha: 0.1),
                   shape: BoxShape.circle,
                 ),
                 child: Icon(
@@ -177,14 +184,14 @@ class _PartnerSyncScreenState extends State<PartnerSyncScreen> {
               ),
               const SizedBox(height: 16),
               Text(
-                isLinked ? "Partner Connected" : "Waiting for Partner...",
+                isLinked ? l10n.partnerSyncConnectedTitle : l10n.partnerSyncWaitingTitle,
                 style: GoogleFonts.outfit(fontSize: 20, fontWeight: FontWeight.w800, color: AppColors.textPrimary),
               ),
               const SizedBox(height: 8),
               Text(
                 isLinked
-                    ? "Your Ayla app is securely syncing data."
-                    : "Ask your partner to download Ayla and enter this code during setup:",
+                    ? l10n.partnerSyncConnectedBody
+                    : l10n.partnerSyncWaitingBody,
                 textAlign: TextAlign.center,
                 style: GoogleFonts.inter(fontSize: 14, color: AppColors.textSecondary, height: 1.4),
               ),
@@ -195,14 +202,14 @@ class _PartnerSyncScreenState extends State<PartnerSyncScreen> {
                   onTap: () {
                     Clipboard.setData(ClipboardData(text: inviteCode));
                     HapticFeedback.lightImpact();
-                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Code copied to clipboard!")));
+                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l10n.partnerSyncCodeCopied)));
                   },
                   child: Container(
                     padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 32),
                     decoration: BoxDecoration(
-                      color: AppColors.textPrimary.withOpacity(0.05),
+                      color: AppColors.textPrimary.withValues(alpha: 0.05),
                       borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: AppColors.primary.withOpacity(0.3), width: 2),
+                      border: Border.all(color: AppColors.primary.withValues(alpha: 0.3), width: 2),
                     ),
                     child: Text(
                       inviteCode,
@@ -211,14 +218,14 @@ class _PartnerSyncScreenState extends State<PartnerSyncScreen> {
                   ),
                 ),
                 const SizedBox(height: 12),
-                Text("Tap to copy • Expires in 24h", style: GoogleFonts.inter(fontSize: 12, color: AppColors.textSecondary)),
+                Text(l10n.partnerSyncCodeHint, style: GoogleFonts.inter(fontSize: 12, color: AppColors.textSecondary)),
               ]
             ],
           ),
         ),
 
         const SizedBox(height: 32),
-        Text("PRIVACY SETTINGS", style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.textSecondary, letterSpacing: 1.0)),
+        Text(l10n.partnerSyncPrivacySettings.toUpperCase(), style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.textSecondary, letterSpacing: 1.0)),
         const SizedBox(height: 12),
 
         // НАСТРОЙКИ ПРИВАТНОСТИ
@@ -230,20 +237,20 @@ class _PartnerSyncScreenState extends State<PartnerSyncScreen> {
               _buildToggleRow(
                 icon: CupertinoIcons.moon_stars_fill,
                 color: const Color(0xFF8E71C7),
-                title: "Share Mood & Energy",
-                subtitle: "Partner will see if you are tired, anxious, or happy.",
+                title: l10n.partnerSyncShareMoodTitle,
+                subtitle: l10n.partnerSyncShareMoodBody,
                 value: shareMood,
                 onChanged: (val) {
                   HapticFeedback.lightImpact();
                   PartnerSyncService.updatePermissions(val, shareTtc);
                 },
               ),
-              Divider(height: 1, indent: 56, color: AppColors.textPrimary.withOpacity(0.05)),
+              Divider(height: 1, indent: 56, color: AppColors.textPrimary.withValues(alpha: 0.05)),
               _buildToggleRow(
                 icon: CupertinoIcons.heart_circle_fill,
                 color: const Color(0xFFE85D75),
-                title: "Share Fertility Window",
-                subtitle: "Partner will be notified when your conception chance is high.",
+                title: l10n.partnerSyncShareFertilityTitle,
+                subtitle: l10n.partnerSyncShareFertilityBody,
                 value: shareTtc,
                 onChanged: (val) {
                   HapticFeedback.lightImpact();
@@ -258,10 +265,10 @@ class _PartnerSyncScreenState extends State<PartnerSyncScreen> {
         SizedBox(
           width: double.infinity,
           child: CupertinoButton(
-            color: Colors.redAccent.withOpacity(0.1),
+            color: Colors.redAccent.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(16),
             onPressed: _unlink,
-            child: Text("Unlink Partner", style: GoogleFonts.inter(fontWeight: FontWeight.w700, color: Colors.redAccent)),
+            child: Text(l10n.partnerSyncUnlinkButton, style: GoogleFonts.inter(fontWeight: FontWeight.w700, color: Colors.redAccent)),
           ),
         ),
       ],
@@ -275,7 +282,7 @@ class _PartnerSyncScreenState extends State<PartnerSyncScreen> {
         children: [
           Container(
             padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(color: color.withOpacity(0.15), borderRadius: BorderRadius.circular(10)),
+            decoration: BoxDecoration(color: color.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(10)),
             child: Icon(icon, color: color, size: 20),
           ),
           const SizedBox(width: 16),
@@ -291,7 +298,7 @@ class _PartnerSyncScreenState extends State<PartnerSyncScreen> {
           ),
           CupertinoSwitch(
             value: value,
-            activeColor: AppColors.primary,
+            activeTrackColor: AppColors.primary,
             onChanged: onChanged,
           ),
         ],

@@ -91,7 +91,7 @@ class _MoonPainter extends CustomPainter {
 
   void _drawCraters(Canvas canvas, Offset center, double radius, double widthFactor) {
     final craterPaint = Paint()
-      ..color = Colors.black.withOpacity(0.05)
+      ..color = Colors.black.withValues(alpha: 0.05)
       ..style = PaintingStyle.fill;
 
     // Пара "кратеров" для реализма

@@ -6,6 +6,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'dart:ui';
 
 import '../../ayla_app.dart';
+import '../../core/navigation/app_navigation.dart';
 import '../../core/services/notification_service.dart';
 import '../../core/theme/app_theme.dart';
 import '../../data/models/cycle_model.dart';
@@ -120,16 +121,16 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
                         decoration: BoxDecoration(
-                          color: AppColors.textPrimary.withOpacity(0.05),
+                          color: AppColors.textPrimary.withValues(alpha: 0.05),
                           borderRadius: BorderRadius.circular(20),
-                          border: Border.all(color: AppColors.textSecondary.withOpacity(0.1)),
+                          border: Border.all(color: AppColors.textSecondary.withValues(alpha: 0.1)),
                         ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             const Icon(CupertinoIcons.person_2_fill, size: 16, color: Color(0xFF8E71C7)),
                             const SizedBox(width: 8),
-                            Text("Partner Mode? Enter code here.", style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textSecondary)),
+                            Text(l10n.onboardPartnerModeCta, style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textSecondary)),
                           ],
                         ),
                       ),
@@ -141,7 +142,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
           if (_isProcessing)
             Container(
-              color: Colors.black.withOpacity(0.3),
+              color: Colors.black.withValues(alpha: 0.3),
               child: Center(
                 child: PremiumGlassCard(
                   padding: const EdgeInsets.all(24),
@@ -152,7 +153,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                       const CircularProgressIndicator(color: AppColors.primary),
                       const SizedBox(height: 16),
                       Text(
-                        "Setting up your AI...",
+                        l10n.onboardProcessingSetup,
                         style: GoogleFonts.inter(fontWeight: FontWeight.w700, color: AppColors.textPrimary),
                       )
                     ],
@@ -243,7 +244,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
           child: SliderTheme(
             data: SliderTheme.of(context).copyWith(
               activeTrackColor: AppColors.primary,
-              inactiveTrackColor: Colors.white.withOpacity(0.5),
+              inactiveTrackColor: Colors.white.withValues(alpha: 0.5),
               thumbColor: Colors.white,
               trackHeight: 8,
               thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 14),
@@ -263,7 +264,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         const SizedBox(height: 10),
         Text(
           l10n.lblNormalRange,
-          style: TextStyle(fontSize: 12, color: AppColors.textSecondary.withOpacity(0.7)),
+          style: TextStyle(fontSize: 12, color: AppColors.textSecondary.withValues(alpha: 0.7)),
         ),
       ],
     );
@@ -367,7 +368,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               },
               child: Container(
                 padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(color: Colors.white.withOpacity(0.5), shape: BoxShape.circle),
+                decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.5), shape: BoxShape.circle),
                 child: Icon(Icons.arrow_back, color: AppColors.textPrimary),
               ),
             )
@@ -382,13 +383,13 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               padding: EdgeInsets.symmetric(horizontal: isLastPage ? 40 : 20),
               decoration: BoxDecoration(
                 gradient: LinearGradient(
-                    colors: [AppColors.primary, AppColors.primary.withOpacity(0.8)],
+                    colors: [AppColors.primary, AppColors.primary.withValues(alpha: 0.8)],
                     begin: Alignment.topLeft, end: Alignment.bottomRight
                 ),
                 borderRadius: BorderRadius.circular(32),
                 boxShadow: [
                   BoxShadow(
-                    color: AppColors.primary.withOpacity(0.4),
+                    color: AppColors.primary.withValues(alpha: 0.4),
                     blurRadius: 20,
                     offset: const Offset(0, 8),
                   )
@@ -429,6 +430,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     setState(() => _isProcessing = true);
     HapticFeedback.heavyImpact();
 
+    final l10n = AppLocalizations.of(context)!;
     final cycleProvider = context.read<CycleProvider>();
     final settingsProvider = context.read<SettingsProvider>();
     final cocProvider = context.read<COCProvider>();
@@ -445,11 +447,12 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
           startDate: _selectedDate,
           activePills: pillCount,
           breakDays: breakDays,
+          notifTitle: l10n.notifPillTitle,
+          notifBody: l10n.notifPillBody,
         );
 
         await settingsProvider.setCOCSettings(pillCount, breakDays, packStartDate: _selectedDate);
         await cycleProvider.setCOCMode(true, packStartDate: _selectedDate);
-        await cocProvider.toggleCOC(true);
 
       } else {
         await cycleProvider.setCOCMode(false);
@@ -457,15 +460,23 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         await cycleProvider.logActionStartPeriod(_selectedDate, isConfirmed: true);
       }
 
-      await context.read<NotificationService>().requestPermissions();
+      if (!mounted) return;
+
+      final notificationService = context.read<NotificationService>();
+      await notificationService.requestPermissions();
       await settingsProvider.completeOnboarding();
 
       if (!mounted) return;
 
+      final nextScreen = buildScreenForRoute(
+        takeQueuedNotificationRoute(),
+        fallback: const MainScreen(),
+      );
+
       Navigator.of(context).pushReplacement(
         PageRouteBuilder(
           transitionDuration: const Duration(milliseconds: 1000),
-          pageBuilder: (_, __, ___) => const MainScreen(),
+          pageBuilder: (_, __, ___) => nextScreen,
           transitionsBuilder: (_, a, __, c) => FadeTransition(opacity: a, child: c),
         ),
       );
@@ -474,7 +485,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       if (mounted) {
         setState(() => _isProcessing = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Error during setup. Please try again.")),
+          SnackBar(content: Text(l10n.onboardSetupError)),
         );
       }
     }
@@ -499,17 +510,17 @@ class _ModeCard extends StatelessWidget {
         width: double.infinity,
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
-          color: isSelected ? AppColors.primary : Colors.white.withOpacity(0.5),
+          color: isSelected ? AppColors.primary : Colors.white.withValues(alpha: 0.5),
           borderRadius: BorderRadius.circular(24),
           border: Border.all(color: isSelected ? AppColors.primary : Colors.white),
-          boxShadow: isSelected ? [BoxShadow(color: AppColors.primary.withOpacity(0.3), blurRadius: 12, offset: const Offset(0, 4))] : [],
+          boxShadow: isSelected ? [BoxShadow(color: AppColors.primary.withValues(alpha: 0.3), blurRadius: 12, offset: const Offset(0, 4))] : [],
         ),
         child: Row(
           children: [
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                  color: isSelected ? Colors.white.withOpacity(0.2) : Colors.white,
+                  color: isSelected ? Colors.white.withValues(alpha: 0.2) : Colors.white,
                   shape: BoxShape.circle
               ),
               child: Icon(icon, color: isSelected ? Colors.white : AppColors.textPrimary, size: 28),
@@ -521,7 +532,7 @@ class _ModeCard extends StatelessWidget {
                 children: [
                   Text(title, style: GoogleFonts.outfit(fontSize: 18, fontWeight: FontWeight.bold, color: isSelected ? Colors.white : AppColors.textPrimary)),
                   const SizedBox(height: 4),
-                  Text(subtitle, style: GoogleFonts.inter(fontSize: 13, color: isSelected ? Colors.white.withOpacity(0.8) : AppColors.textSecondary)),
+                  Text(subtitle, style: GoogleFonts.inter(fontSize: 13, color: isSelected ? Colors.white.withValues(alpha: 0.8) : AppColors.textSecondary)),
                 ],
               ),
             ),
@@ -549,7 +560,7 @@ class _PackTypeOption extends StatelessWidget {
         width: double.infinity,
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
         decoration: BoxDecoration(
-          color: isSelected ? AppColors.primary : Colors.white.withOpacity(0.5),
+          color: isSelected ? AppColors.primary : Colors.white.withValues(alpha: 0.5),
           borderRadius: BorderRadius.circular(20),
           border: Border.all(color: isSelected ? AppColors.primary : Colors.white),
         ),
@@ -617,7 +628,7 @@ class _AnimatedWelcomeGraphicState extends State<AnimatedWelcomeGraphic> with Si
                     shape: BoxShape.circle,
                     gradient: RadialGradient(
                       colors: [
-                        AppColors.primary.withOpacity(0.3),
+                        AppColors.primary.withValues(alpha: 0.3),
                         Colors.transparent
                       ],
                       stops: const [0.0, 0.8],
@@ -629,21 +640,21 @@ class _AnimatedWelcomeGraphicState extends State<AnimatedWelcomeGraphic> with Si
                   height: baseSize,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: Colors.white.withOpacity(0.15),
+                    color: Colors.white.withValues(alpha: 0.15),
                     boxShadow: [
                       BoxShadow(
-                        color: AppColors.primary.withOpacity(0.5),
+                        color: AppColors.primary.withValues(alpha: 0.5),
                         blurRadius: 60,
                         spreadRadius: 10 + (20 * curveValue),
                       ),
                       BoxShadow(
-                        color: Colors.white.withOpacity(0.3),
+                        color: Colors.white.withValues(alpha: 0.3),
                         blurRadius: 30,
                         spreadRadius: 5 * curveValue,
                       ),
                     ],
                     border: Border.all(
-                        color: Colors.white.withOpacity(0.3),
+                        color: Colors.white.withValues(alpha: 0.3),
                         width: 2
                     ),
                   ),
@@ -661,7 +672,7 @@ class _AnimatedWelcomeGraphicState extends State<AnimatedWelcomeGraphic> with Si
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     border: Border.all(
-                      color: Colors.white.withOpacity(0.4 - (0.4 * curveValue)),
+                      color: Colors.white.withValues(alpha: 0.4 - (0.4 * curveValue)),
                       width: 1.5,
                     ),
                   ),

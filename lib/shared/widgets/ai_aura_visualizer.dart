@@ -1,5 +1,4 @@
 import 'dart:math' as math;
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 
@@ -127,17 +126,17 @@ class _OuterHalo extends StatelessWidget {
           shape: BoxShape.circle,
           boxShadow: [
             BoxShadow(
-              color: const Color(0xFFC2185B).withOpacity(0.20),
+              color: const Color(0xFFC2185B).withValues(alpha: 0.20),
               blurRadius: size * 0.18,
               spreadRadius: size * 0.015,
             ),
             BoxShadow(
-              color: const Color(0xFF7B3FE4).withOpacity(0.12),
+              color: const Color(0xFF7B3FE4).withValues(alpha: 0.12),
               blurRadius: size * 0.24,
               spreadRadius: size * 0.01,
             ),
             BoxShadow(
-              color: const Color(0xFFFFA3C1).withOpacity(0.08),
+              color: const Color(0xFFFFA3C1).withValues(alpha: 0.08),
               blurRadius: size * 0.30,
               spreadRadius: size * 0.01,
             ),
@@ -173,24 +172,24 @@ class _CenterCore extends StatelessWidget {
           shape: BoxShape.circle,
           gradient: RadialGradient(
             colors: [
-              Colors.white.withOpacity(0.95),
-              const Color(0xFFFFF4FA).withOpacity(0.92),
-              const Color(0xFFF7D7E7).withOpacity(0.70),
-              const Color(0xFFE7C5FF).withOpacity(0.26),
+              Colors.white.withValues(alpha: 0.95),
+              const Color(0xFFFFF4FA).withValues(alpha: 0.92),
+              const Color(0xFFF7D7E7).withValues(alpha: 0.70),
+              const Color(0xFFE7C5FF).withValues(alpha: 0.26),
             ],
             stops: const [0.0, 0.34, 0.72, 1.0],
           ),
           border: Border.all(
-            color: Colors.white.withOpacity(0.45),
+            color: Colors.white.withValues(alpha: 0.45),
             width: 1.2,
           ),
           boxShadow: [
             BoxShadow(
-              color: const Color(0xFFC2185B).withOpacity(0.14),
+              color: const Color(0xFFC2185B).withValues(alpha: 0.14),
               blurRadius: size * 0.07,
             ),
             BoxShadow(
-              color: const Color(0xFF7B3FE4).withOpacity(0.10),
+              color: const Color(0xFF7B3FE4).withValues(alpha: 0.10),
               blurRadius: size * 0.10,
             ),
           ],
@@ -201,15 +200,15 @@ class _CenterCore extends StatelessWidget {
             height: size * 0.18,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: Colors.white.withOpacity(0.14),
+              color: Colors.white.withValues(alpha: 0.14),
               border: Border.all(
-                color: Colors.white.withOpacity(0.5),
+                color: Colors.white.withValues(alpha: 0.5),
                 width: 1,
               ),
             ),
             child: Icon(
               CupertinoIcons.sparkles,
-              color: const Color(0xFFC2185B).withOpacity(0.9),
+              color: const Color(0xFFC2185B).withValues(alpha: 0.9),
               size: size * 0.09,
             ),
           ),
@@ -247,10 +246,10 @@ class _AuraSpherePainter extends CustomPainter {
     final Paint basePaint = Paint()
       ..shader = RadialGradient(
         colors: [
-          const Color(0xFFFFF7FB).withOpacity(0.96),
-          const Color(0xFFFFC1D6).withOpacity(0.72),
-          const Color(0xFFC2185B).withOpacity(0.42),
-          const Color(0xFF7B3FE4).withOpacity(0.24),
+          const Color(0xFFFFF7FB).withValues(alpha: 0.96),
+          const Color(0xFFFFC1D6).withValues(alpha: 0.72),
+          const Color(0xFFC2185B).withValues(alpha: 0.42),
+          const Color(0xFF7B3FE4).withValues(alpha: 0.24),
           const Color(0x00000000),
         ],
         stops: const [0.0, 0.22, 0.52, 0.82, 1.0],
@@ -265,11 +264,11 @@ class _AuraSpherePainter extends CustomPainter {
       ..shader = SweepGradient(
         transform: GradientRotation(t * 0.7),
         colors: [
-          Colors.white.withOpacity(0.14),
-          const Color(0xFFFFB3CA).withOpacity(0.28),
-          const Color(0xFFC2185B).withOpacity(0.18),
-          const Color(0xFF7B3FE4).withOpacity(0.28),
-          Colors.white.withOpacity(0.14),
+          Colors.white.withValues(alpha: 0.14),
+          const Color(0xFFFFB3CA).withValues(alpha: 0.28),
+          const Color(0xFFC2185B).withValues(alpha: 0.18),
+          const Color(0xFF7B3FE4).withValues(alpha: 0.28),
+          Colors.white.withValues(alpha: 0.14),
         ],
       ).createShader(
         Rect.fromCircle(center: center, radius: radius * 0.95),
@@ -285,7 +284,7 @@ class _AuraSpherePainter extends CustomPainter {
       distance: radius * 0.12,
       width: radius * 1.28 * pulse,
       height: radius * 0.88,
-      color: const Color(0xFFC2185B).withOpacity(0.34),
+      color: const Color(0xFFC2185B).withValues(alpha: 0.34),
       blur: size.width * 0.040,
     );
 
@@ -296,7 +295,7 @@ class _AuraSpherePainter extends CustomPainter {
       distance: radius * 0.10,
       width: radius * 1.08,
       height: radius * 1.12 * pulse,
-      color: const Color(0xFF8E44EC).withOpacity(0.28),
+      color: const Color(0xFF8E44EC).withValues(alpha: 0.28),
       blur: size.width * 0.045,
     );
 
@@ -307,7 +306,7 @@ class _AuraSpherePainter extends CustomPainter {
       distance: radius * 0.06,
       width: radius * 0.70,
       height: radius * 0.70,
-      color: const Color(0xFFFFD6E6).withOpacity(0.28),
+      color: const Color(0xFFFFD6E6).withValues(alpha: 0.28),
       blur: size.width * 0.030,
     );
 
@@ -315,8 +314,8 @@ class _AuraSpherePainter extends CustomPainter {
     final Paint innerGlow = Paint()
       ..shader = RadialGradient(
         colors: [
-          Colors.white.withOpacity(0.55),
-          const Color(0xFFFFE7F1).withOpacity(0.32),
+          Colors.white.withValues(alpha: 0.55),
+          const Color(0xFFFFE7F1).withValues(alpha: 0.32),
           const Color(0x00FFFFFF),
         ],
         stops: const [0.0, 0.42, 1.0],
@@ -339,8 +338,8 @@ class _AuraSpherePainter extends CustomPainter {
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
         colors: [
-          Colors.white.withOpacity(0.26),
-          Colors.white.withOpacity(0.06),
+          Colors.white.withValues(alpha: 0.26),
+          Colors.white.withValues(alpha: 0.06),
           Colors.transparent,
         ],
       ).createShader(highlightRect);
@@ -416,19 +415,19 @@ class _OrbitParticlesPainter extends CustomPainter {
         angle: t * 1.2,
         radius: size.width * 0.34,
         dotSize: size.width * 0.014,
-        color: const Color(0xFFFFB3CA).withOpacity(0.85),
+        color: const Color(0xFFFFB3CA).withValues(alpha: 0.85),
       ),
       _Particle(
         angle: -t * 0.95 + 1.4,
         radius: size.width * 0.29,
         dotSize: size.width * 0.011,
-        color: const Color(0xFFB38CFF).withOpacity(0.72),
+        color: const Color(0xFFB38CFF).withValues(alpha: 0.72),
       ),
       _Particle(
         angle: t * 1.55 + 2.2,
         radius: size.width * 0.25,
         dotSize: size.width * 0.009,
-        color: Colors.white.withOpacity(0.78),
+        color: Colors.white.withValues(alpha: 0.78),
       ),
     ];
 

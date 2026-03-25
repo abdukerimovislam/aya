@@ -32,7 +32,6 @@ class _IntimacyCalendarScreenState extends State<IntimacyCalendarScreen> {
   static const Color _warningRed = Color(0xFFE05A5A);
   static const Color _plum = Color(0xFF7A5874);
   static const Color _lavenderMist = Color(0xFFE8DFF0);
-  static const Color _pearl = Color(0xFFFFF9FC);
 
   final LinearGradient _heroGradient = const LinearGradient(
     colors: [
@@ -91,9 +90,9 @@ class _IntimacyCalendarScreenState extends State<IntimacyCalendarScreen> {
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   colors: [
-                    _mist.withOpacity(0.76),
-                    _mist.withOpacity(0.82),
-                    _bgBase.withOpacity(0.90),
+                    _mist.withValues(alpha: 0.76),
+                    _mist.withValues(alpha: 0.82),
+                    _bgBase.withValues(alpha: 0.90),
                   ],
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
@@ -107,7 +106,7 @@ class _IntimacyCalendarScreenState extends State<IntimacyCalendarScreen> {
             right: -50,
             child: _buildAmbientGlow(
               size: 230,
-              color: _sexPinkSoft.withOpacity(0.18),
+              color: _sexPinkSoft.withValues(alpha: 0.18),
             ),
           ),
           Positioned(
@@ -115,7 +114,7 @@ class _IntimacyCalendarScreenState extends State<IntimacyCalendarScreen> {
             left: -70,
             child: _buildAmbientGlow(
               size: 180,
-              color: _lavenderMist.withOpacity(0.22),
+              color: _lavenderMist.withValues(alpha: 0.22),
             ),
           ),
           Positioned(
@@ -123,7 +122,7 @@ class _IntimacyCalendarScreenState extends State<IntimacyCalendarScreen> {
             right: -40,
             child: _buildAmbientGlow(
               size: 210,
-              color: _sexPink.withOpacity(0.10),
+              color: _sexPink.withValues(alpha: 0.10),
             ),
           ),
 
@@ -195,12 +194,12 @@ class _IntimacyCalendarScreenState extends State<IntimacyCalendarScreen> {
               gradient: _chipGradient,
               borderRadius: BorderRadius.circular(18),
               border: Border.all(
-                color: Colors.white.withOpacity(0.78),
+                color: Colors.white.withValues(alpha: 0.78),
                 width: 1.2,
               ),
               boxShadow: [
                 BoxShadow(
-                  color: _sexPinkSoft.withOpacity(0.15),
+                  color: _sexPinkSoft.withValues(alpha: 0.15),
                   blurRadius: 18,
                   offset: const Offset(0, 8),
                 ),
@@ -246,15 +245,15 @@ class _IntimacyCalendarScreenState extends State<IntimacyCalendarScreen> {
             width: 48,
             height: 48,
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.26),
+              color: Colors.white.withValues(alpha: 0.26),
               borderRadius: BorderRadius.circular(18),
               border: Border.all(
-                color: Colors.white.withOpacity(0.60),
+                color: Colors.white.withValues(alpha: 0.60),
                 width: 1.2,
               ),
               boxShadow: [
                 BoxShadow(
-                  color: _plum.withOpacity(0.06),
+                  color: _plum.withValues(alpha: 0.06),
                   blurRadius: 18,
                   offset: const Offset(0, 8),
                 ),
@@ -283,12 +282,12 @@ class _IntimacyCalendarScreenState extends State<IntimacyCalendarScreen> {
             borderRadius: BorderRadius.circular(30),
             gradient: _heroGradient,
             border: Border.all(
-              color: Colors.white.withOpacity(0.76),
+              color: Colors.white.withValues(alpha: 0.76),
               width: 1.3,
             ),
             boxShadow: [
               BoxShadow(
-                color: _sexPinkSoft.withOpacity(0.18),
+                color: _sexPinkSoft.withValues(alpha: 0.18),
                 blurRadius: 28,
                 offset: const Offset(0, 16),
               ),
@@ -300,7 +299,7 @@ class _IntimacyCalendarScreenState extends State<IntimacyCalendarScreen> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 9),
                 decoration: BoxDecoration(
-                  color: _sexPink.withOpacity(0.10),
+                  color: _sexPink.withValues(alpha: 0.10),
                   borderRadius: BorderRadius.circular(18),
                 ),
                 child: Row(
@@ -342,7 +341,7 @@ class _IntimacyCalendarScreenState extends State<IntimacyCalendarScreen> {
                   fontSize: 14,
                   height: 1.55,
                   fontWeight: FontWeight.w500,
-                  color: _textSecondary.withOpacity(0.96),
+                  color: _textSecondary.withValues(alpha: 0.96),
                 ),
               ),
             ],
@@ -364,12 +363,12 @@ class _IntimacyCalendarScreenState extends State<IntimacyCalendarScreen> {
             gradient: _surfaceGradient,
             borderRadius: BorderRadius.circular(26),
             border: Border.all(
-              color: Colors.white.withOpacity(0.78),
+              color: Colors.white.withValues(alpha: 0.78),
               width: 1.1,
             ),
             boxShadow: [
               BoxShadow(
-                color: _sexPinkSoft.withOpacity(0.12),
+                color: _sexPinkSoft.withValues(alpha: 0.12),
                 blurRadius: 20,
                 offset: const Offset(0, 10),
               ),
@@ -397,7 +396,7 @@ class _IntimacyCalendarScreenState extends State<IntimacyCalendarScreen> {
               ),
               _buildLegendItem(
                 icon: CupertinoIcons.circle_fill,
-                color: _plum.withOpacity(0.55),
+                color: _plum.withValues(alpha: 0.55),
                 label: 'Today',
               ),
             ],
@@ -440,17 +439,17 @@ class _IntimacyCalendarScreenState extends State<IntimacyCalendarScreen> {
             borderRadius: BorderRadius.circular(34),
             gradient: _surfaceGradient,
             border: Border.all(
-              color: Colors.white.withOpacity(0.82),
+              color: Colors.white.withValues(alpha: 0.82),
               width: 1.4,
             ),
             boxShadow: [
               BoxShadow(
-                color: _sexPinkSoft.withOpacity(0.16),
+                color: _sexPinkSoft.withValues(alpha: 0.16),
                 blurRadius: 32,
                 offset: const Offset(0, 18),
               ),
               BoxShadow(
-                color: _plum.withOpacity(0.04),
+                color: _plum.withValues(alpha: 0.04),
                 blurRadius: 18,
                 offset: const Offset(0, 10),
               ),
@@ -486,11 +485,11 @@ class _IntimacyCalendarScreenState extends State<IntimacyCalendarScreen> {
                 width: 36,
                 height: 36,
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.84),
+                  color: Colors.white.withValues(alpha: 0.84),
                   shape: BoxShape.circle,
                   boxShadow: [
                     BoxShadow(
-                      color: _plum.withOpacity(0.05),
+                      color: _plum.withValues(alpha: 0.05),
                       blurRadius: 10,
                       offset: const Offset(0, 4),
                     ),
@@ -506,11 +505,11 @@ class _IntimacyCalendarScreenState extends State<IntimacyCalendarScreen> {
                 width: 36,
                 height: 36,
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.84),
+                  color: Colors.white.withValues(alpha: 0.84),
                   shape: BoxShape.circle,
                   boxShadow: [
                     BoxShadow(
-                      color: _plum.withOpacity(0.05),
+                      color: _plum.withValues(alpha: 0.05),
                       blurRadius: 10,
                       offset: const Offset(0, 4),
                     ),
@@ -528,13 +527,13 @@ class _IntimacyCalendarScreenState extends State<IntimacyCalendarScreen> {
               weekdayStyle: GoogleFonts.inter(
                 fontSize: 12,
                 fontWeight: FontWeight.w800,
-                color: _textSecondary.withOpacity(0.92),
+                color: _textSecondary.withValues(alpha: 0.92),
                 letterSpacing: 0.2,
               ),
               weekendStyle: GoogleFonts.inter(
                 fontSize: 12,
                 fontWeight: FontWeight.w800,
-                color: _textSecondary.withOpacity(0.60),
+                color: _textSecondary.withValues(alpha: 0.60),
                 letterSpacing: 0.2,
               ),
             ),
@@ -617,29 +616,29 @@ class _IntimacyCalendarScreenState extends State<IntimacyCalendarScreen> {
           color: hasSexEvent
               ? (sexType == 'intimacy'
               ? null
-              : eventColor!.withOpacity(0.14))
+              : eventColor!.withValues(alpha: 0.14))
               : isToday
-              ? Colors.white.withOpacity(0.98)
-              : Colors.white.withOpacity(0.56),
+              ? Colors.white.withValues(alpha: 0.98)
+              : Colors.white.withValues(alpha: 0.56),
           border: Border.all(
             color: hasSexEvent
-                ? eventColor!.withOpacity(sexType == 'intimacy' ? 0.10 : 0.28)
+                ? eventColor!.withValues(alpha: sexType == 'intimacy' ? 0.10 : 0.28)
                 : isToday
-                ? _plum.withOpacity(0.24)
-                : _plum.withOpacity(0.10),
+                ? _plum.withValues(alpha: 0.24)
+                : _plum.withValues(alpha: 0.10),
             width: isToday ? 1.5 : 1.0,
           ),
           boxShadow: [
             if (hasSexEvent)
               BoxShadow(
-                color: eventColor!.withOpacity(0.22),
+                color: eventColor!.withValues(alpha: 0.22),
                 blurRadius: 16,
                 spreadRadius: 1,
                 offset: const Offset(0, 8),
               ),
             if (isToday && !hasSexEvent)
               BoxShadow(
-                color: _sexPinkSoft.withOpacity(0.16),
+                color: _sexPinkSoft.withValues(alpha: 0.16),
                 blurRadius: 14,
                 offset: const Offset(0, 6),
               ),
@@ -660,8 +659,8 @@ class _IntimacyCalendarScreenState extends State<IntimacyCalendarScreen> {
                 color: hasSexEvent
                     ? (sexType == 'intimacy' ? Colors.white : eventColor)
                     : isFuture
-                    ? _textPrimary.withOpacity(0.34)
-                    : _textPrimary.withOpacity(0.90),
+                    ? _textPrimary.withValues(alpha: 0.34)
+                    : _textPrimary.withValues(alpha: 0.90),
               ),
             ),
 
@@ -672,7 +671,7 @@ class _IntimacyCalendarScreenState extends State<IntimacyCalendarScreen> {
                   eventIcon,
                   size: sexType == 'unprotected' ? 13 : 12,
                   color: sexType == 'intimacy'
-                      ? Colors.white.withOpacity(0.96)
+                      ? Colors.white.withValues(alpha: 0.96)
                       : eventColor,
                 ),
               ),
@@ -685,7 +684,7 @@ class _IntimacyCalendarScreenState extends State<IntimacyCalendarScreen> {
                   width: 6,
                   height: 6,
                   decoration: BoxDecoration(
-                    color: _plum.withOpacity(0.75),
+                    color: _plum.withValues(alpha: 0.75),
                     shape: BoxShape.circle,
                   ),
                 ),
@@ -704,7 +703,7 @@ class _IntimacyCalendarScreenState extends State<IntimacyCalendarScreen> {
         style: GoogleFonts.inter(
           fontSize: 13,
           fontWeight: FontWeight.w600,
-          color: _textSecondary.withOpacity(0.82),
+          color: _textSecondary.withValues(alpha: 0.82),
         ),
       ),
     );

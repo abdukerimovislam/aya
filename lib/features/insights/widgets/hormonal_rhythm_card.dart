@@ -44,7 +44,6 @@ class _HormonalRhythmCardState extends State<HormonalRhythmCard> {
   static const Color _titleColor = Color(0xFF4B313A);
   static const Color _subtitleColor = Color(0xFF8D7580);
   static const Color _secondaryCurve = Color(0xFFB892C8);
-  static const Color _softGrid = Color(0xFFF1E3E8);
   static const Color _tooltipBg = Color(0xFFFFFCFD);
   static const Color _pillBg = Color(0xFFFFF8FA);
   static const Color _pillBorder = Color(0xFFF1DCE4);
@@ -67,12 +66,12 @@ class _HormonalRhythmCardState extends State<HormonalRhythmCard> {
         ),
         boxShadow: [
           BoxShadow(
-            color: AppColors.primary.withOpacity(0.10),
+            color: AppColors.primary.withValues(alpha: 0.10),
             blurRadius: 24,
             offset: const Offset(0, 12),
           ),
           BoxShadow(
-            color: Colors.white.withOpacity(0.9),
+            color: Colors.white.withValues(alpha: 0.9),
             blurRadius: 14,
             offset: const Offset(0, -2),
             spreadRadius: -6,
@@ -198,14 +197,14 @@ class _HormonalRhythmCardState extends State<HormonalRhythmCard> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
       decoration: BoxDecoration(
-        color: isGhost ? Colors.white.withOpacity(0.78) : Colors.white.withOpacity(0.82),
+        color: isGhost ? Colors.white.withValues(alpha: 0.78) : Colors.white.withValues(alpha: 0.82),
         borderRadius: BorderRadius.circular(999),
         border: Border.all(
           color: _pillBorder,
         ),
         boxShadow: [
           BoxShadow(
-            color: AppColors.primary.withOpacity(0.05),
+            color: AppColors.primary.withValues(alpha: 0.05),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -222,7 +221,7 @@ class _HormonalRhythmCardState extends State<HormonalRhythmCard> {
               shape: BoxShape.circle,
               boxShadow: [
                 BoxShadow(
-                  color: color.withOpacity(0.28),
+                  color: color.withValues(alpha: 0.28),
                   blurRadius: 6,
                 ),
               ],
@@ -253,14 +252,14 @@ class _HormonalRhythmCardState extends State<HormonalRhythmCard> {
           width: 158,
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
           decoration: BoxDecoration(
-            color: _tooltipBg.withOpacity(0.92),
+            color: _tooltipBg.withValues(alpha: 0.92),
             borderRadius: BorderRadius.circular(18),
             border: Border.all(
               color: _pillBorder,
             ),
             boxShadow: [
               BoxShadow(
-                color: AppColors.primary.withOpacity(0.10),
+                color: AppColors.primary.withValues(alpha: 0.10),
                 blurRadius: 18,
                 offset: const Offset(0, 8),
               ),
@@ -345,7 +344,7 @@ class _HormonalRhythmCardState extends State<HormonalRhythmCard> {
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.72),
+            color: Colors.white.withValues(alpha: 0.72),
             borderRadius: BorderRadius.circular(18),
             border: Border.all(color: _pillBorder),
           ),
@@ -390,7 +389,7 @@ class _HormonalRhythmCardState extends State<HormonalRhythmCard> {
               style: GoogleFonts.inter(
                 fontSize: 11.5,
                 fontWeight: FontWeight.w700,
-                color: _titleColor.withOpacity(0.78),
+                color: _titleColor.withValues(alpha: 0.78),
               ),
             ),
             const Spacer(),
@@ -417,12 +416,12 @@ class _HormonalRhythmCardState extends State<HormonalRhythmCard> {
       padding: const EdgeInsets.symmetric(vertical: 8),
       decoration: BoxDecoration(
         color: isActive
-            ? AppColors.primary.withOpacity(0.12)
+            ? AppColors.primary.withValues(alpha: 0.12)
             : _pillBg,
         borderRadius: BorderRadius.circular(13),
         border: Border.all(
           color: isActive
-              ? AppColors.primary.withOpacity(0.20)
+              ? AppColors.primary.withValues(alpha: 0.20)
               : _pillBorder,
         ),
       ),
@@ -489,7 +488,7 @@ class _SoftFeminineBackdropPainter extends CustomPainter {
         Offset(size.width * 0.16, size.height * 0.16),
         size.width * 0.42,
         [
-          accent.withOpacity(0.12),
+          accent.withValues(alpha: 0.12),
           Colors.transparent,
         ],
       );
@@ -499,7 +498,7 @@ class _SoftFeminineBackdropPainter extends CustomPainter {
         Offset(size.width * 0.82, size.height * 0.72),
         size.width * 0.34,
         [
-          secondary.withOpacity(0.10),
+          secondary.withValues(alpha: 0.10),
           Colors.transparent,
         ],
       );
@@ -509,7 +508,7 @@ class _SoftFeminineBackdropPainter extends CustomPainter {
         Offset(size.width * 0.50, size.height * 0.45),
         size.width * 0.28,
         [
-          Colors.white.withOpacity(0.42),
+          Colors.white.withValues(alpha: 0.42),
           Colors.transparent,
         ],
       );
@@ -545,7 +544,6 @@ class _HormoneWavePainter extends CustomPainter {
   });
 
   static const Color _gridColor = Color(0xFFF0E0E7);
-  static const Color _textColor = Color(0xFF4B313A);
   static const Color _subtleText = Color(0xFF8D7580);
 
   @override
@@ -623,8 +621,8 @@ class _HormoneWavePainter extends CustomPainter {
         Offset(0, chartTop),
         Offset(0, height - chartBottom),
         [
-          primaryCurve.withOpacity(0.20),
-          primaryCurve.withOpacity(0.00),
+          primaryCurve.withValues(alpha: 0.20),
+          primaryCurve.withValues(alpha: 0.00),
         ],
       );
 
@@ -633,8 +631,8 @@ class _HormoneWavePainter extends CustomPainter {
         Offset(0, chartTop),
         Offset(0, height - chartBottom),
         [
-          secondaryCurve.withOpacity(0.20),
-          secondaryCurve.withOpacity(0.00),
+          secondaryCurve.withValues(alpha: 0.20),
+          secondaryCurve.withValues(alpha: 0.00),
         ],
       );
 
@@ -669,7 +667,7 @@ class _HormoneWavePainter extends CustomPainter {
         canvas,
         Offset(currentX, chartTop + 4),
         Offset(currentX, height - chartBottom + 2),
-        primaryCurve.withOpacity(0.32),
+        primaryCurve.withValues(alpha: 0.32),
       );
 
       final todayLabel = TextPainter(
@@ -697,7 +695,7 @@ class _HormoneWavePainter extends CustomPainter {
       final yProg = yForProgesterone(focusedDay!);
 
       final focusLinePaint = Paint()
-        ..color = primaryCurve.withOpacity(0.82)
+        ..color = primaryCurve.withValues(alpha: 0.82)
         ..strokeWidth = 1.4;
 
       canvas.drawLine(
@@ -709,12 +707,12 @@ class _HormoneWavePainter extends CustomPainter {
       canvas.drawCircle(
         Offset(focusX, yEst),
         7,
-        Paint()..color = primaryCurve.withOpacity(0.16),
+        Paint()..color = primaryCurve.withValues(alpha: 0.16),
       );
       canvas.drawCircle(
         Offset(focusX, yProg),
         7,
-        Paint()..color = secondaryCurve.withOpacity(0.16),
+        Paint()..color = secondaryCurve.withValues(alpha: 0.16),
       );
 
       canvas.drawCircle(
@@ -779,7 +777,7 @@ class _HormoneWavePainter extends CustomPainter {
       final radius = (3.4 + severity * 1.15).clamp(3.6, 8.2);
 
       final haloPaint = Paint()
-        ..color = AppColors.primary.withOpacity(0.12)
+        ..color = AppColors.primary.withValues(alpha: 0.12)
         ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6);
 
       final corePaint = Paint()
@@ -787,8 +785,8 @@ class _HormoneWavePainter extends CustomPainter {
           Offset(x, y),
           radius,
           [
-            Colors.white.withOpacity(0.96),
-            AppColors.primary.withOpacity(0.30),
+            Colors.white.withValues(alpha: 0.96),
+            AppColors.primary.withValues(alpha: 0.30),
           ],
         );
 

@@ -10,22 +10,19 @@ import '../../l10n/app_localizations.dart';
 class LanguageSelectionScreen extends StatelessWidget {
   const LanguageSelectionScreen({super.key});
 
-  // 🔥 Обновленный список с флагами и правильным названием для PT
-  final List<Map<String, String>> languages = const [
-    {'code': 'en', 'name': 'English', 'flag': '🇺🇸'},
-    {'code': 'ru', 'name': 'Русский', 'flag': '🇷🇺'},
-    {'code': 'es', 'name': 'Español', 'flag': '🇪🇸'},
-    {'code': 'de', 'name': 'Deutsch', 'flag': '🇩🇪'},
-    {'code': 'pt', 'name': 'Brasil', 'flag': '🇧🇷'},
-    {'code': 'tr', 'name': 'Türkçe', 'flag': '🇹🇷'}, // Турция
-    {'code': 'pl', 'name': 'Polski', 'flag': '🇵🇱'}, // Польша
-  ];
-
   @override
   Widget build(BuildContext context) {
     final settings = context.watch<SettingsProvider>();
-    // Пытаемся получить локализацию для перевода кнопки "Продолжить"
-    final l10n = AppLocalizations.of(context);
+    final l10n = AppLocalizations.of(context)!;
+    final languages = [
+      {'code': 'en', 'name': l10n.languageNameEnglish, 'flag': '🇺🇸'},
+      {'code': 'ru', 'name': l10n.languageNameRussian, 'flag': '🇷🇺'},
+      {'code': 'es', 'name': l10n.languageNameSpanish, 'flag': '🇪🇸'},
+      {'code': 'de', 'name': l10n.languageNameGerman, 'flag': '🇩🇪'},
+      {'code': 'pt', 'name': l10n.languageNamePortugueseBrazil, 'flag': '🇧🇷'},
+      {'code': 'tr', 'name': l10n.languageNameTurkish, 'flag': '🇹🇷'},
+      {'code': 'pl', 'name': l10n.languageNamePolish, 'flag': '🇵🇱'},
+    ];
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -36,7 +33,7 @@ class LanguageSelectionScreen extends StatelessWidget {
 
             // Заголовок
             Text(
-              "Choose Language",
+              l10n.languageSelectionTitle,
               style: GoogleFonts.manrope(
                 fontSize: 28,
                 fontWeight: FontWeight.w800,
@@ -45,7 +42,7 @@ class LanguageSelectionScreen extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              "Выберите язык приложения",
+              l10n.languageSelectionSubtitle,
               style: GoogleFonts.inter(
                 fontSize: 16,
                 color: AppColors.textSecondary,
@@ -86,14 +83,14 @@ class LanguageSelectionScreen extends StatelessWidget {
                         boxShadow: isSelected
                             ? [
                           BoxShadow(
-                            color: AppColors.primary.withOpacity(0.3),
+                            color: AppColors.primary.withValues(alpha: 0.3),
                             blurRadius: 12,
                             offset: const Offset(0, 4),
                           )
                         ]
                             : [
                           BoxShadow(
-                            color: Colors.black.withOpacity(0.03),
+                            color: Colors.black.withValues(alpha: 0.03),
                             blurRadius: 8,
                             offset: const Offset(0, 2),
                           )
@@ -150,11 +147,10 @@ class LanguageSelectionScreen extends StatelessWidget {
                       borderRadius: BorderRadius.circular(16),
                     ),
                     elevation: 4,
-                    shadowColor: AppColors.primary.withOpacity(0.4),
+                    shadowColor: AppColors.primary.withValues(alpha: 0.4),
                   ),
                   child: Text(
-                    // Если локализация загружена, кнопка переведется сама при смене языка
-                    l10n?.btnNext ?? "Continue",
+                    l10n.btnNext,
                     style: GoogleFonts.manrope(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,

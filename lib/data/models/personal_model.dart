@@ -59,9 +59,13 @@ class PersonalModel extends HiveObject {
   // adjustment: +1 (подтвердил), -1 (опроверг/низко)
   void adjustWeight(CyclePhase phase, String metric, double adjustment) {
     Map<String, double> targetMap;
-    if (metric == 'energy') targetMap = energyWeights;
-    else if (metric == 'mood') targetMap = moodWeights;
-    else targetMap = focusWeights;
+    if (metric == 'energy') {
+      targetMap = energyWeights;
+    } else if (metric == 'mood') {
+      targetMap = moodWeights;
+    } else {
+      targetMap = focusWeights;
+    }
 
     double current = targetMap[phase.name] ?? 0.5;
 

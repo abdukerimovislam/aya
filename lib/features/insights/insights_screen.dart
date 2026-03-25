@@ -1,4 +1,3 @@
-import 'dart:ui';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
@@ -9,17 +8,17 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:intl/intl.dart';
 
-import '../../l10n/app_localizations.dart';
 import '../../core/theme/app_theme.dart';
+import '../../data/models/cycle_model.dart';
 import '../../data/providers/cycle_provider.dart';
 import '../../data/providers/wellness_provider.dart';
 import '../../shared/widgets/premium_glass_card.dart';
 import '../../core/services/pdf_service.dart';
 import '../../shared/widgets/live_phase_background.dart';
 import '../../core/services/ai_oracle_service.dart';
+import '../../l10n/app_localizations.dart';
 
 import '../../data/logic/symptom_intelligence.dart';
-import '../../data/models/cycle_model.dart';
 import '../../data/logic/health_pattern_detector.dart';
 
 import 'widgets/hormonal_rhythm_card.dart';
@@ -42,9 +41,9 @@ class _InsightsScreenState extends State<InsightsScreen> {
   List<MapEntry<String, int>> _topSymptoms = [];
   SymptomInsight? _todayInsight;
   List<HealthFlag> _clinicalFlags = [];
-  Map<int, List<String>> _dailySymptomsMap = {};
+  final Map<int, List<String>> _dailySymptomsMap = {};
 
-  List<FlSpot> _bbtSpots = [];
+  final List<FlSpot> _bbtSpots = [];
   double _minTemp = 36.2;
   double _maxTemp = 37.2;
 
@@ -57,6 +56,9 @@ class _InsightsScreenState extends State<InsightsScreen> {
   }
 
   Future<void> _runHeavyAnalyticsBackground() async {
+    final cycleProvider = context.read<CycleProvider>();
+    final wellnessProvider = context.read<WellnessProvider>();
+
     await Future.delayed(const Duration(milliseconds: 250));
     if (!mounted) return;
 
@@ -66,15 +68,13 @@ class _InsightsScreenState extends State<InsightsScreen> {
       _hasCachedAdvice = true;
     }
 
-    final cycleProvider = context.read<CycleProvider>();
-    final wellnessProvider = context.read<WellnessProvider>();
-
     _topSymptoms = _getTopSymptoms(wellnessProvider);
     _clinicalFlags = await HealthPatternDetector.analyzePatterns(
       cycleProvider.history,
       wellnessProvider,
       isCocEnabled: cycleProvider.isCOCEnabled,
     );
+    if (!mounted) return;
     _prepareBBTData(cycleProvider, wellnessProvider);
     _prepareDailySymptomsMap(cycleProvider, wellnessProvider);
     _todayInsight = _getTodayIntelligence(context, wellnessProvider, cycleProvider);
@@ -88,6 +88,7 @@ class _InsightsScreenState extends State<InsightsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final cycleProvider = context.watch<CycleProvider>();
     final wellnessProvider = context.watch<WellnessProvider>();
 
@@ -116,9 +117,9 @@ class _InsightsScreenState extends State<InsightsScreen> {
                 width: 36,
                 height: 36,
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.3),
+                  color: Colors.white.withValues(alpha: 0.3),
                   shape: BoxShape.circle,
-                  border: Border.all(color: Colors.white.withOpacity(0.5), width: 1),
+                  border: Border.all(color: Colors.white.withValues(alpha: 0.5), width: 1),
                 ),
                 child: Icon(
                   CupertinoIcons.square_arrow_up,
@@ -150,8 +151,8 @@ class _InsightsScreenState extends State<InsightsScreen> {
                 const SizedBox(height: 32),
 
                 _buildSectionHeader(
-                  title: isTTC ? "Fertility Status" : "Cycle Analysis",
-                  subtitle: "Key signals from your body",
+                  title: isTTC ? l10n.insightsFertilityStatusTitle : l10n.insightsCycleAnalysisTitle,
+                  subtitle: l10n.insightsKeySignalsSubtitle,
                 ),
                 const SizedBox(height: 12),
                 _buildAIAnalysisCard(cycleProvider),
@@ -177,6 +178,7 @@ class _InsightsScreenState extends State<InsightsScreen> {
   }
 
   Widget _buildLoadingSkeleton() {
+    final l10n = AppLocalizations.of(context)!;
     return Padding(
       padding: const EdgeInsets.only(top: 40, bottom: 40),
       child: Center(
@@ -185,9 +187,9 @@ class _InsightsScreenState extends State<InsightsScreen> {
             const CupertinoActivityIndicator(radius: 16),
             const SizedBox(height: 16),
             Text(
-              "Analyzing history and patterns...",
+              l10n.insightsLoadingHistoryPatterns,
               style: GoogleFonts.inter(
-                color: AppColors.textSecondary.withOpacity(0.6),
+                color: AppColors.textSecondary.withValues(alpha: 0.6),
                 fontSize: 13,
                 fontWeight: FontWeight.w500,
               ),
@@ -199,13 +201,14 @@ class _InsightsScreenState extends State<InsightsScreen> {
   }
 
   Widget _buildHeavyAnalyticsContent(CycleProvider cycleProvider, bool isTTC) {
+    final l10n = AppLocalizations.of(context)!;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const SizedBox(height: 32),
         _buildSectionHeader(
-          title: "Hormonal Rhythm",
-          subtitle: "Your symptoms correlated with estimated hormone levels",
+          title: l10n.insightsHormonalRhythmTitle,
+          subtitle: l10n.insightsHormonalRhythmBody,
         ),
         const SizedBox(height: 12),
         HormonalRhythmCard(
@@ -216,8 +219,8 @@ class _InsightsScreenState extends State<InsightsScreen> {
         if (_todayInsight != null) ...[
           const SizedBox(height: 32),
           _buildSectionHeader(
-            title: "Hormonal Context",
-            subtitle: "Why you might be feeling this way today",
+            title: l10n.insightsHormonalContextTitle,
+            subtitle: l10n.insightsHormonalContextBody,
           ),
           const SizedBox(height: 12),
           _buildSymptomInsightCard(_todayInsight!, isTTC),
@@ -226,8 +229,8 @@ class _InsightsScreenState extends State<InsightsScreen> {
         if (_clinicalFlags.isNotEmpty) ...[
           const SizedBox(height: 32),
           _buildSectionHeader(
-            title: "Medical Insights",
-            subtitle: "Patterns detected from your historical logs",
+            title: l10n.insightsMedicalInsightsTitle,
+            subtitle: l10n.insightsMedicalInsightsBody,
           ),
           const SizedBox(height: 12),
           ..._clinicalFlags.map((flag) => _buildClinicalFlagCard(context, flag)),
@@ -236,8 +239,8 @@ class _InsightsScreenState extends State<InsightsScreen> {
         if (isTTC) ...[
           const SizedBox(height: 32),
           _buildSectionHeader(
-            title: "Thermal Shift",
-            subtitle: "Your temperature pattern across this cycle",
+            title: l10n.insightsThermalShiftTitle,
+            subtitle: l10n.insightsThermalShiftBody,
           ),
           const SizedBox(height: 12),
           PremiumGlassCard(
@@ -252,8 +255,8 @@ class _InsightsScreenState extends State<InsightsScreen> {
 
         const SizedBox(height: 32),
         _buildSectionHeader(
-          title: "Frequent Symptoms",
-          subtitle: "Most repeated symptoms from your recent logs",
+          title: l10n.insightsFrequentSymptomsTitle,
+          subtitle: l10n.insightsFrequentSymptomsBody,
         ),
         const SizedBox(height: 12),
 
@@ -261,7 +264,7 @@ class _InsightsScreenState extends State<InsightsScreen> {
             ? PremiumGlassCard(
           borderRadius: 28,
           padding: const EdgeInsets.all(24),
-          child: _buildEmptyState("Log your daily symptoms to uncover your body's unique patterns.", CupertinoIcons.sparkles),
+          child: _buildEmptyState(l10n.insightsEmptySymptomsBody, CupertinoIcons.sparkles),
         )
             : _buildSymptomsFeed(_topSymptoms, isTTC),
       ],
@@ -269,11 +272,12 @@ class _InsightsScreenState extends State<InsightsScreen> {
   }
 
   Widget _buildTopBarTitle(bool isTTC) {
+    final l10n = AppLocalizations.of(context)!;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          isTTC ? "Fertility Hub" : "Insights",
+          isTTC ? l10n.insightsTopBarFertilityHubTitle : l10n.tabInsights,
           style: GoogleFonts.outfit(
             fontSize: 24,
             fontWeight: FontWeight.w800,
@@ -283,7 +287,9 @@ class _InsightsScreenState extends State<InsightsScreen> {
         ),
         const SizedBox(height: 2),
         Text(
-          isTTC ? "Personalized fertility intelligence" : "Your body's intelligence",
+          isTTC
+              ? l10n.insightsTopBarFertilityHubSubtitle
+              : l10n.insightsTopBarDefaultSubtitle,
           style: GoogleFonts.inter(
             fontSize: 12,
             fontWeight: FontWeight.w600,
@@ -295,52 +301,64 @@ class _InsightsScreenState extends State<InsightsScreen> {
   }
 
   Widget _buildHeroDashboard(BuildContext context, CycleProvider cycle, WellnessProvider wellness, bool isTTC) {
+    final l10n = AppLocalizations.of(context)!;
     String title;
     String subtitle;
     IconData icon;
     Color accentColor;
 
     if (cycle.isCOCEnabled) {
-      title = "Contraceptive Mode";
-      subtitle = "Tracking is adapted for pill-based cycles";
+      title = l10n.insightsHeroContraceptiveModeTitle;
+      subtitle = l10n.insightsHeroContraceptiveModeBody;
       icon = CupertinoIcons.shield_fill;
       accentColor = AppColors.follicular;
     } else if (isTTC) {
       if (cycle.isOvulationConfirmed) {
-        title = "Ovulation Confirmed";
-        subtitle = "You are now in the two-week wait phase";
+        title = l10n.insightsHeroOvulationConfirmedTitle;
+        subtitle = l10n.insightsHeroOvulationConfirmedBody;
         icon = CupertinoIcons.check_mark_circled_solid;
         accentColor = AppColors.luteal;
       } else if (cycle.conceptionChance == FertilityChance.high || cycle.conceptionChance == FertilityChance.peak) {
-        title = "Fertile Window Active";
-        subtitle = "Conception probability is elevated";
+        title = l10n.insightsHeroFertileWindowActiveTitle;
+        subtitle = l10n.insightsHeroFertileWindowActiveBody;
         icon = CupertinoIcons.heart_circle_fill;
         accentColor = const Color(0xFFE85D75);
       } else {
-        title = "Tracking Fertility";
-        subtitle = "Log BBT and symptoms for precision";
+        title = l10n.insightsHeroTrackingFertilityTitle;
+        subtitle = l10n.insightsHeroTrackingFertilityBody;
         icon = CupertinoIcons.sparkles;
         accentColor = AppColors.follicular;
       }
     } else {
-      title = "Cycle Intelligence";
+      title = l10n.insightsHeroCycleIntelligenceTitle;
       subtitle = cycle.history.isEmpty
-          ? "Start logging to unlock analysis"
-          : "Trends updated from recent logs";
+          ? l10n.insightsHeroCycleIntelligenceEmptyBody
+          : l10n.insightsHeroCycleIntelligenceReadyBody;
       icon = CupertinoIcons.waveform_path_ecg;
       accentColor = AppColors.primary;
     }
 
     final List<_HeroMiniStat> stats = isTTC
         ? [
-      _HeroMiniStat(label: "Status", value: cycle.isOvulationConfirmed ? "Confirmed" : _fertilityLabel(cycle.conceptionChance)),
-      _HeroMiniStat(label: "Phase", value: _formatPhase(cycle.currentData.phase)),
-      _HeroMiniStat(label: "Logs", value: "${cycle.history.length}"),
+      _HeroMiniStat(
+        label: l10n.insightsHeroStatusLabel,
+        value: cycle.isOvulationConfirmed
+            ? l10n.ttcOvulationConfirmedManual
+            : _fertilityLabel(cycle.conceptionChance),
+      ),
+      _HeroMiniStat(
+        label: l10n.insightsHeroPhaseLabel,
+        value: _formatPhase(cycle.currentData.phase),
+      ),
+      _HeroMiniStat(label: l10n.insightsHeroLogsLabel, value: "${cycle.history.length}"),
     ]
         : [
-      _HeroMiniStat(label: "Cycle", value: "${cycle.cycleLength}d"),
-      _HeroMiniStat(label: "Period", value: "${cycle.avgPeriodDuration}d"),
-      _HeroMiniStat(label: "Phase", value: _formatPhase(cycle.currentData.phase)),
+      _HeroMiniStat(label: l10n.insightsHeroCycleLabel, value: "${cycle.cycleLength}${l10n.unitDaysShort}"),
+      _HeroMiniStat(label: l10n.insightsHeroPeriodLabel, value: "${cycle.avgPeriodDuration}${l10n.unitDaysShort}"),
+      _HeroMiniStat(
+        label: l10n.insightsHeroPhaseLabel,
+        value: _formatPhase(cycle.currentData.phase),
+      ),
     ];
 
     return PremiumGlassCard(
@@ -355,9 +373,9 @@ class _InsightsScreenState extends State<InsightsScreen> {
                 width: 52,
                 height: 52,
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.6),
+                  color: Colors.white.withValues(alpha: 0.6),
                   shape: BoxShape.circle,
-                  boxShadow: [BoxShadow(color: accentColor.withOpacity(0.15), blurRadius: 12, offset: const Offset(0, 4))],
+                  boxShadow: [BoxShadow(color: accentColor.withValues(alpha: 0.15), blurRadius: 12, offset: const Offset(0, 4))],
                 ),
                 child: Icon(icon, color: accentColor, size: 24),
               ),
@@ -394,9 +412,9 @@ class _InsightsScreenState extends State<InsightsScreen> {
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.3),
+              color: Colors.white.withValues(alpha: 0.3),
               borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: Colors.white.withOpacity(0.5)),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.5)),
             ),
             child: Row(
               children: stats.map((stat) => Expanded(child: _buildHeroMiniStat(stat))).toList(),
@@ -416,7 +434,7 @@ class _InsightsScreenState extends State<InsightsScreen> {
           style: GoogleFonts.inter(
             fontSize: 11,
             fontWeight: FontWeight.w600,
-            color: AppColors.textSecondary.withOpacity(0.8),
+            color: AppColors.textSecondary.withValues(alpha: 0.8),
           ),
         ),
         const SizedBox(height: 4),
@@ -434,19 +452,19 @@ class _InsightsScreenState extends State<InsightsScreen> {
     );
   }
 
-  // 🔥 ОБНОВЛЕННАЯ ПАНЕЛЬ ИИ С ИНТЕГРАЦИЕЙ ЧАТА
   Widget _buildAIOperatingCenter(CycleProvider cycle, WellnessProvider wellness, bool isTTC) {
+    final l10n = AppLocalizations.of(context)!;
     return PremiumGlassCard(
       borderRadius: 28,
       padding: const EdgeInsets.all(0),
       child: Container(
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(28),
-          border: Border.all(color: AppColors.primary.withOpacity(0.3), width: 1.5),
+          border: Border.all(color: AppColors.primary.withValues(alpha: 0.3), width: 1.5),
           gradient: LinearGradient(
             colors: [
-              AppColors.primary.withOpacity(0.05),
-              AppColors.follicular.withOpacity(0.05),
+              AppColors.primary.withValues(alpha: 0.05),
+              AppColors.follicular.withValues(alpha: 0.05),
             ],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
@@ -462,7 +480,7 @@ class _InsightsScreenState extends State<InsightsScreen> {
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    "Ayla AI Engine",
+                    l10n.insightsAylaEngineTitle,
                     style: GoogleFonts.outfit(
                       fontSize: 18,
                       fontWeight: FontWeight.w800,
@@ -491,7 +509,7 @@ class _InsightsScreenState extends State<InsightsScreen> {
                     child: Container(
                       padding: const EdgeInsets.all(6),
                       decoration: BoxDecoration(
-                        color: AppColors.primary.withOpacity(0.1),
+                        color: AppColors.primary.withValues(alpha: 0.1),
                         shape: BoxShape.circle,
                       ),
                       child: _isGeneratingAI
@@ -505,8 +523,8 @@ class _InsightsScreenState extends State<InsightsScreen> {
 
             Text(
               _hasCachedAdvice
-                  ? "Your daily hormonal analysis is ready. You can also chat with Ayla anytime for personalized guidance."
-                  : "Wondering why you feel a certain way today? Chat with Ayla or generate your daily hormone report.",
+                  ? l10n.insightsAylaReadyBody
+                  : l10n.insightsAylaPromptBody,
               style: GoogleFonts.inter(
                 fontSize: 13,
                 color: AppColors.textSecondary,
@@ -516,7 +534,6 @@ class _InsightsScreenState extends State<InsightsScreen> {
             ),
             const SizedBox(height: 16),
 
-            // 🔥 1. ГЛАВНАЯ КНОПКА: ЧАТ С АЙЛОЙ
             GestureDetector(
               onTap: () {
                 HapticFeedback.mediumImpact();
@@ -535,7 +552,7 @@ class _InsightsScreenState extends State<InsightsScreen> {
                   borderRadius: BorderRadius.circular(16),
                   boxShadow: [
                     BoxShadow(
-                      color: AppColors.primary.withOpacity(0.3),
+                      color: AppColors.primary.withValues(alpha: 0.3),
                       blurRadius: 12,
                       offset: const Offset(0, 4),
                     )
@@ -547,7 +564,7 @@ class _InsightsScreenState extends State<InsightsScreen> {
                     const Icon(CupertinoIcons.chat_bubble_2_fill, size: 18, color: Colors.white),
                     const SizedBox(width: 8),
                     Text(
-                      "Chat with Ayla",
+                      l10n.insightsChatWithAylaAction,
                       style: GoogleFonts.inter(
                         fontWeight: FontWeight.w700,
                         color: Colors.white,
@@ -561,12 +578,11 @@ class _InsightsScreenState extends State<InsightsScreen> {
 
             const SizedBox(height: 12),
 
-            // 🔥 2. ВТОРИЧНАЯ КНОПКА: ГЕНЕРАЦИЯ ДНЕВНОГО ОТЧЕТА (Кэшированного)
             SizedBox(
               width: double.infinity,
               child: CupertinoButton(
                 padding: const EdgeInsets.symmetric(vertical: 14),
-                color: AppColors.primary.withOpacity(0.12), // Стеклянный эффект
+                color: AppColors.primary.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(16),
                 onPressed: _isGeneratingAI ? null : () async {
                   HapticFeedback.lightImpact();
@@ -601,7 +617,9 @@ class _InsightsScreenState extends State<InsightsScreen> {
                     ),
                     const SizedBox(width: 8),
                     Text(
-                      _hasCachedAdvice ? "View Today's Report" : "Generate Daily Report",
+                      _hasCachedAdvice
+                          ? l10n.insightsViewTodaysReportAction
+                          : l10n.insightsGenerateDailyReportAction,
                       style: GoogleFonts.inter(
                         fontWeight: FontWeight.w700,
                         color: AppColors.primary,
@@ -660,52 +678,53 @@ class _InsightsScreenState extends State<InsightsScreen> {
   }
 
   Widget _buildAIAnalysisCard(CycleProvider cycle) {
-    String title = "Data insufficient";
-    String message = "Log more cycles to unlock insights.";
+    final l10n = AppLocalizations.of(context)!;
+    String title = l10n.insightsAnalysisDataInsufficientTitle;
+    String message = l10n.insightsAnalysisDataInsufficientBody;
     Color iconColor = AppColors.textSecondary;
     IconData icon = CupertinoIcons.chart_pie;
 
     if (cycle.isTTCMode) {
       if (cycle.isOvulationConfirmed) {
-        title = "Ovulation confirmed";
-        message = "You are now in the two-week wait. Keep routines stable.";
+        title = l10n.insightsAnalysisOvulationConfirmedTitle;
+        message = l10n.insightsAnalysisOvulationConfirmedBody;
         iconColor = AppColors.luteal;
         icon = CupertinoIcons.check_mark_circled_solid;
       } else if (cycle.conceptionChance == FertilityChance.peak || cycle.conceptionChance == FertilityChance.high) {
-        title = "Fertile window open";
-        message = "Chance of conception is high. Log BBT daily.";
+        title = l10n.insightsAnalysisFertileWindowOpenTitle;
+        message = l10n.insightsAnalysisFertileWindowOpenBody;
         iconColor = const Color(0xFFE85D75);
         icon = CupertinoIcons.heart_circle_fill;
       } else {
-        title = "Tracking phase";
-        message = "Monitoring inputs to predict ovulation day.";
+        title = l10n.insightsAnalysisTrackingPhaseTitle;
+        message = l10n.insightsAnalysisTrackingPhaseBody;
         iconColor = AppColors.follicular;
         icon = CupertinoIcons.chart_pie_fill;
       }
     } else {
       if (cycle.isCOCEnabled) {
-        title = "Contraceptive mode";
-        message = "Cycle managed by oral contraceptives. Keep taking pills.";
+        title = l10n.insightsAnalysisContraceptiveModeTitle;
+        message = l10n.insightsAnalysisContraceptiveModeBody;
         iconColor = AppColors.follicular;
         icon = CupertinoIcons.shield_fill;
       } else if (cycle.isAmenorrhea) {
-        title = "Delayed cycle";
-        message = "Cycle delayed >60 days. Consider clinical consultation.";
+        title = l10n.insightsAnalysisDelayedCycleTitle;
+        message = l10n.insightsAnalysisDelayedCycleBody;
         iconColor = AppColors.late;
         icon = CupertinoIcons.exclamationmark_triangle_fill;
       } else if (cycle.hasProlongedBleeding) {
-        title = "Irregular bleeding";
-        message = "Recent period was longer than typical. Monitor closely.";
+        title = l10n.insightsAnalysisIrregularBleedingTitle;
+        message = l10n.insightsAnalysisIrregularBleedingBody;
         iconColor = AppColors.menstruation;
         icon = CupertinoIcons.drop_triangle_fill;
       } else if (cycle.history.length >= 3) {
-        title = "Stable rhythm";
-        message = "Your recent cycles look highly consistent.";
+        title = l10n.insightsAnalysisStableRhythmTitle;
+        message = l10n.insightsAnalysisStableRhythmBody;
         iconColor = const Color(0xFF81C784);
         icon = CupertinoIcons.checkmark_seal_fill;
       } else if (cycle.history.isNotEmpty) {
-        title = "Learning your rhythm";
-        message = "App is building a reliable model. Keep logging.";
+        title = l10n.insightsAnalysisLearningRhythmTitle;
+        message = l10n.insightsAnalysisLearningRhythmBody;
         iconColor = AppColors.primary;
         icon = CupertinoIcons.sparkles;
       }
@@ -719,7 +738,7 @@ class _InsightsScreenState extends State<InsightsScreen> {
         children: [
           Container(
             padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(color: iconColor.withOpacity(0.15), borderRadius: BorderRadius.circular(14)),
+            decoration: BoxDecoration(color: iconColor.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(14)),
             child: Icon(icon, color: iconColor, size: 20),
           ),
           const SizedBox(width: 16),
@@ -739,13 +758,14 @@ class _InsightsScreenState extends State<InsightsScreen> {
   }
 
   Widget _buildCompactVitalsStrip(CycleProvider cycle) {
+    final l10n = AppLocalizations.of(context)!;
     return Row(
       children: [
         Expanded(
           child: _buildMetricCapsule(
-            label: "Cycle length",
+            label: l10n.insightsMetricCycleLength,
             value: "${cycle.cycleLength}",
-            suffix: "days",
+            suffix: l10n.unitDays,
             icon: CupertinoIcons.arrow_2_circlepath,
             color: AppColors.follicular,
           ),
@@ -753,9 +773,9 @@ class _InsightsScreenState extends State<InsightsScreen> {
         const SizedBox(width: 12),
         Expanded(
           child: _buildMetricCapsule(
-            label: "Period",
+            label: l10n.insightsMetricPeriod,
             value: "${cycle.avgPeriodDuration}",
-            suffix: "days",
+            suffix: l10n.unitDays,
             icon: CupertinoIcons.drop_fill,
             color: AppColors.menstruation,
           ),
@@ -765,11 +785,12 @@ class _InsightsScreenState extends State<InsightsScreen> {
   }
 
   Widget _buildFertilityStatusStrip(CycleProvider cycle) {
+    final l10n = AppLocalizations.of(context)!;
     return Row(
       children: [
         Expanded(
           child: _buildMetricCapsule(
-            label: "Fertility",
+            label: l10n.insightsMetricFertility,
             value: _fertilityLabel(cycle.conceptionChance),
             icon: CupertinoIcons.heart_circle_fill,
             color: const Color(0xFFE85D75),
@@ -779,8 +800,10 @@ class _InsightsScreenState extends State<InsightsScreen> {
         const SizedBox(width: 12),
         Expanded(
           child: _buildMetricCapsule(
-            label: "Ovulation",
-            value: cycle.isOvulationConfirmed ? "Yes" : "Pending",
+            label: l10n.insightsMetricOvulation,
+            value: cycle.isOvulationConfirmed
+                ? l10n.insightsMetricYes
+                : l10n.insightsMetricPending,
             icon: CupertinoIcons.check_mark_circled_solid,
             color: AppColors.luteal,
             compactValue: true,
@@ -887,6 +910,7 @@ class _InsightsScreenState extends State<InsightsScreen> {
   }
 
   Widget _buildClinicalFlagCard(BuildContext context, HealthFlag flag) {
+    final l10n = AppLocalizations.of(context)!;
     Color cardColor;
     IconData icon;
 
@@ -912,7 +936,7 @@ class _InsightsScreenState extends State<InsightsScreen> {
           borderRadius: 24,
           child: Container(
             decoration: BoxDecoration(
-              border: Border(left: BorderSide(color: cardColor.withOpacity(0.6), width: 4)),
+              border: Border(left: BorderSide(color: cardColor.withValues(alpha: 0.6), width: 4)),
               borderRadius: BorderRadius.circular(24),
             ),
             padding: const EdgeInsets.all(16),
@@ -922,7 +946,7 @@ class _InsightsScreenState extends State<InsightsScreen> {
                 Container(
                   width: 40,
                   height: 40,
-                  decoration: BoxDecoration(color: cardColor.withOpacity(0.12), borderRadius: BorderRadius.circular(12)),
+                  decoration: BoxDecoration(color: cardColor.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(12)),
                   child: Icon(icon, color: cardColor, size: 20),
                 ),
                 const SizedBox(width: 14),
@@ -930,10 +954,10 @@ class _InsightsScreenState extends State<InsightsScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(flag.title, style: GoogleFonts.outfit(fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
+                      Text(flag.title(l10n), style: GoogleFonts.outfit(fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
                       const SizedBox(height: 4),
                       Text(
-                        flag.description,
+                        flag.description(l10n),
                         style: GoogleFonts.inter(fontSize: 13, color: AppColors.textSecondary, height: 1.45, fontWeight: FontWeight.w500),
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
@@ -942,7 +966,7 @@ class _InsightsScreenState extends State<InsightsScreen> {
                   ),
                 ),
                 const SizedBox(width: 8),
-                Icon(CupertinoIcons.chevron_right, color: AppColors.textSecondary.withOpacity(0.3), size: 16),
+                Icon(CupertinoIcons.chevron_right, color: AppColors.textSecondary.withValues(alpha: 0.3), size: 16),
               ],
             ),
           ),
@@ -952,6 +976,7 @@ class _InsightsScreenState extends State<InsightsScreen> {
   }
 
   void _showFlagDetails(BuildContext context, HealthFlag flag, Color color, IconData icon) {
+    final l10n = AppLocalizations.of(context)!;
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
@@ -963,28 +988,28 @@ class _InsightsScreenState extends State<InsightsScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.grey.withOpacity(0.3), borderRadius: BorderRadius.circular(2))),
+              Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.grey.withValues(alpha: 0.3), borderRadius: BorderRadius.circular(2))),
               const SizedBox(height: 24),
-              Container(padding: const EdgeInsets.all(16), decoration: BoxDecoration(color: color.withOpacity(0.15), shape: BoxShape.circle), child: Icon(icon, color: color, size: 32)),
+              Container(padding: const EdgeInsets.all(16), decoration: BoxDecoration(color: color.withValues(alpha: 0.15), shape: BoxShape.circle), child: Icon(icon, color: color, size: 32)),
               const SizedBox(height: 16),
-              Text(flag.title, textAlign: TextAlign.center, style: GoogleFonts.outfit(fontSize: 22, fontWeight: FontWeight.w800, color: AppColors.textPrimary)),
+              Text(flag.title(l10n), textAlign: TextAlign.center, style: GoogleFonts.outfit(fontSize: 22, fontWeight: FontWeight.w800, color: AppColors.textPrimary)),
               const SizedBox(height: 12),
-              Text(flag.description, textAlign: TextAlign.center, style: GoogleFonts.inter(fontSize: 14, color: AppColors.textSecondary, height: 1.5, fontWeight: FontWeight.w500)),
+              Text(flag.description(l10n), textAlign: TextAlign.center, style: GoogleFonts.inter(fontSize: 14, color: AppColors.textSecondary, height: 1.5, fontWeight: FontWeight.w500)),
               const SizedBox(height: 24),
               Container(
                 padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(color: AppColors.background, borderRadius: BorderRadius.circular(20), border: Border.all(color: AppColors.textSecondary.withOpacity(0.1))),
+                decoration: BoxDecoration(color: AppColors.background, borderRadius: BorderRadius.circular(20), border: Border.all(color: AppColors.textSecondary.withValues(alpha: 0.1))),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Icon(Icons.medical_services_outlined, color: AppColors.primary, size: 20),
                     const SizedBox(width: 12),
-                    Expanded(child: Text(flag.recommendation, style: GoogleFonts.inter(fontSize: 13, color: AppColors.textPrimary, height: 1.5, fontWeight: FontWeight.w600))),
+                    Expanded(child: Text(flag.recommendation(l10n), style: GoogleFonts.inter(fontSize: 13, color: AppColors.textPrimary, height: 1.5, fontWeight: FontWeight.w600))),
                   ],
                 ),
               ),
               const SizedBox(height: 24),
-              SizedBox(width: double.infinity, child: CupertinoButton(color: AppColors.primary, borderRadius: BorderRadius.circular(16), onPressed: () => Navigator.pop(context), child: Text("Understood", style: GoogleFonts.inter(fontWeight: FontWeight.w700, color: Colors.white)))),
+              SizedBox(width: double.infinity, child: CupertinoButton(color: AppColors.primary, borderRadius: BorderRadius.circular(16), onPressed: () => Navigator.pop(context), child: Text(l10n.btnOk, style: GoogleFonts.inter(fontWeight: FontWeight.w700, color: Colors.white)))),
             ],
           ),
         ),
@@ -999,8 +1024,8 @@ class _InsightsScreenState extends State<InsightsScreen> {
         children: [
           Container(
             padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(color: Colors.white.withOpacity(0.4), shape: BoxShape.circle),
-            child: Icon(icon, size: 28, color: AppColors.textSecondary.withOpacity(0.4)),
+            decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.4), shape: BoxShape.circle),
+            child: Icon(icon, size: 28, color: AppColors.textSecondary.withValues(alpha: 0.4)),
           ),
           const SizedBox(height: 16),
           Padding(
@@ -1020,8 +1045,11 @@ class _InsightsScreenState extends State<InsightsScreen> {
     final cycleStart = cycle.currentData.cycleStartDate;
     final totalDays = cycle.currentData.totalCycleLength;
     _bbtSpots.clear();
-    _minTemp = 36.2;
-    _maxTemp = 37.2;
+
+    // 🔥 ИСПРАВЛЕНИЕ: Инициализируем экстремальными значениями для правильного масштаба
+    _minTemp = 999.0;
+    _maxTemp = 0.0;
+    bool hasValidData = false;
 
     final todayClean = DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day);
 
@@ -1033,11 +1061,25 @@ class _InsightsScreenState extends State<InsightsScreen> {
       try {
         final log = wellness.getLogForDate(cleanDate);
         if (log.temperature != null && log.temperature! > 0) {
+          hasValidData = true;
           _bbtSpots.add(FlSpot(i.toDouble() + 1, log.temperature!));
-          if (log.temperature! < _minTemp) _minTemp = log.temperature! - 0.2;
-          if (log.temperature! > _maxTemp) _maxTemp = log.temperature! + 0.2;
+          if (log.temperature! < _minTemp) _minTemp = log.temperature!;
+          if (log.temperature! > _maxTemp) _maxTemp = log.temperature!;
         }
       } catch (_) {}
+    }
+
+    // Даем отступы для красоты графика (и для Цельсия, и для Фаренгейта)
+    if (hasValidData) {
+      _minTemp -= 0.2;
+      _maxTemp += 0.2;
+      if (_minTemp == _maxTemp) {
+        _minTemp -= 0.5;
+        _maxTemp += 0.5;
+      }
+    } else {
+      _minTemp = 36.2;
+      _maxTemp = 37.2;
     }
   }
 
@@ -1066,7 +1108,10 @@ class _InsightsScreenState extends State<InsightsScreen> {
   }
 
   Widget _buildBBTChart(CycleProvider cycle) {
-    if (_bbtSpots.isEmpty) return _buildEmptyState("Log your morning temperature to see your thermal shift.", CupertinoIcons.thermometer);
+    final l10n = AppLocalizations.of(context)!;
+    if (_bbtSpots.isEmpty) {
+      return _buildEmptyState(l10n.insightsBbtEmptyBody, CupertinoIcons.thermometer);
+    }
 
     final double ovDay = cycle.ovulationDay.toDouble();
     const Color chartColor = Color(0xFFBCAAA4);
@@ -1077,14 +1122,23 @@ class _InsightsScreenState extends State<InsightsScreen> {
         lineTouchData: LineTouchData(
           enabled: true,
           touchTooltipData: LineTouchTooltipData(
-            tooltipBgColor: Colors.white.withOpacity(0.9),
+            tooltipBgColor: Colors.white.withValues(alpha: 0.9),
             tooltipRoundedRadius: 12,
             getTooltipItems: (touchedSpots) {
-              return touchedSpots.map((spot) => LineTooltipItem("${spot.y.toStringAsFixed(2)}°\nDay ${spot.x.toInt()}", GoogleFonts.inter(color: AppColors.textPrimary, fontWeight: FontWeight.w700, fontSize: 12))).toList();
+              return touchedSpots.map(
+                (spot) => LineTooltipItem(
+                  "${spot.y.toStringAsFixed(2)}°\n${l10n.dayOfCycle(spot.x.toInt())}",
+                  GoogleFonts.inter(
+                    color: AppColors.textPrimary,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 12,
+                  ),
+                ),
+              ).toList();
             },
           ),
         ),
-        gridData: FlGridData(show: true, drawVerticalLine: false, getDrawingHorizontalLine: (value) => FlLine(color: AppColors.textSecondary.withOpacity(0.10), strokeWidth: 1, dashArray: [4, 4])),
+        gridData: FlGridData(show: true, drawVerticalLine: false, getDrawingHorizontalLine: (value) => FlLine(color: AppColors.textSecondary.withValues(alpha: 0.10), strokeWidth: 1, dashArray: [4, 4])),
         titlesData: FlTitlesData(
           show: true,
           bottomTitles: AxisTitles(sideTitles: SideTitles(showTitles: true, reservedSize: 28, interval: 5, getTitlesWidget: (value, meta) => Padding(padding: const EdgeInsets.only(top: 8), child: Text("${value.toInt()}", style: GoogleFonts.inter(fontSize: 10, color: AppColors.textSecondary, fontWeight: FontWeight.w600))))),
@@ -1096,14 +1150,32 @@ class _InsightsScreenState extends State<InsightsScreen> {
         extraLinesData: ExtraLinesData(
           verticalLines: [
             if (cycle.isOvulationConfirmed)
-              VerticalLine(x: ovDay, color: chartColor, strokeWidth: 1.5, dashArray: [4, 4], label: VerticalLineLabel(show: true, alignment: Alignment.topRight, padding: const EdgeInsets.only(right: 4), style: GoogleFonts.inter(color: chartColor, fontSize: 10, fontWeight: FontWeight.w700), labelResolver: (_) => "Ovulation")),
+              VerticalLine(
+                x: ovDay,
+                color: chartColor,
+                strokeWidth: 1.5,
+                dashArray: const [4, 4],
+                label: VerticalLineLabel(
+                  show: true,
+                  alignment: Alignment.topRight,
+                  padding: const EdgeInsets.only(right: 4),
+                  style: GoogleFonts.inter(
+                    color: chartColor,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                  ),
+                  labelResolver: (_) => l10n.legendOvulation,
+                ),
+              ),
           ],
         ),
         lineBarsData: [
           LineChartBarData(
-            spots: _bbtSpots, isCurved: true, curveSmoothness: 0.35, color: chartColor, barWidth: 2.5, isStrokeCapRound: true,
+            spots: _bbtSpots,
+            isCurved: _bbtSpots.length > 2, // 🔥 ИСПРАВЛЕНИЕ КРАША FL_CHART
+            curveSmoothness: 0.35, color: chartColor, barWidth: 2.5, isStrokeCapRound: true,
             dotData: FlDotData(show: true, getDotPainter: (spot, percent, barData, index) => FlDotCirclePainter(radius: 3.5, color: Colors.white, strokeWidth: 1.5, strokeColor: chartColor)),
-            belowBarData: BarAreaData(show: true, gradient: LinearGradient(colors: [chartColor.withOpacity(0.2), chartColor.withOpacity(0.0)], begin: Alignment.topCenter, end: Alignment.bottomCenter)),
+            belowBarData: BarAreaData(show: true, gradient: LinearGradient(colors: [chartColor.withValues(alpha: 0.2), chartColor.withValues(alpha: 0.0)], begin: Alignment.topCenter, end: Alignment.bottomCenter)),
           ),
         ],
       ),
@@ -1121,7 +1193,7 @@ class _InsightsScreenState extends State<InsightsScreen> {
             children: [
               _buildSymptomListTile(entry.value.key, entry.value.value, isTTC),
               if (!isLast)
-                Divider(height: 1, indent: 56, color: AppColors.textPrimary.withOpacity(0.05)),
+                Divider(height: 1, indent: 56, color: AppColors.textPrimary.withValues(alpha: 0.05)),
             ],
           );
         }).toList(),
@@ -1130,6 +1202,7 @@ class _InsightsScreenState extends State<InsightsScreen> {
   }
 
   Widget _buildSymptomListTile(String symptomName, int count, bool isTTC) {
+    final l10n = AppLocalizations.of(context)!;
     final activeColor = isTTC ? const Color(0xFFBCAAA4) : AppColors.primary;
 
     return Padding(
@@ -1138,7 +1211,7 @@ class _InsightsScreenState extends State<InsightsScreen> {
         children: [
           Container(
             padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(color: activeColor.withOpacity(0.12), borderRadius: BorderRadius.circular(10)),
+            decoration: BoxDecoration(color: activeColor.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(10)),
             child: Icon(CupertinoIcons.waveform_path, size: 16, color: activeColor),
           ),
           const SizedBox(width: 16),
@@ -1149,7 +1222,7 @@ class _InsightsScreenState extends State<InsightsScreen> {
             ),
           ),
           Text(
-            "$count d",
+            "$count ${l10n.unitDaysShort}",
             style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.textSecondary),
           ),
         ],
@@ -1177,17 +1250,31 @@ class _InsightsScreenState extends State<InsightsScreen> {
     return sorted.take(4).toList();
   }
 
-  String _formatPhase(dynamic phase) {
-    final raw = phase.toString().split('.').last;
-    if (raw.isEmpty) return "Unknown";
-    return raw.replaceAllMapped(RegExp(r'([A-Z])'), (m) => ' ${m.group(0)}').trim().split(' ').map((e) => e.isEmpty ? e : '${e[0].toUpperCase()}${e.substring(1)}').join(' ');
+  String _formatPhase(CyclePhase phase) {
+    final l10n = AppLocalizations.of(context)!;
+    switch (phase) {
+      case CyclePhase.menstruation:
+        return l10n.phaseMenstruation;
+      case CyclePhase.follicular:
+        return l10n.phaseFollicular;
+      case CyclePhase.ovulation:
+        return l10n.phaseOvulation;
+      case CyclePhase.luteal:
+        return l10n.phaseLuteal;
+      case CyclePhase.late:
+        return l10n.phaseLate;
+    }
   }
 
   String _fertilityLabel(FertilityChance chance) {
+    final l10n = AppLocalizations.of(context)!;
     switch (chance) {
-      case FertilityChance.peak: return "Peak";
-      case FertilityChance.high: return "High";
-      case FertilityChance.low: return "Low";
+      case FertilityChance.peak:
+        return l10n.ttcChancePeak;
+      case FertilityChance.high:
+        return l10n.ttcChanceHigh;
+      case FertilityChance.low:
+        return l10n.ttcChanceLow;
     }
   }
 

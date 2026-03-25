@@ -1,6 +1,5 @@
 import 'dart:convert';
 import 'dart:math';
-import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -64,14 +63,6 @@ class SecureStorageService {
     } catch (e) {
       debugPrint("❌ SecureStorage Read Error: $e");
       return null;
-    }
-  }
-
-  Future<void> _delete(String key) async {
-    try {
-      await _storage.delete(key: key);
-    } catch (e) {
-      debugPrint("❌ SecureStorage Delete Error: $e");
     }
   }
 

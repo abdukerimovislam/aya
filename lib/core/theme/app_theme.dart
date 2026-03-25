@@ -32,10 +32,10 @@ class AppColors {
   static const Color divider = Color(0xFFE7DCE2);
 
   /// Лёгкая сетка / вспомогательные линии на чартах
-  static Color get gridLines => textPrimary.withOpacity(0.05);
+  static Color get gridLines => textPrimary.withValues(alpha: 0.05);
 
   /// Очень мягкая тень
-  static Color get softShadow => const Color(0xFF2D1F26).withOpacity(0.05);
+  static Color get softShadow => const Color(0xFF2D1F26).withValues(alpha: 0.05);
 
   // =========================
   // ✍️ TEXT
@@ -203,10 +203,10 @@ class AppColors {
   }
 
   static Color withSoftOpacity(Color color, [double opacity = 0.12]) {
-    return color.withOpacity(opacity);
+    return color.withValues(alpha: opacity);
   }
 
   static Color withMediumOpacity(Color color, [double opacity = 0.22]) {
-    return color.withOpacity(opacity);
+    return color.withValues(alpha: opacity);
   }
 }

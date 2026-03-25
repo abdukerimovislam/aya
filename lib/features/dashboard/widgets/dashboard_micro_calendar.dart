@@ -1,4 +1,3 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -139,7 +138,7 @@ class DashboardMicroCalendar extends StatelessWidget {
                                           decoration: BoxDecoration(
                                             shape: BoxShape.circle,
                                             border: Border.all(
-                                              color: Colors.white.withOpacity(0.85),
+                                              color: Colors.white.withValues(alpha: 0.85),
                                               width: 1,
                                             ),
                                           ),
@@ -172,7 +171,7 @@ class DashboardMicroCalendar extends StatelessWidget {
                             boxShadow: hasLogs
                                 ? [
                               BoxShadow(
-                                color: style.dotColor.withOpacity(0.35),
+                                color: style.dotColor.withValues(alpha: 0.35),
                                 blurRadius: 6,
                                 spreadRadius: 0.5,
                               )
@@ -226,8 +225,8 @@ class _CalendarHeader extends StatelessWidget {
             borderRadius: BorderRadius.circular(10),
             gradient: LinearGradient(
               colors: [
-                const Color(0xFFFFD6E0).withOpacity(0.95),
-                const Color(0xFFFFEFF4).withOpacity(0.95),
+                const Color(0xFFFFD6E0).withValues(alpha: 0.95),
+                const Color(0xFFFFEFF4).withValues(alpha: 0.95),
               ],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
@@ -306,8 +305,8 @@ class _DayStyle {
     const todayStart = Color(0xFFFFF7FA);
     const todayEnd = Color(0xFFFDE7EE);
 
-    final baseBorder = Colors.white.withOpacity(0.55);
-    final mutedText = AppColors.textSecondary.withOpacity(0.45);
+    final baseBorder = Colors.white.withValues(alpha: 0.55);
+    final mutedText = AppColors.textSecondary.withValues(alpha: 0.45);
 
     // 1. Месячные
     if (phase == CyclePhase.menstruation) {
@@ -319,11 +318,11 @@ class _DayStyle {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderColor: Colors.white.withOpacity(0.25),
+        borderColor: Colors.white.withValues(alpha: 0.25),
         borderWidth: 1,
         shadows: isFuture ? null : [ // Тени только для прошедших/текущих дней
           BoxShadow(
-            color: periodStart.withOpacity(0.30),
+            color: periodStart.withValues(alpha: 0.30),
             blurRadius: 12,
             offset: const Offset(0, 5),
           ),
@@ -344,11 +343,11 @@ class _DayStyle {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderColor: Colors.white.withOpacity(0.35),
+        borderColor: Colors.white.withValues(alpha: 0.35),
         borderWidth: 1,
         shadows: isFuture ? null : [
           BoxShadow(
-            color: ovulationStart.withOpacity(0.28),
+            color: ovulationStart.withValues(alpha: 0.28),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -362,14 +361,14 @@ class _DayStyle {
     // 3. Фолликулярная фаза (Нежно-бирюзовый)
     if (phase == CyclePhase.follicular && !isToday) {
       return _DayStyle(
-        weekdayColor: AppColors.textSecondary.withOpacity(0.7),
+        weekdayColor: AppColors.textSecondary.withValues(alpha: 0.7),
         backgroundColor: Colors.transparent,
         gradient: const LinearGradient(
           colors: [follicularStart, follicularEnd],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderColor: Colors.white.withOpacity(0.3),
+        borderColor: Colors.white.withValues(alpha: 0.3),
         borderWidth: 1,
         shadows: null,
         dayTextColor: const Color(0xFF00838F),
@@ -381,14 +380,14 @@ class _DayStyle {
     // 4. Лютеиновая фаза (Нежно-сиреневый)
     if (phase == CyclePhase.luteal && !isToday) {
       return _DayStyle(
-        weekdayColor: AppColors.textSecondary.withOpacity(0.7),
+        weekdayColor: AppColors.textSecondary.withValues(alpha: 0.7),
         backgroundColor: Colors.transparent,
         gradient: const LinearGradient(
           colors: [lutealStart, lutealEnd],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderColor: Colors.white.withOpacity(0.3),
+        borderColor: Colors.white.withValues(alpha: 0.3),
         borderWidth: 1,
         shadows: null,
         dayTextColor: const Color(0xFF6A1B9A),
@@ -400,14 +399,14 @@ class _DayStyle {
     // 5. Задержка (Мягкий персиковый)
     if (phase == CyclePhase.late && !isToday) {
       return _DayStyle(
-        weekdayColor: const Color(0xFFE65100).withOpacity(0.7),
+        weekdayColor: const Color(0xFFE65100).withValues(alpha: 0.7),
         backgroundColor: Colors.transparent,
         gradient: const LinearGradient(
           colors: [lateStart, lateEnd],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderColor: Colors.white.withOpacity(0.3),
+        borderColor: Colors.white.withValues(alpha: 0.3),
         borderWidth: 1,
         shadows: null,
         dayTextColor: const Color(0xFFE65100),
@@ -423,8 +422,8 @@ class _DayStyle {
         backgroundColor: Colors.transparent,
         gradient: LinearGradient(
           colors: [
-            todayStart.withOpacity(0.96),
-            todayEnd.withOpacity(0.96),
+            todayStart.withValues(alpha: 0.96),
+            todayEnd.withValues(alpha: 0.96),
           ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
@@ -433,7 +432,7 @@ class _DayStyle {
         borderWidth: 1.2,
         shadows: [
           BoxShadow(
-            color: const Color(0xFFFFD3DE).withOpacity(0.45),
+            color: const Color(0xFFFFD3DE).withValues(alpha: 0.45),
             blurRadius: 14,
             spreadRadius: 0.5,
             offset: const Offset(0, 6),
@@ -443,7 +442,7 @@ class _DayStyle {
         dayFontWeight: FontWeight.w800,
         dotColor: hasLogs
             ? const Color(0xFFE8A3B5)
-            : const Color(0xFFFFD3DE).withOpacity(0.5),
+            : const Color(0xFFFFD3DE).withValues(alpha: 0.5),
       );
     }
 
@@ -451,22 +450,22 @@ class _DayStyle {
     return _DayStyle(
       weekdayColor: isFuture
           ? mutedText
-          : AppColors.textSecondary.withOpacity(0.7),
-      backgroundColor: Colors.white.withOpacity(0.08),
+          : AppColors.textSecondary.withValues(alpha: 0.7),
+      backgroundColor: Colors.white.withValues(alpha: 0.08),
       gradient: null,
-      borderColor: baseBorder.withOpacity(isFuture ? 0.18 : 0.32),
+      borderColor: baseBorder.withValues(alpha: isFuture ? 0.18 : 0.32),
       borderWidth: 1,
       shadows: isFuture
           ? null
           : [
         BoxShadow(
-          color: Colors.black.withOpacity(0.04),
+          color: Colors.black.withValues(alpha: 0.04),
           blurRadius: 8,
           offset: const Offset(0, 4),
         ),
       ],
       dayTextColor: isFuture
-          ? AppColors.textSecondary.withOpacity(0.55)
+          ? AppColors.textSecondary.withValues(alpha: 0.55)
           : AppColors.textPrimary,
       dayFontWeight: FontWeight.w600,
       dotColor: hasLogs

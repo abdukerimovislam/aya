@@ -56,6 +56,10 @@
 	<string>EviMoon needs access to photos to save your medical PDF reports and backup files.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>EviMoon needs access to photos to restore your data from backup files.</string>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>remote-notification</string>
+	</array>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
 	<key>UIFileSharingEnabled</key>

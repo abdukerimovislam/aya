@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import '../../l10n/app_localizations.dart';
 import '../models/cycle_model.dart';
 import '../providers/wellness_provider.dart';
 
@@ -8,11 +9,65 @@ enum HealthFlagType {
 
 class HealthFlag {
   final HealthFlagType type;
-  final String title;
-  final String description;
-  final String recommendation;
 
-  HealthFlag({required this.type, required this.title, required this.description, required this.recommendation});
+  const HealthFlag({required this.type});
+
+  String title(AppLocalizations l10n) {
+    switch (type) {
+      case HealthFlagType.pcos:
+        return l10n.healthFlagPcosTitle;
+      case HealthFlagType.endometriosis:
+        return l10n.healthFlagEndometriosisTitle;
+      case HealthFlagType.lutealDefect:
+        return l10n.healthFlagLutealDefectTitle;
+      case HealthFlagType.menorrhagia:
+        return l10n.healthFlagMenorrhagiaTitle;
+      case HealthFlagType.polymenorrhea:
+        return l10n.healthFlagPolymenorrheaTitle;
+      case HealthFlagType.pmdd:
+        return l10n.healthFlagPmddTitle;
+      case HealthFlagType.amenorrhea:
+        return l10n.healthFlagAmenorrheaTitle;
+    }
+  }
+
+  String description(AppLocalizations l10n) {
+    switch (type) {
+      case HealthFlagType.pcos:
+        return l10n.healthFlagPcosBody;
+      case HealthFlagType.endometriosis:
+        return l10n.healthFlagEndometriosisBody;
+      case HealthFlagType.lutealDefect:
+        return l10n.healthFlagLutealDefectBody;
+      case HealthFlagType.menorrhagia:
+        return l10n.healthFlagMenorrhagiaBody;
+      case HealthFlagType.polymenorrhea:
+        return l10n.healthFlagPolymenorrheaBody;
+      case HealthFlagType.pmdd:
+        return l10n.healthFlagPmddBody;
+      case HealthFlagType.amenorrhea:
+        return l10n.healthFlagAmenorrheaBody;
+    }
+  }
+
+  String recommendation(AppLocalizations l10n) {
+    switch (type) {
+      case HealthFlagType.pcos:
+        return l10n.healthFlagPcosRecommendation;
+      case HealthFlagType.endometriosis:
+        return l10n.healthFlagEndometriosisRecommendation;
+      case HealthFlagType.lutealDefect:
+        return l10n.healthFlagLutealDefectRecommendation;
+      case HealthFlagType.menorrhagia:
+        return l10n.healthFlagMenorrhagiaRecommendation;
+      case HealthFlagType.polymenorrhea:
+        return l10n.healthFlagPolymenorrheaRecommendation;
+      case HealthFlagType.pmdd:
+        return l10n.healthFlagPmddRecommendation;
+      case HealthFlagType.amenorrhea:
+        return l10n.healthFlagAmenorrheaRecommendation;
+    }
+  }
 }
 
 // 🔥 ЧИСТЫЕ КЛАССЫ БЕЗ HIVE ДЛЯ ПЕРЕДАЧИ В ИЗОЛЯТ
@@ -29,11 +84,11 @@ class _PureCycle {
 class _PureLog {
   final DateTime date;
   final int mood;
-  final List<String> moodSymptoms;
+  final List<String> symptoms; // 🔥 ИСПРАВЛЕНИЕ: Теперь принимаем реальные симптомы из UI
   final List<String> painSymptoms;
   final int flowIndex;
 
-  _PureLog(this.date, this.mood, this.moodSymptoms, this.painSymptoms, this.flowIndex);
+  _PureLog(this.date, this.mood, this.symptoms, this.painSymptoms, this.flowIndex);
 }
 
 class HealthPatternDetector {
@@ -50,7 +105,7 @@ class HealthPatternDetector {
     )).toList();
 
     final pureLogs = wellness.getLogHistory().map((l) => _PureLog(
-      l.date, l.mood, List<String>.from(l.moodSymptoms), List<String>.from(l.painSymptoms), l.flow.index,
+      l.date, l.mood, List<String>.from(l.symptoms), List<String>.from(l.painSymptoms), l.flow.index,
     )).toList();
 
     final payload = {
@@ -73,9 +128,7 @@ class HealthPatternDetector {
 
     if (_detectAmenorrhea(cycles, now)) {
       detectedFlags.add(HealthFlag(
-        type: HealthFlagType.amenorrhea, title: "Prolonged Cycle Delay",
-        description: "Your current cycle has lasted over 90 days.",
-        recommendation: "This is known as secondary amenorrhea. If pregnancy is ruled out, it can be caused by stress, weight changes, or hormonal imbalances. Please consult a doctor.",
+        type: HealthFlagType.amenorrhea,
       ));
     }
 
@@ -83,49 +136,37 @@ class HealthPatternDetector {
 
     if (_detectPCOS(completedCycles)) {
       detectedFlags.add(HealthFlag(
-        type: HealthFlagType.pcos, title: "Irregular Cycle Pattern",
-        description: "Your cycles vary significantly in length or are consistently longer than 35 days.",
-        recommendation: "This pattern is sometimes associated with PCOS or thyroid issues. Consider sharing this data with your gynecologist.",
+        type: HealthFlagType.pcos,
       ));
     }
 
     if (_detectEndo(allLogs, now)) {
       detectedFlags.add(HealthFlag(
-        type: HealthFlagType.endometriosis, title: "High Pain Profile",
-        description: "You frequently log severe pelvic pain combined with heavy flow.",
-        recommendation: "Severe period pain that disrupts your life is not normal. This pattern can sometimes indicate endometriosis or fibroids. A doctor can help you manage this.",
+        type: HealthFlagType.endometriosis,
       ));
     }
 
     if (_detectLutealDefect(completedCycles)) {
       detectedFlags.add(HealthFlag(
-        type: HealthFlagType.lutealDefect, title: "Short Luteal Phase",
-        description: "The time between your ovulation and your next period is consistently short (< 10 days).",
-        recommendation: "A short luteal phase is often linked to low progesterone, which can make it harder to conceive. Useful to mention if you are planning a pregnancy.",
+        type: HealthFlagType.lutealDefect,
       ));
     }
 
     if (_detectMenorrhagia(completedCycles)) {
       detectedFlags.add(HealthFlag(
-        type: HealthFlagType.menorrhagia, title: "Prolonged Bleeding",
-        description: "Your periods consistently last 8 days or longer.",
-        recommendation: "Prolonged bleeding (menorrhagia) can lead to iron deficiency and fatigue. It's highly recommended to check your iron levels.",
+        type: HealthFlagType.menorrhagia,
       ));
     }
 
     if (_detectPolymenorrhea(completedCycles)) {
       detectedFlags.add(HealthFlag(
-        type: HealthFlagType.polymenorrhea, title: "Unusually Short Cycles",
-        description: "Your cycles are consistently shorter than 21 days.",
-        recommendation: "Frequent periods can cause anemia and indicate an ovulation issue. Worth discussing with a healthcare provider.",
+        type: HealthFlagType.polymenorrhea,
       ));
     }
 
     if (_detectPMDD(completedCycles, allLogs)) {
       detectedFlags.add(HealthFlag(
-        type: HealthFlagType.pmdd, title: "Severe Mood Drops (Luteal)",
-        description: "You consistently log very low mood, anxiety, or depression in the week before your period.",
-        recommendation: "This cyclic emotional drop may be PMDD (Premenstrual Dysphoric Disorder). You don't have to suffer through this alone—treatments are available.",
+        type: HealthFlagType.pmdd,
       ));
     }
 
@@ -148,7 +189,8 @@ class HealthPatternDetector {
     final recentLogs = allLogs.where((log) => now.difference(log.date).inDays <= 90).toList();
     int severePainDays = 0, heavyFlowDays = 0;
     for (var log in recentLogs) {
-      if (log.painSymptoms.contains('cramps') || log.painSymptoms.contains('pelvic_pain')) severePainDays++;
+      // 🔥 ИСПРАВЛЕНИЕ: Ищем по реальным тегам UI из массива painSymptoms
+      if (log.painSymptoms.contains('Cramps') || log.painSymptoms.contains('Backache')) severePainDays++;
       if (log.flowIndex >= 3) heavyFlowDays++;
     }
     return severePainDays >= 6 && heavyFlowDays >= 3;
@@ -202,7 +244,8 @@ class HealthPatternDetector {
         final key = "${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}";
         if (logsMap.containsKey(key)) {
           final log = logsMap[key]!;
-          if (log.mood <= 2 || log.moodSymptoms.contains('depression') || log.moodSymptoms.contains('anxiety')) {
+          // 🔥 ИСПРАВЛЕНИЕ: Ищем по реальным тегам UI из массива symptoms
+          if (log.mood <= 2 || log.symptoms.contains('Anxious') || log.symptoms.contains('Crying Spells') || log.symptoms.contains('Irritable')) {
             hasDrop = true;
             break;
           }

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart'; // 🔥 Нужен для открытия настроек iOS
 
@@ -34,9 +33,10 @@ class SubscriptionStatusSheet extends StatelessWidget {
     if (context.mounted) {
       if (success) {
         await context.read<SettingsProvider>().refreshPremium();
+        if (!context.mounted) return;
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text("Purchases restored successfully!"), backgroundColor: Colors.green)
+          SnackBar(content: Text(l10n.subscriptionRestoreSuccess), backgroundColor: Colors.green),
         );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -70,7 +70,7 @@ class SubscriptionStatusSheet extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: Colors.amber.withOpacity(0.1),
+              color: Colors.amber.withValues(alpha: 0.1),
               shape: BoxShape.circle,
             ),
             child: const Icon(Icons.verified_rounded, size: 50, color: Colors.amber),
@@ -99,7 +99,7 @@ class SubscriptionStatusSheet extends StatelessWidget {
             trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 16, color: Colors.grey),
             shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(16),
-                side: BorderSide(color: Colors.grey.withOpacity(0.2))
+                side: BorderSide(color: Colors.grey.withValues(alpha: 0.2))
             ),
           ),
 

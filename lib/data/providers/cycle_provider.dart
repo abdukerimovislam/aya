@@ -1,15 +1,10 @@
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
 import 'package:hive/hive.dart';
-import 'package:intl/intl.dart';
 import 'dart:math' as math;
 
 import '../../core/services/notification_service.dart';
 import '../../core/services/cycle_notification_manager.dart';
-import '../../core/services/secure_storage_service.dart';
-import '../../core/services/health_service.dart';
 import '../../core/services/partner_sync_service.dart';
-import '../../l10n/app_localizations.dart';
 import '../models/cycle_model.dart';
 import '../logic/cycle_ai_engine.dart';
 import '../logic/cycle_calculator.dart';
@@ -32,6 +27,7 @@ class CycleProvider with ChangeNotifier {
   Box _cycleBox;
   Box _settingsBox;
   final NotificationService? _notificationService;
+  final Future<Box> Function(String name)? _encryptedBoxOpener;
 
   CycleData _currentData = CycleData.empty();
   List<CycleModel> _history = [];
@@ -76,7 +72,12 @@ class CycleProvider with ChangeNotifier {
 
   bool get isPeriodEnded => _settingsBox.get('current_period_ended', defaultValue: false);
 
-  CycleProvider(this._cycleBox, this._settingsBox, [this._notificationService]) {
+  CycleProvider(
+    this._cycleBox,
+    this._settingsBox, [
+    this._notificationService,
+    this._encryptedBoxOpener,
+  ]) {
     _init();
   }
 
@@ -134,9 +135,19 @@ class CycleProvider with ChangeNotifier {
     return current >= math.max(1, ovDay - 5) && current <= (ovDay + 1);
   }
 
+  Future<Box> _reopenEncryptedBox(String name) async {
+    if (_encryptedBoxOpener != null) {
+      return _encryptedBoxOpener!(name);
+    }
+    if (Hive.isBoxOpen(name)) {
+      return Hive.box(name);
+    }
+    throw StateError("Encrypted Hive box '$name' is closed and no encrypted opener was provided.");
+  }
+
   Future<void> _ensureBoxOpen() async {
-    if (!_settingsBox.isOpen) _settingsBox = await Hive.openBox(_settingsBox.name);
-    if (!_cycleBox.isOpen) _cycleBox = await Hive.openBox(_cycleBox.name);
+    if (!_settingsBox.isOpen) _settingsBox = await _reopenEncryptedBox(_settingsBox.name);
+    if (!_cycleBox.isOpen) _cycleBox = await _reopenEncryptedBox(_cycleBox.name);
   }
 
   void _loadOverrides() {
@@ -176,9 +187,13 @@ class CycleProvider with ChangeNotifier {
       } else {
         final bool oldCOC = _settingsBox.get('coc_enabled', defaultValue: false);
         final bool oldTTC = _settingsBox.get('ttc_mode_enabled', defaultValue: false);
-        if (oldCOC) _appMode = AppMode.coc;
-        else if (oldTTC) _appMode = AppMode.ttc;
-        else _appMode = AppMode.standard;
+        if (oldCOC) {
+          _appMode = AppMode.coc;
+        } else if (oldTTC) {
+          _appMode = AppMode.ttc;
+        } else {
+          _appMode = AppMode.standard;
+        }
         await _settingsBox.put('app_mode', _appMode.index);
       }
 

@@ -1,6 +1,4 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
@@ -55,7 +53,7 @@ class PdfService {
     if (logs.isEmpty) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text("Not enough data to generate a report. Keep logging!"))
+          SnackBar(content: Text(l10n.msgExportEmpty)),
         );
       }
       return;
@@ -73,7 +71,7 @@ class PdfService {
       debugPrint("Error generating PDF: $e");
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text("Error creating PDF: $e"))
+          SnackBar(content: Text('${l10n.msgExportError}: $e')),
         );
       }
     }
@@ -86,7 +84,7 @@ class PdfService {
     required CycleProvider cycleProvider,
     required MedicationProvider medProvider, // 🔥
     required AppLocalizations l10n,
-    String userName = "Patient",
+    String userName = "",
   }) async {
     final pdf = pw.Document();
 
@@ -144,7 +142,7 @@ class PdfService {
 
             // 🔥 3. ПРЕПАРАТЫ И ВИТАМИНЫ (НОВЫЙ БЛОК)
             if (medProvider.activeMedications.isNotEmpty) ...[
-              pw.Text("ACTIVE MEDICATIONS & SUPPLEMENTS", style: pw.TextStyle(font: fontBold, fontSize: 12, letterSpacing: 1.0, color: primaryColor)),
+              pw.Text(l10n.pdfMedicationRegistry.toUpperCase(), style: pw.TextStyle(font: fontBold, fontSize: 12, letterSpacing: 1.0, color: primaryColor)),
               pw.SizedBox(height: 8),
               _buildMedicationRegistry(medProvider, fontRegular, fontBold),
               pw.SizedBox(height: 20),
@@ -162,7 +160,7 @@ class PdfService {
             pw.Padding(
               padding: const pw.EdgeInsets.only(top: 10),
               child: pw.Text(
-                "This report is generated automatically based on user input. It is not a medical diagnosis. Please consult a healthcare professional for clinical advice.",
+                l10n.pdfDisclaimer,
                 style: pw.TextStyle(font: fontRegular, fontSize: 8, color: PdfColors.grey600, fontStyle: pw.FontStyle.italic),
                 textAlign: pw.TextAlign.center,
               ),
@@ -182,6 +180,7 @@ class PdfService {
 
   pw.Widget _buildMedicalHeader(String name, DateTime start, DateTime end, pw.Font bold, pw.Font regular, AppLocalizations l10n) {
     final now = DateTime.now();
+    final safeName = name.trim().isEmpty ? l10n.pdfDefaultPatient : name;
     return pw.Row(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
       mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
@@ -189,17 +188,17 @@ class PdfService {
         pw.Column(
           crossAxisAlignment: pw.CrossAxisAlignment.start,
           children: [
-            pw.Text("AYLA HEALTH REPORT", style: pw.TextStyle(font: bold, fontSize: 22, color: primaryColor)),
+            pw.Text(l10n.pdfReportTitle.toUpperCase(), style: pw.TextStyle(font: bold, fontSize: 22, color: primaryColor)),
             pw.SizedBox(height: 4),
-            pw.Text("Period: ${DateFormat('MMM dd, yyyy').format(start)} - ${DateFormat('MMM dd, yyyy').format(end)}", style: pw.TextStyle(font: regular, fontSize: 10, color: PdfColors.grey700)),
+            pw.Text(l10n.pdfPeriodRange(DateFormat('MMM dd, yyyy').format(start), DateFormat('MMM dd, yyyy').format(end)), style: pw.TextStyle(font: regular, fontSize: 10, color: PdfColors.grey700)),
           ],
         ),
         pw.Column(
           crossAxisAlignment: pw.CrossAxisAlignment.end,
           children: [
-            pw.Text("Patient ID: $name", style: pw.TextStyle(font: bold, fontSize: 12)),
+            pw.Text('${l10n.pdfPatient}: $safeName', style: pw.TextStyle(font: bold, fontSize: 12)),
             pw.SizedBox(height: 2),
-            pw.Text("Generated: ${DateFormat('dd.MM.yyyy').format(now)}", style: pw.TextStyle(font: regular, fontSize: 10, color: PdfColors.grey600)),
+            pw.Text('${l10n.pdfGenerated}: ${DateFormat('dd.MM.yyyy').format(now)}', style: pw.TextStyle(font: regular, fontSize: 10, color: PdfColors.grey600)),
           ],
         )
       ],
@@ -229,12 +228,12 @@ class PdfService {
     PdfColor borderColor = const PdfColor.fromInt(0xFFD3C9FF);
 
     if (cycle.isCOCEnabled) {
-      text = "Active Oral Contraceptive (COC) Profile";
+      text = "COC";
       textColor = const PdfColor.fromInt(0xFF00B4D8);
       bgColor = const PdfColor.fromInt(0xFFE5F7FA);
       borderColor = const PdfColor.fromInt(0xFFB2EBF4);
     } else if (cycle.isTTCMode) {
-      text = "Trying to Conceive (TTC) Profile";
+      text = "TTC";
       textColor = accentColor;
       bgColor = const PdfColor.fromInt(0xFFFFEAF0);
       borderColor = const PdfColor.fromInt(0xFFFFB3C6);
@@ -303,12 +302,12 @@ class PdfService {
         pw.TableRow(
           decoration: const pw.BoxDecoration(color: primaryColor),
           children: [
-            _th("DATE", bold, color: PdfColors.white),
-            _th("CD", bold, color: PdfColors.white),
-            _th("BBT", bold, color: PdfColors.white),
-            _th("FLOW", bold, color: PdfColors.white),
-            _th("CLINICAL SYMPTOMS", bold, color: PdfColors.white),
-            _th("MEDS", bold, color: PdfColors.white),
+            _th(l10n.pdfTableDate.toUpperCase(), bold, color: PdfColors.white),
+            _th(l10n.pdfTableCD.toUpperCase(), bold, color: PdfColors.white),
+            _th(l10n.pdfTableBBT.toUpperCase(), bold, color: PdfColors.white),
+            _th(l10n.pdfFlowShort.toUpperCase(), bold, color: PdfColors.white),
+            _th(l10n.pdfClinicalSymptoms.toUpperCase(), bold, color: PdfColors.white),
+            _th(l10n.pdfMedicationShort.toUpperCase(), bold, color: PdfColors.white),
           ],
         ),
         // Rows
@@ -323,8 +322,8 @@ class PdfService {
           symptoms.addAll(log.painSymptoms);
           symptoms.addAll(log.symptoms);
 
-          if (log.hadSex) symptoms.add(log.protectedSex ? "Sex (P)" : "Sex (U)");
-          if (log.ovulationTest != OvulationTestResult.none) symptoms.add("LH: ${_lhShort(log.ovulationTest)}");
+          if (log.hadSex) symptoms.add(log.protectedSex ? l10n.pdfSymptomSexProtected : l10n.pdfSymptomSexUnprotected);
+          if (log.ovulationTest != OvulationTestResult.none) symptoms.add('${l10n.lblTest}: ${_lhShort(log.ovulationTest)}');
 
           return pw.TableRow(
             decoration: pw.BoxDecoration(color: isEven ? PdfColors.white : PdfColors.grey100),
@@ -358,9 +357,9 @@ class PdfService {
 
   String _flowShort(FlowIntensity f, AppLocalizations l10n) {
     switch (f) {
-      case FlowIntensity.light: return "Light";
-      case FlowIntensity.medium: return "Med";
-      case FlowIntensity.heavy: return "Heavy";
+      case FlowIntensity.light: return l10n.flowLight;
+      case FlowIntensity.medium: return l10n.pdfFlowMedium;
+      case FlowIntensity.heavy: return l10n.flowHeavy;
       default: return "-";
     }
   }

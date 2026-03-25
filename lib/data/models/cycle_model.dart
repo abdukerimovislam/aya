@@ -21,7 +21,7 @@ extension CyclePhaseColor on CyclePhase {
       case CyclePhase.follicular: return AppColors.follicular;
       case CyclePhase.ovulation: return AppColors.ovulation;
       case CyclePhase.luteal: return AppColors.luteal;
-      case CyclePhase.late: default: return AppColors.textSecondary;
+      case CyclePhase.late: return AppColors.textSecondary;
     }
   }
 

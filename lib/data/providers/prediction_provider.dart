@@ -93,4 +93,29 @@ class PredictionProvider extends ChangeNotifier {
     await _box!.putAt(0, _model!);
     notifyListeners();
   }
+
+  Future<void> reset() async {
+    if (!_isInitialized) {
+      await init();
+    }
+
+    if (_box == null) {
+      _model = PersonalModel.initial();
+      _isInitialized = true;
+      notifyListeners();
+      return;
+    }
+
+    final freshModel = PersonalModel.initial();
+
+    if (_box!.isEmpty) {
+      await _box!.add(freshModel);
+    } else {
+      await _box!.putAt(0, freshModel);
+    }
+
+    _model = freshModel;
+    _isInitialized = true;
+    notifyListeners();
+  }
 }

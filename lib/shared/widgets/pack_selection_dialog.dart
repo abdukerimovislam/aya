@@ -46,11 +46,11 @@ class _PackSelectionDialogState extends State<PackSelectionDialog> {
             width: MediaQuery.of(context).size.width * 0.9,
             padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.95),
+              color: Colors.white.withValues(alpha: 0.95),
               borderRadius: BorderRadius.circular(32),
               boxShadow: [
                 BoxShadow(
-                  color: AppColors.primary.withOpacity(0.2),
+                  color: AppColors.primary.withValues(alpha: 0.2),
                   blurRadius: 40,
                   offset: const Offset(0, 10),
                 ),
@@ -94,8 +94,8 @@ class _PackSelectionDialogState extends State<PackSelectionDialog> {
 
                   // 1: Классика с перерывом (Ярина, Жанин)
                   _PackOptionCard(
-                    title: "21 Pills",
-                    subtitle: "21 Active + 7 Days Break",
+                    title: l10n.pack21Title,
+                    subtitle: l10n.pack21Subtitle,
                     icon: Icons.pause_circle_outline_rounded,
                     color: const Color(0xFFFF8A80),
                     isSelected: _selected == 21,
@@ -108,8 +108,8 @@ class _PackSelectionDialogState extends State<PackSelectionDialog> {
 
                   // 2: Классика с плацебо (Мидиана)
                   _PackOptionCard(
-                    title: "28 Pills (21+7)",
-                    subtitle: "21 Active + 7 Placebo",
+                    title: l10n.pack28Title,
+                    subtitle: l10n.pack28Subtitle,
                     icon: Icons.water_drop_outlined,
                     color: const Color(0xFF69F0AE),
                     isSelected: _selected == 28,
@@ -122,8 +122,8 @@ class _PackSelectionDialogState extends State<PackSelectionDialog> {
 
                   // 3: Укороченный перерыв (Джес, Yaz)
                   _PackOptionCard(
-                    title: "28 Pills (24+4)",
-                    subtitle: "24 Active + 4 Placebo",
+                    title: l10n.pack24Title,
+                    subtitle: l10n.pack24Subtitle,
                     icon: Icons.bolt_rounded,
                     color: const Color(0xFF42A5F5), // Голубой акцент
                     isSelected: _selected == 24,
@@ -136,8 +136,8 @@ class _PackSelectionDialogState extends State<PackSelectionDialog> {
 
                   // 🔥 4: Мини-пили / Непрерывный режим (Лактинет)
                   _PackOptionCard(
-                    title: "Continuous / Mini-Pill",
-                    subtitle: "28 Active (No Break)",
+                    title: l10n.packContinuousTitle,
+                    subtitle: l10n.packContinuousSubtitle,
                     icon: Icons.all_inclusive_rounded,
                     color: Colors.deepPurpleAccent,
                     isSelected: _selected == 0, // 0 = специальный код для непрерывных
@@ -207,16 +207,16 @@ class _PackOptionCard extends StatelessWidget {
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12), // Сделал чуть тоньше для экономии места
         decoration: BoxDecoration(
-          color: isSelected ? color.withOpacity(0.1) : Colors.white,
+          color: isSelected ? color.withValues(alpha: 0.1) : Colors.white,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: isSelected ? color : Colors.grey.withOpacity(0.2),
+            color: isSelected ? color : Colors.grey.withValues(alpha: 0.2),
             width: isSelected ? 2 : 1.5,
           ),
           boxShadow: [
             if (!isSelected)
               BoxShadow(
-                color: Colors.black.withOpacity(0.02),
+                color: Colors.black.withValues(alpha: 0.02),
                 blurRadius: 10,
                 offset: const Offset(0, 4),
               )
@@ -227,12 +227,12 @@ class _PackOptionCard extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: isSelected ? color : AppColors.textSecondary.withOpacity(0.05),
+                color: isSelected ? color : AppColors.textSecondary.withValues(alpha: 0.05),
                 shape: BoxShape.circle,
               ),
               child: Icon(
                 icon,
-                color: isSelected ? Colors.white : AppColors.textSecondary.withOpacity(0.5),
+                color: isSelected ? Colors.white : AppColors.textSecondary.withValues(alpha: 0.5),
                 size: 20, // Уменьшил иконку, чтобы текст лучше влезал
               ),
             ),
@@ -255,7 +255,7 @@ class _PackOptionCard extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w500,
-                      color: isSelected ? AppColors.textSecondary : AppColors.textSecondary.withOpacity(0.6),
+                      color: isSelected ? AppColors.textSecondary : AppColors.textSecondary.withValues(alpha: 0.6),
                     ),
                   ),
                 ],

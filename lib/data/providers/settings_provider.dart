@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:hive/hive.dart';
+import 'package:firebase_messaging/firebase_messaging.dart'; // 🔥 ИМПОРТ FCM ДЛЯ ТОПИКОВ
 
 import '../../core/services/notification_service.dart';
 import '../../core/services/secure_storage_service.dart';
 import '../../core/services/subscription_service.dart';
-import '../models/timer_design.dart';
 
 class SettingsProvider extends ChangeNotifier {
   final Box _box;
@@ -13,7 +13,6 @@ class SettingsProvider extends ChangeNotifier {
 
   static const String _keyOnboarding = 'has_seen_onboarding';
   static const String _keyDailyLog = 'daily_log_enabled';
-  static const String _keyDesign = 'timer_design_index';
   static const String _keyPremium = 'is_premium';
   static const String _keyLanguage = 'language_code';
 
@@ -32,17 +31,15 @@ class SettingsProvider extends ChangeNotifier {
   bool _biometricsEnabled = false;
   bool _dailyLogEnabled = false;
 
-  TimerDesign _currentDesign = TimerDesign.nebula;
   bool _isPremium = false;
 
-  String _userName = "User";
+  String _userName = "";
   String _userAvatar = "👩";
 
   Locale get locale => _locale;
   bool get notificationsEnabled => _notificationsEnabled;
   bool get biometricsEnabled => _biometricsEnabled;
   bool get dailyLogEnabled => _dailyLogEnabled;
-  TimerDesign get currentDesign => _currentDesign;
   bool get isPremium => _isPremium;
 
   String get userName => _userName;
@@ -86,9 +83,8 @@ class SettingsProvider extends ChangeNotifier {
       _notificationsEnabled = false;
       _biometricsEnabled = false;
       _dailyLogEnabled = false;
-      _currentDesign = TimerDesign.nebula;
       _isPremium = false;
-      _userName = "User";
+      _userName = "";
       _userAvatar = "👩";
     } else {
       _notificationsEnabled = await _storageService.getNotificationsEnabled();
@@ -97,15 +93,8 @@ class SettingsProvider extends ChangeNotifier {
       _dailyLogEnabled = _box.get(_keyDailyLog, defaultValue: false);
       _isPremium = _box.get(_keyPremium, defaultValue: false);
 
-      _userName = _box.get(_keyUserName, defaultValue: "User");
+      _userName = _box.get(_keyUserName, defaultValue: "");
       _userAvatar = _box.get(_keyUserAvatar, defaultValue: "👩");
-
-      final savedDesignIndex = _box.get(_keyDesign);
-      if (savedDesignIndex != null && savedDesignIndex is int) {
-        if (savedDesignIndex >= 0 && savedDesignIndex < TimerDesign.values.length) {
-          _currentDesign = TimerDesign.values[savedDesignIndex];
-        }
-      }
     }
 
     final savedLang = _box.get(_keyLanguage) as String?;
@@ -162,11 +151,6 @@ class SettingsProvider extends ChangeNotifier {
       if (actualStatus != _isPremium) {
         _isPremium = actualStatus;
         await _box.put(_keyPremium, _isPremium);
-
-        if (!_isPremium && _currentDesign.isPremium) {
-          _currentDesign = TimerDesign.nebula;
-          await _box.put(_keyDesign, TimerDesign.nebula.index);
-        }
         notifyListeners();
       }
     } catch (e) {
@@ -180,9 +164,19 @@ class SettingsProvider extends ChangeNotifier {
 
   Future<void> setLocale(Locale locale) async {
     if (_locale == locale) return;
+
+    // 🔥 Отписываемся от старого топика, чтобы не дублировать языки!
+    final oldCode = _locale.languageCode;
+
     _locale = locale;
     await _box.put(_keyLanguage, locale.languageCode);
     await _storageService.saveLanguage(locale.languageCode);
+
+    try {
+      await FirebaseMessaging.instance.unsubscribeFromTopic('lang_$oldCode');
+      await FirebaseMessaging.instance.subscribeToTopic('lang_${locale.languageCode}');
+    } catch (_) {}
+
     notifyListeners();
   }
 
@@ -212,25 +206,9 @@ class SettingsProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<bool> setDesign(TimerDesign design) async {
-    if (!design.isPremium || (design.isPremium && _isPremium)) {
-      _currentDesign = design;
-      await _box.put(_keyDesign, design.index);
-      notifyListeners();
-      return true;
-    }
-    return false;
-  }
-
   Future<void> setPremiumStatus(bool status) async {
     _isPremium = status;
     await _box.put(_keyPremium, status);
-
-    if (!status && _currentDesign.isPremium) {
-      _currentDesign = TimerDesign.nebula;
-      await _box.put(_keyDesign, TimerDesign.nebula.index);
-    }
-
     notifyListeners();
   }
 
@@ -258,10 +236,9 @@ class SettingsProvider extends ChangeNotifier {
     _notificationsEnabled = false;
     _biometricsEnabled = false;
     _dailyLogEnabled = false;
-    _currentDesign = TimerDesign.nebula;
     _isPremium = false;
-    _userName = "User";
-    _userAvatar = "束";
+    _userName = "";
+    _userAvatar = "👩";
 
     await _loadSettings();
     notifyListeners();

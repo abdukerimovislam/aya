@@ -1,10 +1,10 @@
-import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:hive/hive.dart';
 
+import '../navigation/app_navigation.dart';
 import 'notification_service.dart';
-import '../../main.dart'; // 🔥 ИМПОРТ ПЕРЕНЕСЕН НАВЕРХ!
+import '../../features/onboarding/splash_screen.dart';
 
 // 🔥 ГЛОБАЛЬНЫЙ ПЕРЕХВАТЧИК (Для фоновых уведомлений)
 // Должен быть Top-Level функцией, чтобы работать, когда приложение убито.
@@ -52,7 +52,7 @@ class FCMService {
             id: message.hashCode,
             title: message.notification!.title ?? 'Ayla',
             body: message.notification!.body ?? '',
-            payload: message.data['route'],
+            payload: message.data['route']?.toString(),
           );
         }
       });
@@ -67,10 +67,8 @@ class FCMService {
       final RemoteMessage? initialMessage = await _messaging.getInitialMessage();
       if (initialMessage != null) {
         debugPrint('🔔 [FCM Terminated] App opened from push!');
-        // Даем Flutter время отрисовать первый экран перед роутингом
-        Future.delayed(const Duration(milliseconds: 1500), () {
-          _handleRouting(initialMessage.data);
-        });
+        // 🔥 ИСПРАВЛЕНИЕ: Убрали слепой хардкодный таймер Future.delayed
+        _handleRouting(initialMessage.data);
       }
 
       // 6. Подписываем юзера на языковые и общие топики
@@ -91,8 +89,9 @@ class FCMService {
       await _messaging.subscribeToTopic('all_users');
       await _messaging.subscribeToTopic('new_articles');
 
-      // Подписываем в зависимости от языка
-      final box = await Hive.openBox('settings');
+      // 🔥 ИСПРАВЛЕНИЕ: Используем Hive.box (база уже открыта с ключом шифрования в main.dart)
+      // Если сделать openBox без шифрования здесь, приложение упадет!
+      final box = Hive.box('settings');
       final String? lang = box.get('language_code');
 
       if (lang != null && lang.isNotEmpty) {
@@ -109,14 +108,15 @@ class FCMService {
 
   // --- РОУТИНГ ПОСЛЕ КЛИКА ---
 
-  static void _handleRouting(Map<String, dynamic> data) {
-    if (data.containsKey('route')) {
-      final route = data['route'];
+  static Future<void> _handleRouting(Map<String, dynamic> data) async {
+    final payload = data['route']?.toString();
+    if (payload == null) return;
 
-      // Пример: если маркетолог прислал пуш с { "route": "/profile" }
-      if (route == '/profile' || route == '/calendar') {
-        navigatorKey.currentState?.pushNamed(route);
-      }
+    if (SplashScreen.isActive) {
+      queueNotificationNavigation(payload);
+      return;
     }
+
+    await navigateToNotificationPayload(payload);
   }
 }

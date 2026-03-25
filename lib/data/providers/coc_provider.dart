@@ -8,6 +8,13 @@ enum PillStatus { taken, missed, pending, future }
 class COCProvider with ChangeNotifier {
   final Box _box;
   final NotificationService _notifications;
+  final Future<void> Function({
+    required int id,
+    required String title,
+    required String body,
+    required TimeOfDay time,
+  })? _scheduleDailyNotificationOverride;
+  final Future<void> Function(int id)? _cancelNotificationOverride;
 
   bool _isEnabled = false;
   TimeOfDay _reminderTime = const TimeOfDay(hour: 20, minute: 0);
@@ -33,7 +40,18 @@ class COCProvider with ChangeNotifier {
 
   static const int _notificationId = 1001;
 
-  COCProvider(this._box, this._notifications) {
+  COCProvider(
+    this._box,
+    this._notifications, {
+    Future<void> Function({
+      required int id,
+      required String title,
+      required String body,
+      required TimeOfDay time,
+    })? scheduleDailyNotificationOverride,
+    Future<void> Function(int id)? cancelNotificationOverride,
+  })  : _scheduleDailyNotificationOverride = scheduleDailyNotificationOverride,
+        _cancelNotificationOverride = cancelNotificationOverride {
     _init();
   }
 
@@ -159,6 +177,8 @@ class COCProvider with ChangeNotifier {
     required DateTime startDate,
     required int activePills,
     required int breakDays,
+    String? notifTitle,
+    String? notifBody,
   }) async {
     _startDate = _normalizeDate(startDate);
     _activePillCount = activePills;
@@ -168,7 +188,7 @@ class COCProvider with ChangeNotifier {
     await _box.put(_keyPillCount, activePills);
     await _box.put(_keyBreakDays, breakDays);
 
-    await toggleCOC(true);
+    await toggleCOC(true, notifTitle: notifTitle, notifBody: notifBody);
   }
 
   Future<void> toggleCOC(bool value, {String? notifTitle, String? notifBody}) async {
@@ -180,7 +200,11 @@ class COCProvider with ChangeNotifier {
         await _scheduleNotification(notifTitle, notifBody);
       }
     } else {
-      await _notifications.cancelNotification(_notificationId);
+      if (_cancelNotificationOverride != null) {
+        await _cancelNotificationOverride!(_notificationId);
+      } else {
+        await _notifications.cancelNotification(_notificationId);
+      }
     }
     notifyListeners();
   }
@@ -251,6 +275,10 @@ class COCProvider with ChangeNotifier {
 
   Future<void> takePillOnDate(DateTime date) async {
     final normDate = _normalizeDate(date);
+    final today = _normalizeDate(DateTime.now());
+
+    // 🔥 ИСПРАВЛЕНИЕ: Защита от "путешествий во времени"
+    if (normDate.isAfter(today)) return;
 
     if (_isSameDayInList(_missed, normDate)) {
       _missed.removeWhere((d) => _isSameDay(d, normDate));
@@ -325,6 +353,15 @@ class COCProvider with ChangeNotifier {
   // --- Notifications ---
 
   Future<void> _scheduleNotification(String title, String body) async {
+    if (_scheduleDailyNotificationOverride != null) {
+      await _scheduleDailyNotificationOverride!(
+        id: _notificationId,
+        title: title,
+        body: body,
+        time: _reminderTime,
+      );
+      return;
+    }
     await _notifications.scheduleDailyNotification(
       id: _notificationId,
       title: title,
@@ -337,5 +374,26 @@ class COCProvider with ChangeNotifier {
     if (_isEnabled) {
       await _scheduleNotification(title, body);
     }
+  }
+
+  Future<void> resetData() async {
+    _isEnabled = false;
+    _reminderTime = const TimeOfDay(hour: 20, minute: 0);
+    _history = [];
+    _missed = [];
+    _startDate = DateTime.now();
+    _activePillCount = 21;
+    _breakDays = 7;
+    _packFormatCode = 21;
+
+    await _box.clear();
+
+    if (_cancelNotificationOverride != null) {
+      await _cancelNotificationOverride!(_notificationId);
+    } else {
+      await _notifications.cancelNotification(_notificationId);
+    }
+
+    notifyListeners();
   }
 }

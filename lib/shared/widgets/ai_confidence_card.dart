@@ -33,21 +33,21 @@ class AIConfidenceCard extends StatelessWidget {
     switch (c.level) {
       case ConfidenceLevel.high:
         accentColor = AppColors.chartLuteal; // Зеленый/Спокойный
-        iconBgColor = accentColor.withOpacity(0.1);
+        iconBgColor = accentColor.withValues(alpha: 0.1);
         icon = Icons.verified_user_outlined;
         title = l10n.aiForecastHigh;
         subtitle = l10n.aiForecastHighSub;
         break;
       case ConfidenceLevel.medium:
         accentColor = AppColors.chartOvulation; // Оранжевый/Предупреждение
-        iconBgColor = accentColor.withOpacity(0.1);
+        iconBgColor = accentColor.withValues(alpha: 0.1);
         icon = Icons.shield_outlined;
         title = l10n.aiForecastMedium;
         subtitle = l10n.aiForecastMediumSub;
         break;
       case ConfidenceLevel.low:
         accentColor = AppColors.chartMenstruation; // Красный/Внимание
-        iconBgColor = accentColor.withOpacity(0.1);
+        iconBgColor = accentColor.withValues(alpha: 0.1);
         icon = Icons.info_outline_rounded;
         title = l10n.aiForecastLow;
         subtitle = l10n.aiForecastLowSub;
@@ -79,7 +79,7 @@ class AIConfidenceCard extends StatelessWidget {
           boxShadow: [
             // 🔥 Динамическая тень под цвет темы
             BoxShadow(
-              color: AppColors.primary.withOpacity(0.06),
+              color: AppColors.primary.withValues(alpha: 0.06),
               blurRadius: 15,
               offset: const Offset(0, 4),
             ),
@@ -130,7 +130,7 @@ class AIConfidenceCard extends StatelessWidget {
                               Icon(
                                 Icons.lock_outline,
                                 size: 14,
-                                color: AppColors.textSecondary.withOpacity(0.5),
+                                color: AppColors.textSecondary.withValues(alpha: 0.5),
                               ),
                             ],
                           ],

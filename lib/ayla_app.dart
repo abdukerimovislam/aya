@@ -18,14 +18,24 @@ import 'features/insights/insights_screen.dart';
 import 'features/profile/profile_screen.dart';
 
 class MainScreen extends StatefulWidget {
-  const MainScreen({super.key});
+  // 🔥 ИСПРАВЛЕНИЕ: Теперь экран поддерживает старт с любого таба
+  final int initialIndex;
+
+  const MainScreen({super.key, this.initialIndex = 0});
 
   @override
   State<MainScreen> createState() => _MainScreenState();
 }
 
 class _MainScreenState extends State<MainScreen> {
-  int _currentIndex = 0;
+  late int _currentIndex;
+
+  @override
+  void initState() {
+    super.initState();
+    // Инициализируем стартовый индекс из параметра
+    _currentIndex = widget.initialIndex;
+  }
 
   void _onTabTapped(int index) {
     HapticFeedback.selectionClick();
@@ -87,26 +97,6 @@ class _MainScreenState extends State<MainScreen> {
   }
 }
 
-class _PlaceholderScreen extends StatelessWidget {
-  final String title;
-  const _PlaceholderScreen({required this.title});
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Text(
-        "$title\n(Coming Soon)",
-        textAlign: TextAlign.center,
-        style: TextStyle(
-          color: AppColors.textPrimary,
-          fontSize: 20,
-          fontWeight: FontWeight.bold,
-        ),
-      ),
-    );
-  }
-}
-
 class _FloatingTabBar extends StatelessWidget {
   final int currentIndex;
   final Function(int) onTap;
@@ -127,11 +117,11 @@ class _FloatingTabBar extends StatelessWidget {
         child: Container(
           height: 70,
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.75),
+            color: Colors.white.withValues(alpha: 0.75),
             borderRadius: BorderRadius.circular(35),
-            border: Border.all(color: Colors.white.withOpacity(0.6), width: 1.5),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.6), width: 1.5),
             boxShadow: [
-              BoxShadow(color: AppColors.primary.withOpacity(0.15), blurRadius: 30, offset: const Offset(0, 10))
+              BoxShadow(color: AppColors.primary.withValues(alpha: 0.15), blurRadius: 30, offset: const Offset(0, 10))
             ],
           ),
           // 🔥 ИСПОЛЬЗУЕМ LAYOUT BUILDER ДЛЯ ЖИДКОЙ АНИМАЦИИ
@@ -151,7 +141,7 @@ class _FloatingTabBar extends StatelessWidget {
                       width: tabWidth * 0.7,
                       child: Container(
                         decoration: BoxDecoration(
-                          color: AppColors.primary.withOpacity(0.15),
+                          color: AppColors.primary.withValues(alpha: 0.15),
                           borderRadius: BorderRadius.circular(20),
                         ),
                       ),
@@ -202,7 +192,7 @@ class _TabBarItem extends StatelessWidget {
             curve: Curves.easeOutBack,
             child: Icon(
                 icon,
-                color: isSelected ? AppColors.primary : AppColors.textSecondary.withOpacity(0.5),
+                color: isSelected ? AppColors.primary : AppColors.textSecondary.withValues(alpha: 0.5),
                 size: 26
             ),
           ),

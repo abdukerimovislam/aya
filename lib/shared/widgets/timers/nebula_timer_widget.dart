@@ -50,7 +50,6 @@ class _NebulaTimerWidgetState extends State<NebulaTimerWidget> with TickerProvid
   late AnimationController _pulseController;
 
   int? _selectedDay;
-  bool _isDragging = false;
 
   final List<_NanoParticle> _particles = [];
   final int _particleCount = 600;
@@ -109,7 +108,9 @@ class _NebulaTimerWidgetState extends State<NebulaTimerWidget> with TickerProvid
     if (oldWidget.data.cycleStartDate != widget.data.cycleStartDate ||
         oldWidget.isCOC != widget.isCOC ||
         oldWidget.isTTC != widget.isTTC) {
-      setState(() { _selectedDay = null; _isDragging = false; });
+      setState(() {
+        _selectedDay = null;
+      });
     }
 
     final wasLate = oldWidget.data.phase == CyclePhase.late;
@@ -147,33 +148,57 @@ class _NebulaTimerWidgetState extends State<NebulaTimerWidget> with TickerProvid
     }
   }
 
-  Map<String, String> _getTTCLabels(int currentDay, int ovulationDay, int totalLength, CyclePhase phase) {
+  Map<String, String> _getTTCLabels(
+    int currentDay,
+    int ovulationDay,
+    int totalLength,
+    CyclePhase phase,
+    AppLocalizations l10n,
+  ) {
     if (phase == CyclePhase.menstruation) {
-      return {"label": "PERIOD", "value": "DAY $currentDay"};
+      return {
+        "label": l10n.timerPeriod,
+        "value": l10n.timerDayValue(currentDay).toUpperCase(),
+      };
     } else if (phase == CyclePhase.follicular) {
       int fertileStart = math.max(1, ovulationDay - 5);
       int daysToFertile = fertileStart - currentDay;
       if (daysToFertile > 0) {
-        return {"label": "FERTILE IN", "value": "$daysToFertile DAYS"};
+        return {
+          "label": l10n.timerFertileIn,
+          "value": l10n.timerDaysValue(daysToFertile).toUpperCase(),
+        };
       } else {
         int fertileDayNum = currentDay - fertileStart + 1;
-        return {"label": "FERTILE WINDOW", "value": "DAY $fertileDayNum"};
+        return {
+          "label": l10n.timerFertileWindow,
+          "value": l10n.timerDayValue(fertileDayNum).toUpperCase(),
+        };
       }
     } else if (phase == CyclePhase.ovulation) {
       if (currentDay == ovulationDay) {
-        return {"label": "OVULATION", "value": "PEAK"};
+        return {"label": l10n.timerOvulation, "value": l10n.lblPeak.toUpperCase()};
       } else {
         int fertileStart = math.max(1, ovulationDay - 5);
         int fertileDayNum = currentDay - fertileStart + 1;
-        return {"label": "FERTILE WINDOW", "value": "DAY $fertileDayNum"};
+        return {
+          "label": l10n.timerFertileWindow,
+          "value": l10n.timerDayValue(fertileDayNum).toUpperCase(),
+        };
       }
     } else if (phase == CyclePhase.luteal) {
       int dpo = currentDay - ovulationDay;
       if (dpo <= 0) dpo = 1;
-      return {"label": "PAST OVULATION", "value": "$dpo DPO"};
+      return {
+        "label": l10n.timerPastOvulation,
+        "value": l10n.timerDpoValue(dpo).toUpperCase(),
+      };
     } else {
       int daysLate = currentDay - totalLength;
-      return {"label": "CYCLE DELAY", "value": "$daysLate DAYS"};
+      return {
+        "label": l10n.timerCycleDelay,
+        "value": l10n.timerDaysValue(daysLate).toUpperCase(),
+      };
     }
   }
 
@@ -222,12 +247,18 @@ class _NebulaTimerWidgetState extends State<NebulaTimerWidget> with TickerProvid
     String labelText;
 
     if (widget.isTTC && _selectedDay == null) {
-      final ttcData = _getTTCLabels(widget.data.currentDay, phases[2] - 1, widget.data.totalCycleLength, displayPhase);
+      final ttcData = _getTTCLabels(
+        widget.data.currentDay,
+        phases[2] - 1,
+        widget.data.totalCycleLength,
+        displayPhase,
+        l10n,
+      );
       labelText = ttcData['label']!;
       mainNumberText = ttcData['value']!;
     } else {
       mainNumberText = isLate ? "$daysLate" : "$displayDay";
-      labelText = isLate ? "DAYS LATE" : "DAY";
+      labelText = isLate ? l10n.timerDaysLate : l10n.dayTitle.toUpperCase();
     }
 
     return LayoutBuilder(
@@ -243,14 +274,13 @@ class _NebulaTimerWidgetState extends State<NebulaTimerWidget> with TickerProvid
               behavior: HitTestBehavior.translucent,
               onPanStart: (details) {
                 if (isLate && _selectedDay == null) return;
-                setState(() => _isDragging = true);
                 _handlePan(details.localPosition, widgetSize);
               },
               onPanUpdate: (details) {
                 if (isLate && _selectedDay == null) return;
                 _handlePan(details.localPosition, widgetSize);
               },
-              onPanEnd: (details) => setState(() => _isDragging = false),
+              onPanEnd: (details) {},
               child: Stack(
                 alignment: Alignment.center,
                 children: [
@@ -312,9 +342,9 @@ class _NebulaTimerWidgetState extends State<NebulaTimerWidget> with TickerProvid
                               filter: ui.ImageFilter.blur(sigmaX: 8, sigmaY: 8),
                               child: Container(
                                 decoration: BoxDecoration(
-                                  color: Colors.white.withOpacity(0.65),
+                                  color: Colors.white.withValues(alpha: 0.65),
                                   shape: BoxShape.circle,
-                                  border: Border.all(color: Colors.white.withOpacity(0.8), width: 1.5 * scale),
+                                  border: Border.all(color: Colors.white.withValues(alpha: 0.8), width: 1.5 * scale),
                                 ),
                               ),
                             ),
@@ -359,7 +389,7 @@ class _NebulaTimerWidgetState extends State<NebulaTimerWidget> with TickerProvid
                                   child: Container(
                                     padding: EdgeInsets.symmetric(horizontal: 8 * scale, vertical: 4 * scale),
                                     decoration: BoxDecoration(
-                                        color: displayColor.withOpacity(0.15),
+                                        color: displayColor.withValues(alpha: 0.15),
                                         borderRadius: BorderRadius.circular(20 * scale)
                                     ),
                                     child: Text(
@@ -454,8 +484,8 @@ class _NebulaTimerWidgetState extends State<NebulaTimerWidget> with TickerProvid
 
   String _getName(BuildContext context, CyclePhase phase, AppLocalizations l10n, bool isCOC, bool isTTC) {
     if (isCOC) return phase == CyclePhase.menstruation ? l10n.cocBreakPhase : l10n.cocActivePhase;
-    if (isTTC && phase == CyclePhase.follicular) return "PREPARING";
-    if (isTTC && phase == CyclePhase.luteal) return "TWW / DPO";
+    if (isTTC && phase == CyclePhase.follicular) return l10n.timerPreparing;
+    if (isTTC && phase == CyclePhase.luteal) return l10n.timerTwwDpo;
 
     switch (phase) {
       case CyclePhase.menstruation: return l10n.phaseMenstruation;
@@ -492,7 +522,7 @@ class _OrbitTicksPainter extends CustomPainter {
     final radius = size.width / 2;
 
     final Paint trackPaint = Paint()
-      ..color = Colors.black.withOpacity(0.04)
+      ..color = Colors.black.withValues(alpha: 0.04)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 2.0;
     final Paint tickPaint = Paint()..style = PaintingStyle.fill;
@@ -508,7 +538,7 @@ class _OrbitTicksPainter extends CustomPainter {
         double endAngle = (2 * math.pi / totalDays) * (endFertile - 1) - (math.pi / 2);
         double sweepAngle = endAngle - startAngle;
 
-        Color glowColor = isTTC ? const Color(0xFFBCAAA4).withOpacity(0.5) : const Color(0xFFB7D7FF).withOpacity(0.4);
+        Color glowColor = isTTC ? const Color(0xFFBCAAA4).withValues(alpha: 0.5) : const Color(0xFFB7D7FF).withValues(alpha: 0.4);
 
         canvas.drawArc(
             Rect.fromCircle(center: center, radius: radius),
@@ -531,13 +561,16 @@ class _OrbitTicksPainter extends CustomPainter {
       if (isCOC) {
         tickColor = dayNum <= phases[0] ? const Color(0xFFFF8FA8) : const Color(0xFFB2EBF2);
       } else {
-        if (dayNum <= phases[0]) tickColor = const Color(0xFFFF8FA8);
-        else if (dayNum <= phases[1]) tickColor = const Color(0xFFB2EBF2);
-        else if (dayNum <= phases[2]) {
+        if (dayNum <= phases[0]) {
+          tickColor = const Color(0xFFFF8FA8);
+        } else if (dayNum <= phases[1]) {
+          tickColor = const Color(0xFFB2EBF2);
+        } else if (dayNum <= phases[2]) {
           tickColor = isTTC ? const Color(0xFFBCAAA4) : const Color(0xFFB7D7FF);
           isFertile = true;
+        } else {
+          tickColor = const Color(0xFFE1BEE7);
         }
-        else tickColor = const Color(0xFFE1BEE7);
       }
 
       final angle = (2 * math.pi / totalDays) * i - (math.pi / 2);
@@ -548,13 +581,13 @@ class _OrbitTicksPainter extends CustomPainter {
       canvas.translate(x, y);
 
       if (selectedDay == dayNum) {
-        tickPaint.color = tickColor.withOpacity(0.9);
+        tickPaint.color = tickColor.withValues(alpha: 0.9);
         canvas.drawCircle(Offset.zero, 8, tickPaint);
         canvas.drawCircle(Offset.zero, 6.5, whiteTickPaint);
       } else if (currentDay == dayNum && selectedDay == null) {
-        tickPaint.color = tickColor.withOpacity(0.85);
+        tickPaint.color = tickColor.withValues(alpha: 0.85);
 
-        final Paint haloPaint = Paint()..color = tickColor.withOpacity(0.3 * (1 - pulseValue))..style = PaintingStyle.fill;
+        final Paint haloPaint = Paint()..color = tickColor.withValues(alpha: 0.3 * (1 - pulseValue))..style = PaintingStyle.fill;
         canvas.drawCircle(Offset.zero, 8 + (pulseValue * 5), haloPaint);
 
         canvas.drawCircle(Offset.zero, 8, tickPaint);
@@ -564,7 +597,7 @@ class _OrbitTicksPainter extends CustomPainter {
         double circleRadius = isFertile && !isCOC ? 4.0 : 3.2;
 
         if (isPast) {
-          tickPaint.color = tickColor.withOpacity(0.8);
+          tickPaint.color = tickColor.withValues(alpha: 0.8);
           canvas.drawCircle(Offset.zero, circleRadius, tickPaint);
         } else {
           final Paint strokePaint = Paint()
@@ -703,13 +736,13 @@ class _NanoParticlePainter extends CustomPainter {
       int colorIndex = (colorMix * 99).round().clamp(0, 99);
       Color finalColor = colorPalette[colorIndex];
 
-      particlePaint.color = finalColor.withOpacity(opacity);
+      particlePaint.color = finalColor.withValues(alpha: opacity);
       Offset screenPos = Offset(center.dx + x, center.dy + y);
 
       canvas.drawCircle(screenPos, drawSize, particlePaint);
 
       if (depth > 0.85) {
-        glowPaint.color = finalColor.withOpacity((opacity * 0.15).clamp(0.0, 1.0));
+        glowPaint.color = finalColor.withValues(alpha: (opacity * 0.15).clamp(0.0, 1.0));
         canvas.drawCircle(screenPos, drawSize * 2.5, glowPaint);
       }
     }

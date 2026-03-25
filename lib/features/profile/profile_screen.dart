@@ -1,5 +1,4 @@
 import 'dart:io' show Platform;
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
@@ -16,13 +15,14 @@ import '../../core/services/auth_service.dart';
 import '../../core/services/backup_service.dart';
 import '../../core/services/health_service.dart';
 import '../../core/services/pdf_service.dart';
-import '../../core/services/secure_storage_service.dart';
 import '../../core/theme/app_theme.dart';
 import '../../data/models/cycle_model.dart';
 import '../../data/providers/coc_provider.dart';
 import '../../data/providers/cycle_provider.dart';
+import '../../data/providers/prediction_provider.dart';
 import '../../data/providers/settings_provider.dart';
 import '../../data/providers/wellness_provider.dart';
+import '../../data/providers/medication_provider.dart';
 import '../../shared/widgets/mode_transition_overlay.dart';
 import '../../shared/widgets/premium_glass_card.dart';
 import '../../shared/widgets/pack_selection_dialog.dart';
@@ -115,7 +115,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: Colors.red.withOpacity(0.10),
+                color: Colors.red.withValues(alpha: 0.10),
                 shape: BoxShape.circle,
               ),
               child: const Icon(CupertinoIcons.exclamationmark_triangle_fill, color: Colors.red),
@@ -130,7 +130,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ],
         ),
         content: Text(
-          "This action cannot be undone. All your health logs, cycle history, and settings will be permanently deleted from this device.",
+          l10n.dialogResetBody,
           style: GoogleFonts.inter(fontSize: 14, color: AppColors.textSecondary, height: 1.45),
         ),
         actionsPadding: const EdgeInsets.only(bottom: 16, right: 16, left: 16),
@@ -153,13 +153,38 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
 
     if (confirmed == true && context.mounted) {
+      final settings = context.read<SettingsProvider>();
+      final cycle = context.read<CycleProvider>();
+      final wellness = context.read<WellnessProvider>();
+      final coc = context.read<COCProvider>();
+      final prediction = context.read<PredictionProvider>();
+      final medications = context.read<MedicationProvider>();
+
       try {
-        final storage = context.read<SettingsProvider>().storageService;
-        await storage.clearAll();
-        await SecureStorageService().clearAll();
-        await Hive.deleteFromDisk();
+        await settings.storageService.clearAll();
+        await settings.wipeData();
+        await coc.resetData();
+        await wellness.clearAllLogs();
+        await medications.wipeData();
+        await prediction.reset();
+
+        if (Hive.isBoxOpen('ai_insights')) {
+          await Hive.box('ai_insights').clear();
+        } else if (await Hive.boxExists('ai_insights')) {
+          final aiBox = await Hive.openBox('ai_insights');
+          await aiBox.clear();
+          await aiBox.close();
+        }
+
+        await cycle.reload();
       } catch (e) {
         debugPrint("Error clearing data: $e");
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(l10n.profileResetFailed)),
+          );
+        }
+        return;
       }
 
       if (context.mounted) {
@@ -178,7 +203,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     showGeneralDialog(
       context: context,
       barrierDismissible: true,
-      barrierLabel: "Dismiss",
+      barrierLabel: AppLocalizations.of(context)!.tapToClose,
       transitionDuration: const Duration(milliseconds: 300),
       pageBuilder: (ctx, _, __) => const SizedBox(),
       transitionBuilder: (ctx, anim, _, child) => Transform.scale(
@@ -205,7 +230,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     showGeneralDialog(
       context: context,
       barrierDismissible: true,
-      barrierLabel: "Dismiss",
+      barrierLabel: AppLocalizations.of(context)!.tapToClose,
       transitionDuration: const Duration(milliseconds: 300),
       pageBuilder: (ctx, _, __) => const SizedBox(),
       transitionBuilder: (ctx, anim, _, child) => Transform.scale(
@@ -241,6 +266,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ),
               );
               if (picked != null) {
+                if (!context.mounted) return;
                 ModeTransitionOverlay.show(
                   context,
                   TransitionMode.coc,
@@ -315,6 +341,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   void _showGoalSelector(BuildContext context) {
     final cycle = context.read<CycleProvider>();
     final currentMode = cycle.appMode;
+    final l10n = AppLocalizations.of(context)!;
 
     _showSheet(
       context,
@@ -328,13 +355,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
             mainAxisSize: MainAxisSize.min,
             children: [
               const SizedBox(height: 12),
-              Container(width: 42, height: 5, decoration: BoxDecoration(color: Colors.grey.withOpacity(0.28), borderRadius: BorderRadius.circular(999))),
+              Container(width: 42, height: 5, decoration: BoxDecoration(color: Colors.grey.withValues(alpha: 0.28), borderRadius: BorderRadius.circular(999))),
               const SizedBox(height: 20),
-              Text("My Goal", style: GoogleFonts.outfit(fontSize: 22, fontWeight: FontWeight.w800, color: AppColors.textPrimary)),
+              Text(l10n.profileGoalSectionTitle, style: GoogleFonts.outfit(fontSize: 22, fontWeight: FontWeight.w800, color: AppColors.textPrimary)),
               const SizedBox(height: 18),
               _GoalOption(
-                title: "Track my cycle",
-                subtitle: "Standard period and ovulation tracking",
+                title: l10n.modeTrackCycle,
+                subtitle: l10n.profileGoalTrackBody,
                 icon: CupertinoIcons.drop,
                 color: AppColors.primary,
                 isSelected: currentMode == AppMode.standard,
@@ -342,15 +369,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   Navigator.pop(context);
                   if (currentMode != AppMode.standard) {
                     ModeTransitionOverlay.show(
-                      context, TransitionMode.tracking, "Setting up cycle tracking...",
+                      context, TransitionMode.tracking, l10n.transitionTrack,
                       onComplete: () { cycle.setAppMode(AppMode.standard); if (context.mounted) _goToHome(context); },
                     );
                   }
                 },
               ),
               _GoalOption(
-                title: "Prevent pregnancy",
-                subtitle: "Track my birth control pill",
+                title: l10n.profileGoalPreventTitle,
+                subtitle: l10n.profileGoalPreventBody,
                 icon: CupertinoIcons.shield,
                 color: Colors.teal,
                 isSelected: currentMode == AppMode.coc,
@@ -360,8 +387,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 },
               ),
               _GoalOption(
-                title: "Try to conceive",
-                subtitle: "Maximized fertility predictions & BBT",
+                title: l10n.profileGoalConceiveTitle,
+                subtitle: l10n.profileGoalConceiveBody,
                 icon: CupertinoIcons.heart_circle,
                 color: Colors.purple,
                 isSelected: currentMode == AppMode.ttc,
@@ -371,8 +398,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
                   HapticFeedback.heavyImpact();
                   final msg = currentMode == AppMode.coc
-                      ? "Congratulations on this beautiful decision!\n\nSwitching from birth control to pregnancy planning means your natural hormones will restart. We will clear your pill history and begin a completely fresh cycle starting today. Are you ready?"
-                      : "Congratulations on this beautiful decision!\n\nWe will now optimize your AI predictions to pinpoint your exact fertile window and activate advanced tools like Basal Body Temperature tracking. Are you ready?";
+                      ? l10n.profileGoalConceiveFromPillBody
+                      : l10n.profileGoalConceiveConfirmBody;
 
                   showDialog(
                     context: context,
@@ -381,25 +408,25 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
                       title: Row(
                         children: [
-                          Container(padding: const EdgeInsets.all(8), decoration: BoxDecoration(color: Colors.purple.withOpacity(0.10), shape: BoxShape.circle), child: const Icon(CupertinoIcons.sparkles, color: Colors.purple)),
+                          Container(padding: const EdgeInsets.all(8), decoration: BoxDecoration(color: Colors.purple.withValues(alpha: 0.10), shape: BoxShape.circle), child: const Icon(CupertinoIcons.sparkles, color: Colors.purple)),
                           const SizedBox(width: 12),
-                          Expanded(child: Text("Exciting Journey! 🎉", style: GoogleFonts.outfit(fontWeight: FontWeight.w800, fontSize: 20, color: AppColors.textPrimary))),
+                          Expanded(child: Text(l10n.profileGoalConceiveDialogTitle, style: GoogleFonts.outfit(fontWeight: FontWeight.w800, fontSize: 20, color: AppColors.textPrimary))),
                         ],
                       ),
                       content: Text(msg, style: GoogleFonts.inter(fontSize: 14, color: AppColors.textSecondary, height: 1.45)),
                       actionsPadding: const EdgeInsets.only(bottom: 16, right: 16, left: 16),
                       actions: [
-                        TextButton(onPressed: () => Navigator.pop(ctx), child: Text("Cancel", style: GoogleFonts.inter(color: AppColors.textSecondary, fontWeight: FontWeight.w600))),
+                        TextButton(onPressed: () => Navigator.pop(ctx), child: Text(l10n.btnCancel, style: GoogleFonts.inter(color: AppColors.textSecondary, fontWeight: FontWeight.w600))),
                         ElevatedButton(
                           style: ElevatedButton.styleFrom(backgroundColor: Colors.purple, elevation: 0, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
                           onPressed: () {
                             Navigator.pop(ctx);
                             ModeTransitionOverlay.show(
-                              context, TransitionMode.ttc, "Setting up pregnancy planning...",
+                              context, TransitionMode.ttc, l10n.transitionTTC,
                               onComplete: () { cycle.setAppMode(AppMode.ttc); if (context.mounted) _goToHome(context); },
                             );
                           },
-                          child: Text("Yes, I'm ready", style: GoogleFonts.inter(fontWeight: FontWeight.w700, color: Colors.white)),
+                          child: Text(l10n.profileGoalReadyAction, style: GoogleFonts.inter(fontWeight: FontWeight.w700, color: Colors.white)),
                         ),
                       ],
                     ),
@@ -423,10 +450,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final coc = context.watch<COCProvider>();
 
     final isPremium = settings.isPremium;
-    final String goalText = cycle.appMode == AppMode.standard ? "Track my cycle" : cycle.appMode == AppMode.coc ? "Prevent pregnancy (Pill)" : "Try to conceive";
+    final String goalText = cycle.appMode == AppMode.standard
+        ? l10n.modeTrackCycle
+        : cycle.appMode == AppMode.coc
+        ? l10n.profileGoalPreventPillTitle
+        : l10n.profileGoalConceiveTitle;
     final IconData goalIcon = cycle.appMode == AppMode.standard ? CupertinoIcons.drop : cycle.appMode == AppMode.coc ? CupertinoIcons.shield : CupertinoIcons.heart_circle;
     final Color goalColor = cycle.appMode == AppMode.standard ? AppColors.primary : cycle.appMode == AppMode.coc ? Colors.teal : Colors.purple;
-    final safeName = settings.userName.trim().isEmpty ? "User" : settings.userName.trim();
+    final safeName = settings.userName.trim().isEmpty ? l10n.lblUser : settings.userName.trim();
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -441,7 +472,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   colors: [
                     AppColors.background,
                     AppColors.background,
-                    AppColors.secondaryBackground.withOpacity(0.45),
+                    AppColors.secondaryBackground.withValues(alpha: 0.45),
                   ],
                 ),
               ),
@@ -455,8 +486,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
               height: 220,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: AppColors.primary.withOpacity(0.08),
-                boxShadow: [BoxShadow(color: AppColors.primary.withOpacity(0.10), blurRadius: 90, spreadRadius: 10)],
+                color: AppColors.primary.withValues(alpha: 0.08),
+                boxShadow: [BoxShadow(color: AppColors.primary.withValues(alpha: 0.10), blurRadius: 90, spreadRadius: 10)],
               ),
             ),
           ),
@@ -468,8 +499,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
               height: 180,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: const Color(0xFF8E71C7).withOpacity(0.06),
-                boxShadow: [BoxShadow(color: const Color(0xFF8E71C7).withOpacity(0.08), blurRadius: 80, spreadRadius: 8)],
+                color: const Color(0xFF8E71C7).withValues(alpha: 0.06),
+                boxShadow: [BoxShadow(color: const Color(0xFF8E71C7).withValues(alpha: 0.08), blurRadius: 80, spreadRadius: 8)],
               ),
             ),
           ),
@@ -483,7 +514,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 stretch: true,
                 automaticallyImplyLeading: false,
                 centerTitle: true,
-                title: Text("Profile", style: GoogleFonts.outfit(color: AppColors.textPrimary, fontWeight: FontWeight.w800, fontSize: 20)),
+                title: Text(l10n.profileTitle, style: GoogleFonts.outfit(color: AppColors.textPrimary, fontWeight: FontWeight.w800, fontSize: 20)),
                 flexibleSpace: FlexibleSpaceBar(
                   collapseMode: CollapseMode.parallax,
                   background: SafeArea(
@@ -498,22 +529,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
                 sliver: SliverList(
                   delegate: SliverChildListDelegate([
-                    _buildSectionHeader("My Goal"),
+                    _buildSectionHeader(l10n.profileGoalSectionTitle),
                     _buildGlassGroup([
                       ProfileSettingsTile(
-                        icon: goalIcon, iconColor: goalColor, title: goalText, subtitle: "Your current tracking mode",
+                        icon: goalIcon, iconColor: goalColor, title: goalText, subtitle: l10n.profileGoalCurrentModeBody,
                         trailing: Row(
                           mainAxisSize: MainAxisSize.min,
-                          children: [Text("Change", style: GoogleFonts.inter(color: AppColors.primary, fontWeight: FontWeight.w800, fontSize: 14)), const SizedBox(width: 8), Icon(Icons.arrow_forward_ios_rounded, size: 14, color: AppColors.textSecondary.withOpacity(0.45))],
+                          children: [Text(l10n.profileChangeAction, style: GoogleFonts.inter(color: AppColors.primary, fontWeight: FontWeight.w800, fontSize: 14)), const SizedBox(width: 8), Icon(Icons.arrow_forward_ios_rounded, size: 14, color: AppColors.textSecondary.withValues(alpha: 0.45))],
                         ),
                         onTap: () => _showGoalSelector(context),
                       ),
                       if (cycle.appMode == AppMode.coc) ...[
                         const _Divider(),
-                        ProfileSettingsTile(icon: Icons.grid_on_rounded, title: l10n.settingsPackType, subtitle: "Choose pill pack format", trailing: _buildBadge(l10n.settingsPills(coc.pillCount)), onTap: () => _showPackTypePicker(context)),
+                        ProfileSettingsTile(icon: Icons.grid_on_rounded, title: l10n.settingsPackType, subtitle: l10n.profilePackFormatBody, trailing: _buildBadge(l10n.settingsPills(coc.pillCount)), onTap: () => _showPackTypePicker(context)),
                         const _Divider(),
                         ProfileSettingsTile(
-                          icon: Icons.access_alarm_rounded, title: l10n.settingsReminder, subtitle: "Daily pill reminder time",
+                          icon: Icons.access_alarm_rounded, title: l10n.settingsReminder, subtitle: l10n.profileReminderTimeBody,
                           trailing: Text(coc.reminderTime.format(context), style: GoogleFonts.inter(color: AppColors.primary, fontWeight: FontWeight.w800, fontSize: 15)),
                           onTap: () async {
                             final t = await showTimePicker(context: context, initialTime: coc.reminderTime);
@@ -526,35 +557,35 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     if (cycle.appMode != AppMode.coc) ...[
                       _buildSectionHeader(l10n.sectionCycle),
                       _buildGlassGroup([
-                        ProfileSliderTile(icon: Icons.loop_rounded, title: l10n.insightAvgCycle, subtitle: "Average cycle length", value: cycle.cycleLength.toDouble().clamp(21.0, 45.0), min: 21, max: 45, suffix: l10n.daysUnit, onChanged: (val) => cycle.setCycleLength(val.toInt())),
+                        ProfileSliderTile(icon: Icons.loop_rounded, title: l10n.insightAvgCycle, subtitle: l10n.profileAverageCycleBody, value: cycle.cycleLength.toDouble().clamp(21.0, 45.0), min: 21, max: 45, suffix: l10n.daysUnit, onChanged: (val) => cycle.setCycleLength(val.toInt())),
                         const _Divider(),
-                        ProfileSliderTile(icon: Icons.water_drop_rounded, title: l10n.insightAvgPeriod, subtitle: "Average bleeding duration", value: cycle.periodDuration.toDouble().clamp(2.0, 10.0), min: 2, max: 10, suffix: l10n.daysUnit, onChanged: (val) => cycle.setAveragePeriodDuration(val.toInt())),
+                        ProfileSliderTile(icon: Icons.water_drop_rounded, title: l10n.insightAvgPeriod, subtitle: l10n.profileAverageBleedingBody, value: cycle.periodDuration.toDouble().clamp(2.0, 10.0), min: 2, max: 10, suffix: l10n.daysUnit, onChanged: (val) => cycle.setAveragePeriodDuration(val.toInt())),
                       ]),
                       const SizedBox(height: 24),
                     ],
                     _buildSectionHeader(l10n.settingsGeneral),
                     _buildGlassGroup([
                       ProfileSettingsTile(
-                        icon: Icons.language, title: l10n.settingsLanguage, subtitle: "App language",
+                        icon: Icons.language, title: l10n.settingsLanguage, subtitle: l10n.profileLanguageBody,
                         trailing: Row(
                           mainAxisSize: MainAxisSize.min,
-                          children: [Text(_getLanguageName(settings.locale.languageCode), style: GoogleFonts.inter(color: AppColors.primary, fontWeight: FontWeight.w800, fontSize: 15)), const SizedBox(width: 8), Icon(Icons.arrow_forward_ios_rounded, size: 14, color: AppColors.textSecondary.withOpacity(0.45))],
+                          children: [Text(_getLanguageName(l10n, settings.locale.languageCode), style: GoogleFonts.inter(color: AppColors.primary, fontWeight: FontWeight.w800, fontSize: 15)), const SizedBox(width: 8), Icon(Icons.arrow_forward_ios_rounded, size: 14, color: AppColors.textSecondary.withValues(alpha: 0.45))],
                         ),
                         onTap: () => _showSheet(context, const _LanguageSelectorSheet()),
                       ),
                       const _Divider(),
                       ProfileSwitchTile(
-                        icon: Icons.notifications_active_rounded, title: l10n.settingsNotifs, subtitle: "Cycle reminders and alerts", value: settings.notificationsEnabled,
+                        icon: Icons.notifications_active_rounded, title: l10n.settingsNotifs, subtitle: l10n.profileNotificationsBody, value: settings.notificationsEnabled,
                         onChanged: (val) async { await settings.setNotificationsEnabled(val); if (context.mounted && val) await context.read<CycleProvider>().rescheduleNotifications(); },
                       ),
                       if (settings.notificationsEnabled) ...[
                         const _Divider(),
-                        ProfileSwitchTile(icon: Icons.nights_stay_rounded, title: l10n.settingsDailyLog ?? "Daily Check-in", subtitle: "Evening symptom reminder", value: settings.dailyLogEnabled, onChanged: (val) async { await settings.toggleDailyLogReminder(val); if (context.mounted) await context.read<CycleProvider>().rescheduleNotifications(); }),
+                        ProfileSwitchTile(icon: Icons.nights_stay_rounded, title: l10n.settingsDailyLog, subtitle: l10n.profileDailyReminderBody, value: settings.dailyLogEnabled, onChanged: (val) async { await settings.toggleDailyLogReminder(val); if (context.mounted) await context.read<CycleProvider>().rescheduleNotifications(); }),
                       ],
                       const _Divider(),
-                      ProfileSwitchTile(icon: CupertinoIcons.lock_shield_fill, title: "Face ID / PIN", subtitle: "Protect your private health data", value: settings.biometricsEnabled, onChanged: (val) => _handleBiometrics(context, val)),
+                      ProfileSwitchTile(icon: CupertinoIcons.lock_shield_fill, title: l10n.profileFaceIdPinTitle, subtitle: l10n.profileFaceIdPinBody, value: settings.biometricsEnabled, onChanged: (val) => _handleBiometrics(context, val)),
                       const _Divider(),
-                      ProfileSettingsTile(icon: Icons.mail_outline_rounded, title: l10n.settingsSupport, subtitle: "Contact support team", trailing: Icon(Icons.arrow_forward_ios_rounded, size: 14, color: AppColors.textSecondary.withOpacity(0.45)), onTap: () => _openSupportEmail(context)),
+                      ProfileSettingsTile(icon: Icons.mail_outline_rounded, title: l10n.settingsSupport, subtitle: l10n.profileSupportBody, trailing: Icon(Icons.arrow_forward_ios_rounded, size: 14, color: AppColors.textSecondary.withValues(alpha: 0.45)), onTap: () => _openSupportEmail(context)),
                     ]),
                     const SizedBox(height: 24),
                     _buildSectionHeader(l10n.settingsData),
@@ -563,9 +594,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ProfileSettingsTile(
                         icon: CupertinoIcons.person_2_fill,
                         iconColor: const Color(0xFF8E71C7),
-                        title: "Partner Sync",
-                        subtitle: "Share your cycle securely",
-                        trailing: Icon(Icons.arrow_forward_ios_rounded, size: 14, color: AppColors.textSecondary.withOpacity(0.45)),
+                        title: l10n.partnerSyncTitle,
+                        subtitle: l10n.profilePartnerSyncBody,
+                        trailing: Icon(Icons.arrow_forward_ios_rounded, size: 14, color: AppColors.textSecondary.withValues(alpha: 0.45)),
                         onTap: () {
                           HapticFeedback.lightImpact();
                           Navigator.push(context, MaterialPageRoute(builder: (_) => const PartnerSyncScreen()));
@@ -576,16 +607,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ProfileSettingsTile(
                         icon: CupertinoIcons.heart_circle_fill,
                         iconColor: const Color(0xFFE85D75), // Нежный красно-розовый цвет
-                        title: Platform.isIOS ? "Apple Health Sync" : "Google Health Connect",
-                        subtitle: "Securely sync your cycle & BBT",
-                        trailing: Icon(Icons.arrow_forward_ios_rounded, size: 14, color: AppColors.textSecondary.withOpacity(0.45)),
+                        title: Platform.isIOS ? l10n.profileHealthSyncAppleTitle : l10n.profileHealthSyncGoogleTitle,
+                        subtitle: l10n.profileHealthSyncBody,
+                        trailing: Icon(Icons.arrow_forward_ios_rounded, size: 14, color: AppColors.textSecondary.withValues(alpha: 0.45)),
                         onTap: () async {
                           HapticFeedback.mediumImpact();
                           final success = await HealthIntegrationService.requestPermissions();
                           if (context.mounted) {
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
-                                content: Text(success ? "Sync successfully enabled! 🎉" : "Sync access denied or unavailable."),
+                                content: Text(success ? l10n.profileHealthSyncEnabled : l10n.profileHealthSyncDenied),
                                 backgroundColor: success ? AppColors.primary : Colors.red,
                                 behavior: SnackBarBehavior.floating,
                               ),
@@ -598,8 +629,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ProfileSettingsTile(
                           icon: Icons.picture_as_pdf_rounded,
                           title: l10n.settingsExport,
-                          subtitle: "Export health report as PDF",
-                          trailing: Icon(isPremium ? Icons.arrow_forward_ios_rounded : Icons.lock_outline, size: isPremium ? 14 : 20, color: isPremium ? AppColors.textSecondary.withOpacity(0.45) : Colors.amber),
+                          subtitle: l10n.profilePdfExportBody,
+                          trailing: Icon(isPremium ? Icons.arrow_forward_ios_rounded : Icons.lock_outline, size: isPremium ? 14 : 20, color: isPremium ? AppColors.textSecondary.withValues(alpha: 0.45) : Colors.amber),
                           onTap: () async {
                             if (!isPremium) { _showSheet(context, const PremiumPaywallSheet()); return; }
                             _handleExport(context, wellness, l10n);
@@ -609,17 +640,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     const SizedBox(height: 24),
                     _buildSectionHeader(l10n.sectionBackup),
                     _buildGlassGroup([
-                      ProfileSettingsTile(icon: Icons.cloud_upload_rounded, title: l10n.btnSaveBackup, subtitle: "Create local backup copy", trailing: Icon(Icons.save_alt, size: 20, color: AppColors.primary), onTap: () async { if (!Hive.isBoxOpen('cycles')) await Hive.openBox('cycles'); if (context.mounted) await BackupService.createBackup(context); }),
+                      ProfileSettingsTile(icon: Icons.cloud_upload_rounded, title: l10n.btnSaveBackup, subtitle: l10n.profileBackupCreateBody, trailing: Icon(Icons.save_alt, size: 20, color: AppColors.primary), onTap: () async { if (context.mounted) await BackupService.createBackup(context); }),
                       const _Divider(),
                       ProfileSettingsTile(
-                        icon: Icons.cloud_download_rounded, title: l10n.btnRestoreBackup, subtitle: "Restore previously saved backup", trailing: Icon(Icons.restore_page, size: 20, color: AppColors.primary),
+                        icon: Icons.cloud_download_rounded, title: l10n.btnRestoreBackup, subtitle: l10n.profileBackupRestoreBody, trailing: Icon(Icons.restore_page, size: 20, color: AppColors.primary),
                         onTap: () => showCupertinoDialog(
                           context: context,
                           builder: (ctx) => CupertinoAlertDialog(
                             title: Text(l10n.dialogRestoreTitle), content: Text(l10n.dialogRestoreBody),
                             actions: [
                               CupertinoDialogAction(child: Text(l10n.btnCancel), onPressed: () => Navigator.pop(ctx)),
-                              CupertinoDialogAction(isDestructiveAction: true, child: Text(l10n.btnRestore), onPressed: () async { Navigator.pop(ctx); if (!Hive.isBoxOpen('cycles')) await Hive.openBox('cycles'); await BackupService.restoreBackup(context); cycle.reload(); settings.reload(); }),
+                              CupertinoDialogAction(isDestructiveAction: true, child: Text(l10n.btnRestore), onPressed: () async { Navigator.pop(ctx); await BackupService.restoreBackup(context); cycle.reload(); settings.reload(); }),
                             ],
                           ),
                         ),
@@ -631,8 +662,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       child: Center(
                         child: TextButton(
                           onPressed: () => _showDeleteDataDialog(context),
-                          style: TextButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14), backgroundColor: Colors.red.withOpacity(0.08), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18))),
-                          child: Row(mainAxisSize: MainAxisSize.min, children: [const Icon(CupertinoIcons.trash, color: Colors.red, size: 18), const SizedBox(width: 8), Text("Delete All Data", style: GoogleFonts.inter(color: Colors.red, fontSize: 15, fontWeight: FontWeight.w800))]),
+                          style: TextButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14), backgroundColor: Colors.red.withValues(alpha: 0.08), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18))),
+                          child: Row(mainAxisSize: MainAxisSize.min, children: [const Icon(CupertinoIcons.trash, color: Colors.red, size: 18), const SizedBox(width: 8), Text(l10n.settingsReset, style: GoogleFonts.inter(color: Colors.red, fontSize: 15, fontWeight: FontWeight.w800))]),
                         ),
                       ),
                     ),
@@ -650,6 +681,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Widget _buildProfileHero({required BuildContext context, required String userName, required String avatar, required bool isPremium, required String goalText, required Color goalColor}) {
     return LayoutBuilder(
       builder: (context, constraints) {
+        final l10n = AppLocalizations.of(context)!;
         final compact = constraints.maxHeight < 240;
 
         return PremiumGlassCard(
@@ -674,7 +706,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   height: 140,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: goalColor.withOpacity(0.06), // Чуть прозрачнее для мягкости
+                    color: goalColor.withValues(alpha: 0.06), // Чуть прозрачнее для мягкости
                   ),
                 ),
               ),
@@ -697,10 +729,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           decoration: BoxDecoration(
                             color: AppColors.tintedSurface,
                             shape: BoxShape.circle,
-                            border: Border.all(color: Colors.white.withOpacity(0.5), width: 1.5),
+                            border: Border.all(color: Colors.white.withValues(alpha: 0.5), width: 1.5),
                             boxShadow: [
                               BoxShadow(
-                                color: AppColors.textPrimary.withOpacity(0.08),
+                                color: AppColors.textPrimary.withValues(alpha: 0.08),
                                 blurRadius: 12,
                                 offset: const Offset(0, 4),
                               ),
@@ -743,7 +775,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         Icon(
                           Icons.edit_rounded,
                           size: 16,
-                          color: AppColors.textSecondary.withOpacity(0.35), // Сделали иконку мягче
+                          color: AppColors.textSecondary.withValues(alpha: 0.35), // Сделали иконку мягче
                         ),
                       ],
                     ),
@@ -753,12 +785,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   // 3. ПОДЗАГОЛОВОК
                   Text(
                     isPremium
-                        ? "Premium member"
-                        : "Your personal health space",
+                        ? l10n.profileHeroPremiumMember
+                        : l10n.profileHeroSubtitle,
                     style: GoogleFonts.inter(
                       fontSize: 13,
                       fontWeight: FontWeight.w500, // Чуть тоньше, чтобы не спорить с именем
-                      color: AppColors.textSecondary.withOpacity(0.8),
+                      color: AppColors.textSecondary.withValues(alpha: 0.8),
                     ),
                   ),
                   const SizedBox(height: 20),
@@ -776,13 +808,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ),
                       _heroChip(
                         icon: CupertinoIcons.lock_shield_fill, // Закрашенная иконка смотрится лучше
-                        label: "Private",
+                        label: l10n.profileHeroPrivateChip,
                         color: const Color(0xFF8E71C7),
                       ),
                       if (isPremium)
                         _heroChip(
                           icon: Icons.verified_rounded,
-                          label: "Premium",
+                          label: l10n.badgePremium,
                           color: Colors.amber.shade700,
                         ),
                     ],
@@ -801,9 +833,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.08), // Чуть светлее фон
+        color: color.withValues(alpha: 0.08), // Чуть светлее фон
         borderRadius: BorderRadius.circular(12), // Скругленный прямоугольник вместо овала
-        border: Border.all(color: color.withOpacity(0.15)), // Легкая рамка
+        border: Border.all(color: color.withValues(alpha: 0.15)), // Легкая рамка
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -824,12 +856,31 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  String _getLanguageName(String code) => const {'ru': 'Русский', 'es': 'Español', 'de': 'Deutsch', 'pt': 'Português', 'tr': 'Türkçe', 'pl': 'Polski', 'ky': 'Кыргызча'}[code] ?? 'English';
+  String _getLanguageName(AppLocalizations l10n, String code) {
+    switch (code) {
+      case 'ru':
+        return l10n.languageNameRussian;
+      case 'es':
+        return l10n.languageNameSpanish;
+      case 'de':
+        return l10n.languageNameGerman;
+      case 'pt':
+        return l10n.languageNamePortugueseBrazil;
+      case 'tr':
+        return l10n.languageNameTurkish;
+      case 'pl':
+        return l10n.languageNamePolish;
+      case 'ky':
+        return l10n.languageNameKyrgyz;
+      default:
+        return l10n.languageNameEnglish;
+    }
+  }
 
   Widget _buildSectionHeader(String title) {
     return Padding(
       padding: const EdgeInsets.only(left: 12, bottom: 10),
-      child: Row(children: [Container(width: 6, height: 6, decoration: BoxDecoration(color: AppColors.primary.withOpacity(0.75), shape: BoxShape.circle)), const SizedBox(width: 8), Text(title.toUpperCase(), style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w800, color: AppColors.textSecondary, letterSpacing: 1.1))]),
+      child: Row(children: [Container(width: 6, height: 6, decoration: BoxDecoration(color: AppColors.primary.withValues(alpha: 0.75), shape: BoxShape.circle)), const SizedBox(width: 8), Text(title.toUpperCase(), style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w800, color: AppColors.textSecondary, letterSpacing: 1.1))]),
     );
   }
 
@@ -838,13 +889,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _buildBadge(String text) {
-    return Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6), decoration: BoxDecoration(color: AppColors.primary.withOpacity(0.10), borderRadius: BorderRadius.circular(10), border: Border.all(color: AppColors.primary.withOpacity(0.12))), child: Text(text, style: GoogleFonts.inter(color: AppColors.primary, fontWeight: FontWeight.w800, fontSize: 12)));
+    return Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6), decoration: BoxDecoration(color: AppColors.primary.withValues(alpha: 0.10), borderRadius: BorderRadius.circular(10), border: Border.all(color: AppColors.primary.withValues(alpha: 0.12))), child: Text(text, style: GoogleFonts.inter(color: AppColors.primary, fontWeight: FontWeight.w800, fontSize: 12)));
   }
 
   Widget _buildAvatarSized(String emoji, bool isPremium, double size) {
     return Container(
       width: size, height: size,
-      decoration: BoxDecoration(shape: BoxShape.circle, gradient: LinearGradient(colors: isPremium ? [Colors.amber.shade300, Colors.orange.shade400] : [AppColors.primary.withOpacity(0.24), AppColors.primary.withOpacity(0.10)], begin: Alignment.topLeft, end: Alignment.bottomRight), boxShadow: [BoxShadow(color: (isPremium ? Colors.orange : AppColors.primary).withOpacity(0.22), blurRadius: 22, offset: const Offset(0, 10))]),
+      decoration: BoxDecoration(shape: BoxShape.circle, gradient: LinearGradient(colors: isPremium ? [Colors.amber.shade300, Colors.orange.shade400] : [AppColors.primary.withValues(alpha: 0.24), AppColors.primary.withValues(alpha: 0.10)], begin: Alignment.topLeft, end: Alignment.bottomRight), boxShadow: [BoxShadow(color: (isPremium ? Colors.orange : AppColors.primary).withValues(alpha: 0.22), blurRadius: 22, offset: const Offset(0, 10))]),
       child: Center(child: Text(emoji, style: TextStyle(fontSize: size * 0.48))),
     );
   }
@@ -852,13 +903,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
 class _Divider extends StatelessWidget {
   const _Divider();
-  @override Widget build(BuildContext context) => Divider(height: 1, indent: 68, endIndent: 18, color: AppColors.textPrimary.withOpacity(0.05));
+  @override Widget build(BuildContext context) => Divider(height: 1, indent: 68, endIndent: 18, color: AppColors.textPrimary.withValues(alpha: 0.05));
 }
 
 class _GoalOption extends StatelessWidget {
   final String title, subtitle; final IconData icon; final Color color; final bool isSelected; final VoidCallback onTap;
   const _GoalOption({required this.title, required this.subtitle, required this.icon, required this.color, required this.isSelected, required this.onTap});
-  @override Widget build(BuildContext context) => ListTile(contentPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8), leading: Container(padding: const EdgeInsets.all(12), decoration: BoxDecoration(color: color.withOpacity(0.14), shape: BoxShape.circle), child: Icon(icon, color: color, size: 24)), title: Text(title, style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w800, color: AppColors.textPrimary)), subtitle: Text(subtitle, style: GoogleFonts.inter(fontSize: 13, color: AppColors.textSecondary)), trailing: isSelected ? Icon(Icons.check_circle, color: color) : null, onTap: () { HapticFeedback.selectionClick(); onTap(); });
+  @override Widget build(BuildContext context) => ListTile(contentPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8), leading: Container(padding: const EdgeInsets.all(12), decoration: BoxDecoration(color: color.withValues(alpha: 0.14), shape: BoxShape.circle), child: Icon(icon, color: color, size: 24)), title: Text(title, style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w800, color: AppColors.textPrimary)), subtitle: Text(subtitle, style: GoogleFonts.inter(fontSize: 13, color: AppColors.textSecondary)), trailing: isSelected ? Icon(Icons.check_circle, color: color) : null, onTap: () { HapticFeedback.selectionClick(); onTap(); });
 }
 
 class ProfileSettingsTile extends StatelessWidget {
@@ -866,14 +917,14 @@ class ProfileSettingsTile extends StatelessWidget {
   const ProfileSettingsTile({super.key, required this.icon, required this.title, this.subtitle, this.trailing, this.onTap, this.iconColor});
   @override Widget build(BuildContext context) {
     final color = iconColor ?? AppColors.primary;
-    return ListTile(onTap: onTap, contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8), leading: Container(width: 42, height: 42, decoration: BoxDecoration(color: color.withOpacity(0.10), borderRadius: BorderRadius.circular(14), border: Border.all(color: color.withOpacity(0.12))), child: Icon(icon, color: color, size: 20)), title: Text(title, style: GoogleFonts.inter(fontSize: 15.5, fontWeight: FontWeight.w700, color: AppColors.textPrimary)), subtitle: subtitle == null ? null : Padding(padding: const EdgeInsets.only(top: 2), child: Text(subtitle!, style: GoogleFonts.inter(fontSize: 12.5, fontWeight: FontWeight.w500, color: AppColors.textSecondary, height: 1.25))), trailing: trailing);
+    return ListTile(onTap: onTap, contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8), leading: Container(width: 42, height: 42, decoration: BoxDecoration(color: color.withValues(alpha: 0.10), borderRadius: BorderRadius.circular(14), border: Border.all(color: color.withValues(alpha: 0.12))), child: Icon(icon, color: color, size: 20)), title: Text(title, style: GoogleFonts.inter(fontSize: 15.5, fontWeight: FontWeight.w700, color: AppColors.textPrimary)), subtitle: subtitle == null ? null : Padding(padding: const EdgeInsets.only(top: 2), child: Text(subtitle!, style: GoogleFonts.inter(fontSize: 12.5, fontWeight: FontWeight.w500, color: AppColors.textSecondary, height: 1.25))), trailing: trailing);
   }
 }
 
 class ProfileSwitchTile extends StatelessWidget {
   final IconData icon; final String title; final String? subtitle; final bool value; final ValueChanged<bool> onChanged;
   const ProfileSwitchTile({super.key, required this.icon, required this.title, this.subtitle, required this.value, required this.onChanged});
-  @override Widget build(BuildContext context) => ProfileSettingsTile(icon: icon, title: title, subtitle: subtitle, onTap: () => onChanged(!value), trailing: CupertinoSwitch(value: value, onChanged: onChanged, activeColor: AppColors.primary));
+  @override Widget build(BuildContext context) => ProfileSettingsTile(icon: icon, title: title, subtitle: subtitle, onTap: () => onChanged(!value), trailing: CupertinoSwitch(value: value, onChanged: onChanged, activeTrackColor: AppColors.primary));
 }
 
 class ProfileSliderTile extends StatefulWidget {
@@ -907,20 +958,20 @@ class _ProfileSliderTileState extends State<ProfileSliderTile> {
       padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
       child: Container(
         padding: const EdgeInsets.fromLTRB(8, 6, 8, 10),
-        decoration: BoxDecoration(color: AppColors.secondaryBackground.withOpacity(0.42), borderRadius: BorderRadius.circular(20), border: Border.all(color: AppColors.divider.withOpacity(0.9))),
+        decoration: BoxDecoration(color: AppColors.secondaryBackground.withValues(alpha: 0.42), borderRadius: BorderRadius.circular(20), border: Border.all(color: AppColors.divider.withValues(alpha: 0.9))),
         child: Column(
           children: [
             ListTile(
               contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
-              leading: Container(width: 42, height: 42, decoration: BoxDecoration(color: AppColors.primary.withOpacity(0.10), borderRadius: BorderRadius.circular(14), border: Border.all(color: AppColors.primary.withOpacity(0.12))), child: Icon(widget.icon, color: AppColors.primary, size: 20)),
+              leading: Container(width: 42, height: 42, decoration: BoxDecoration(color: AppColors.primary.withValues(alpha: 0.10), borderRadius: BorderRadius.circular(14), border: Border.all(color: AppColors.primary.withValues(alpha: 0.12))), child: Icon(widget.icon, color: AppColors.primary, size: 20)),
               title: Text(widget.title, style: GoogleFonts.inter(fontSize: 15.5, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
               subtitle: widget.subtitle == null ? null : Text(widget.subtitle!, style: GoogleFonts.inter(fontSize: 12.5, color: AppColors.textSecondary)),
-              trailing: Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6), decoration: BoxDecoration(color: AppColors.primary.withOpacity(0.10), borderRadius: BorderRadius.circular(10)), child: Text("${_currentValue.toInt()} ${widget.suffix}", style: GoogleFonts.inter(fontWeight: FontWeight.w800, color: AppColors.primary, fontSize: 13))),
+              trailing: Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6), decoration: BoxDecoration(color: AppColors.primary.withValues(alpha: 0.10), borderRadius: BorderRadius.circular(10)), child: Text("${_currentValue.toInt()} ${widget.suffix}", style: GoogleFonts.inter(fontWeight: FontWeight.w800, color: AppColors.primary, fontSize: 13))),
             ),
             Padding(
               padding: const EdgeInsets.fromLTRB(8, 0, 8, 0),
               child: SliderTheme(
-                data: SliderTheme.of(context).copyWith(trackHeight: 4, thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 9), overlayShape: const RoundSliderOverlayShape(overlayRadius: 18), activeTrackColor: AppColors.primary, inactiveTrackColor: AppColors.primary.withOpacity(0.16), thumbColor: AppColors.primary, overlayColor: AppColors.primary.withOpacity(0.10)),
+                data: SliderTheme.of(context).copyWith(trackHeight: 4, thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 9), overlayShape: const RoundSliderOverlayShape(overlayRadius: 18), activeTrackColor: AppColors.primary, inactiveTrackColor: AppColors.primary.withValues(alpha: 0.16), thumbColor: AppColors.primary, overlayColor: AppColors.primary.withValues(alpha: 0.10)),
                 child: Slider(
                   value: _currentValue, min: widget.min, max: widget.max, divisions: (widget.max - widget.min).toInt(),
                   onChanged: (val) {
@@ -952,21 +1003,22 @@ class _EditProfileSheetState extends State<_EditProfileSheet> {
   @override void dispose() { _nameController.dispose(); super.dispose(); }
 
   @override Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final settings = context.watch<SettingsProvider>();
     return Container(
       padding: EdgeInsets.only(top: 24, left: 24, right: 24, bottom: MediaQuery.of(context).viewInsets.bottom + 24), decoration: BoxDecoration(color: AppColors.tintedSurface, borderRadius: const BorderRadius.vertical(top: Radius.circular(28))),
       child: Column(
         mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text("Edit Profile", style: GoogleFonts.outfit(fontSize: 22, fontWeight: FontWeight.w800, color: AppColors.textPrimary)), const SizedBox(height: 24),
+          Text(l10n.profileEditTitle, style: GoogleFonts.outfit(fontSize: 22, fontWeight: FontWeight.w800, color: AppColors.textPrimary)), const SizedBox(height: 24),
           SizedBox(height: 60, child: ListView.separated(scrollDirection: Axis.horizontal, itemCount: _avatars.length, separatorBuilder: (_, __) => const SizedBox(width: 12), itemBuilder: (context, index) {
             final avatar = _avatars[index]; final isSelected = settings.userAvatar == avatar;
-            return GestureDetector(onTap: () => context.read<SettingsProvider>().setUserAvatar(avatar), child: AnimatedContainer(duration: const Duration(milliseconds: 200), width: 60, height: 60, decoration: BoxDecoration(color: isSelected ? AppColors.primary.withOpacity(0.18) : Colors.grey.withOpacity(0.08), shape: BoxShape.circle, border: isSelected ? Border.all(color: AppColors.primary, width: 2) : null), child: Center(child: Text(avatar, style: const TextStyle(fontSize: 30)))));
+            return GestureDetector(onTap: () => context.read<SettingsProvider>().setUserAvatar(avatar), child: AnimatedContainer(duration: const Duration(milliseconds: 200), width: 60, height: 60, decoration: BoxDecoration(color: isSelected ? AppColors.primary.withValues(alpha: 0.18) : Colors.grey.withValues(alpha: 0.08), shape: BoxShape.circle, border: isSelected ? Border.all(color: AppColors.primary, width: 2) : null), child: Center(child: Text(avatar, style: const TextStyle(fontSize: 30)))));
           })),
           const SizedBox(height: 24),
-          TextField(controller: _nameController, decoration: InputDecoration(labelText: "Your Name", border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)), focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide(color: AppColors.primary, width: 2))), textCapitalization: TextCapitalization.words, onChanged: (val) => context.read<SettingsProvider>().setUserName(val.trim().isEmpty ? "User" : val.trim())),
+          TextField(controller: _nameController, decoration: InputDecoration(labelText: l10n.profileNameLabel, border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)), focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide(color: AppColors.primary, width: 2))), textCapitalization: TextCapitalization.words, onChanged: (val) => context.read<SettingsProvider>().setUserName(val.trim().isEmpty ? l10n.lblUser : val.trim())),
           const SizedBox(height: 24),
-          SizedBox(width: double.infinity, child: ElevatedButton(onPressed: () => Navigator.pop(context), style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary, padding: const EdgeInsets.symmetric(vertical: 16), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16))), child: Text("Done", style: GoogleFonts.manrope(fontSize: 16, fontWeight: FontWeight.w800, color: Colors.white)))),
+          SizedBox(width: double.infinity, child: ElevatedButton(onPressed: () => Navigator.pop(context), style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary, padding: const EdgeInsets.symmetric(vertical: 16), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16))), child: Text(l10n.profileDoneAction, style: GoogleFonts.manrope(fontSize: 16, fontWeight: FontWeight.w800, color: Colors.white)))),
         ],
       ),
     );
@@ -976,9 +1028,19 @@ class _EditProfileSheetState extends State<_EditProfileSheet> {
 class _LanguageSelectorSheet extends StatelessWidget {
   const _LanguageSelectorSheet();
   @override Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final settings = context.watch<SettingsProvider>();
     final currentCode = settings.locale.languageCode;
-    final languages = [{'code': 'en', 'name': 'English'}, {'code': 'ru', 'name': 'Русский'}, {'code': 'ky', 'name': 'Кыргызча'}, {'code': 'es', 'name': 'Español'}, {'code': 'de', 'name': 'Deutsch'}, {'code': 'pt', 'name': 'Português'}, {'code': 'tr', 'name': 'Türkçe'}, {'code': 'pl', 'name': 'Polski'}];
+    final languages = [
+      {'code': 'en', 'name': l10n.languageNameEnglish},
+      {'code': 'ru', 'name': l10n.languageNameRussian},
+      {'code': 'ky', 'name': l10n.languageNameKyrgyz},
+      {'code': 'es', 'name': l10n.languageNameSpanish},
+      {'code': 'de', 'name': l10n.languageNameGerman},
+      {'code': 'pt', 'name': l10n.languageNamePortugueseBrazil},
+      {'code': 'tr', 'name': l10n.languageNameTurkish},
+      {'code': 'pl', 'name': l10n.languageNamePolish},
+    ];
 
     return Container(
       decoration: BoxDecoration(color: AppColors.tintedSurface, borderRadius: const BorderRadius.vertical(top: Radius.circular(28))),
@@ -988,8 +1050,8 @@ class _LanguageSelectorSheet extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Container(width: 42, height: 5, decoration: BoxDecoration(color: Colors.grey.withOpacity(0.28), borderRadius: BorderRadius.circular(999))), const SizedBox(height: 18),
-              Text("Language", style: GoogleFonts.outfit(fontSize: 22, fontWeight: FontWeight.w800, color: AppColors.textPrimary)), const SizedBox(height: 18),
+              Container(width: 42, height: 5, decoration: BoxDecoration(color: Colors.grey.withValues(alpha: 0.28), borderRadius: BorderRadius.circular(999))), const SizedBox(height: 18),
+              Text(l10n.settingsLanguage, style: GoogleFonts.outfit(fontSize: 22, fontWeight: FontWeight.w800, color: AppColors.textPrimary)), const SizedBox(height: 18),
               PremiumGlassCard(
                 borderRadius: 24, padding: const EdgeInsets.symmetric(vertical: 6),
                 child: Column(children: languages.map((item) {
@@ -997,7 +1059,7 @@ class _LanguageSelectorSheet extends StatelessWidget {
                   return ListTile(
                     onTap: () { HapticFeedback.selectionClick(); settings.setLocale(Locale(code)); Navigator.pop(context); },
                     contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                    leading: Container(width: 40, height: 40, decoration: BoxDecoration(color: isSelected ? AppColors.primary.withOpacity(0.12) : AppColors.secondaryBackground.withOpacity(0.55), borderRadius: BorderRadius.circular(12)), child: Icon(Icons.language_rounded, color: isSelected ? AppColors.primary : AppColors.textSecondary, size: 20)),
+                    leading: Container(width: 40, height: 40, decoration: BoxDecoration(color: isSelected ? AppColors.primary.withValues(alpha: 0.12) : AppColors.secondaryBackground.withValues(alpha: 0.55), borderRadius: BorderRadius.circular(12)), child: Icon(Icons.language_rounded, color: isSelected ? AppColors.primary : AppColors.textSecondary, size: 20)),
                     title: Text(label, style: GoogleFonts.inter(fontSize: 15.5, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
                     trailing: isSelected ? Icon(Icons.check_circle, color: AppColors.primary) : null,
                   );
