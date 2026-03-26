@@ -9,6 +9,7 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:intl/intl.dart';
 
 import '../../core/theme/app_theme.dart';
+import '../../core/utils/symptom_localization.dart';
 import '../../data/models/cycle_model.dart';
 import '../../data/providers/cycle_provider.dart';
 import '../../data/providers/wellness_provider.dart';
@@ -1085,6 +1086,7 @@ class _InsightsScreenState extends State<InsightsScreen> {
 
   void _prepareDailySymptomsMap(CycleProvider cycle, WellnessProvider wellness) {
     _dailySymptomsMap.clear();
+    final l10n = AppLocalizations.of(context)!;
     final cycleStart = cycle.currentData.cycleStartDate;
     final totalDays = cycle.currentData.totalCycleLength;
     final todayClean = DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day);
@@ -1096,9 +1098,10 @@ class _InsightsScreenState extends State<InsightsScreen> {
 
       try {
         final log = wellness.getLogForDate(cleanDate);
-        final List<String> daySymptoms = [];
-        daySymptoms.addAll(log.symptoms);
-        daySymptoms.addAll(log.painSymptoms);
+        final daySymptoms = localizeSymptomTokens(
+          [...log.symptoms, ...log.painSymptoms],
+          l10n,
+        );
 
         if (daySymptoms.isNotEmpty) {
           _dailySymptomsMap[i + 1] = daySymptoms;
@@ -1217,7 +1220,7 @@ class _InsightsScreenState extends State<InsightsScreen> {
           const SizedBox(width: 16),
           Expanded(
             child: Text(
-              symptomName[0].toUpperCase() + symptomName.substring(1).toLowerCase(),
+              localizeSymptomToken(symptomName, l10n),
               style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
             ),
           ),

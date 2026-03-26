@@ -363,6 +363,12 @@ abstract class AppLocalizations {
   /// **'Heavy'**
   String get flowHeavy;
 
+  /// No description provided for @flowNone.
+  ///
+  /// In en, this message translates to:
+  /// **'None'**
+  String get flowNone;
+
   /// No description provided for @catPain.
   ///
   /// In en, this message translates to:
@@ -506,6 +512,204 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Bloating'**
   String get symptomBloating;
+
+  /// No description provided for @symCramps.
+  ///
+  /// In en, this message translates to:
+  /// **'Cramps'**
+  String get symCramps;
+
+  /// No description provided for @symHeadache.
+  ///
+  /// In en, this message translates to:
+  /// **'Headache'**
+  String get symHeadache;
+
+  /// No description provided for @symBloating.
+  ///
+  /// In en, this message translates to:
+  /// **'Bloating'**
+  String get symBloating;
+
+  /// No description provided for @symAcne.
+  ///
+  /// In en, this message translates to:
+  /// **'Acne'**
+  String get symAcne;
+
+  /// No description provided for @symTenderBreasts.
+  ///
+  /// In en, this message translates to:
+  /// **'Tender Breasts'**
+  String get symTenderBreasts;
+
+  /// No description provided for @symBackache.
+  ///
+  /// In en, this message translates to:
+  /// **'Backache'**
+  String get symBackache;
+
+  /// No description provided for @symNausea.
+  ///
+  /// In en, this message translates to:
+  /// **'Nausea'**
+  String get symNausea;
+
+  /// No description provided for @symFatigue.
+  ///
+  /// In en, this message translates to:
+  /// **'Fatigue'**
+  String get symFatigue;
+
+  /// No description provided for @symAnxious.
+  ///
+  /// In en, this message translates to:
+  /// **'Anxious'**
+  String get symAnxious;
+
+  /// No description provided for @symIrritable.
+  ///
+  /// In en, this message translates to:
+  /// **'Irritable'**
+  String get symIrritable;
+
+  /// No description provided for @symCryingSpells.
+  ///
+  /// In en, this message translates to:
+  /// **'Crying Spells'**
+  String get symCryingSpells;
+
+  /// No description provided for @symBrainFog.
+  ///
+  /// In en, this message translates to:
+  /// **'Brain Fog'**
+  String get symBrainFog;
+
+  /// No description provided for @symHappy.
+  ///
+  /// In en, this message translates to:
+  /// **'Happy'**
+  String get symHappy;
+
+  /// No description provided for @symFocused.
+  ///
+  /// In en, this message translates to:
+  /// **'Focused'**
+  String get symFocused;
+
+  /// No description provided for @symCalm.
+  ///
+  /// In en, this message translates to:
+  /// **'Calm'**
+  String get symCalm;
+
+  /// No description provided for @symSpotting.
+  ///
+  /// In en, this message translates to:
+  /// **'Spotting'**
+  String get symSpotting;
+
+  /// No description provided for @symAlcohol.
+  ///
+  /// In en, this message translates to:
+  /// **'Alcohol'**
+  String get symAlcohol;
+
+  /// No description provided for @symTravel.
+  ///
+  /// In en, this message translates to:
+  /// **'Travel'**
+  String get symTravel;
+
+  /// No description provided for @symHighStress.
+  ///
+  /// In en, this message translates to:
+  /// **'High Stress'**
+  String get symHighStress;
+
+  /// No description provided for @symSick.
+  ///
+  /// In en, this message translates to:
+  /// **'Sick'**
+  String get symSick;
+
+  /// No description provided for @symExercise.
+  ///
+  /// In en, this message translates to:
+  /// **'Exercise'**
+  String get symExercise;
+
+  /// No description provided for @symPoorDiet.
+  ///
+  /// In en, this message translates to:
+  /// **'Poor Diet'**
+  String get symPoorDiet;
+
+  /// No description provided for @symDryMucus.
+  ///
+  /// In en, this message translates to:
+  /// **'Dry Mucus'**
+  String get symDryMucus;
+
+  /// No description provided for @symStickyMucus.
+  ///
+  /// In en, this message translates to:
+  /// **'Sticky Mucus'**
+  String get symStickyMucus;
+
+  /// No description provided for @symCreamyMucus.
+  ///
+  /// In en, this message translates to:
+  /// **'Creamy Mucus'**
+  String get symCreamyMucus;
+
+  /// No description provided for @symEggWhiteMucus.
+  ///
+  /// In en, this message translates to:
+  /// **'Egg-white Mucus'**
+  String get symEggWhiteMucus;
+
+  /// No description provided for @symLhNegative.
+  ///
+  /// In en, this message translates to:
+  /// **'LH: Negative'**
+  String get symLhNegative;
+
+  /// No description provided for @symLhHigh.
+  ///
+  /// In en, this message translates to:
+  /// **'LH: High'**
+  String get symLhHigh;
+
+  /// No description provided for @symLhPeak.
+  ///
+  /// In en, this message translates to:
+  /// **'LH: Peak'**
+  String get symLhPeak;
+
+  /// No description provided for @symIntimacy.
+  ///
+  /// In en, this message translates to:
+  /// **'Intimacy'**
+  String get symIntimacy;
+
+  /// No description provided for @symHighLibido.
+  ///
+  /// In en, this message translates to:
+  /// **'High Libido'**
+  String get symHighLibido;
+
+  /// No description provided for @symProtectedSex.
+  ///
+  /// In en, this message translates to:
+  /// **'Protected Sex'**
+  String get symProtectedSex;
+
+  /// No description provided for @symUnprotectedSex.
+  ///
+  /// In en, this message translates to:
+  /// **'Unprotected Sex'**
+  String get symUnprotectedSex;
 
   /// No description provided for @logLibido.
   ///
@@ -1881,6 +2085,138 @@ abstract class AppLocalizations {
   /// **'Backup data for EviMoon app created on {date}'**
   String backupBody(String date);
 
+  /// No description provided for @backupExportTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Export backup'**
+  String get backupExportTitle;
+
+  /// No description provided for @backupExportBody.
+  ///
+  /// In en, this message translates to:
+  /// **'The backup file contains private health data. We will encrypt it with a password.'**
+  String get backupExportBody;
+
+  /// No description provided for @backupRestoreTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Restore backup'**
+  String get backupRestoreTitle;
+
+  /// No description provided for @backupRestoreBody.
+  ///
+  /// In en, this message translates to:
+  /// **'This will replace your current data with the data from the backup file.'**
+  String get backupRestoreBody;
+
+  /// No description provided for @backupSetPasswordTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Set backup password'**
+  String get backupSetPasswordTitle;
+
+  /// No description provided for @backupEnterPasswordTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter backup password'**
+  String get backupEnterPasswordTitle;
+
+  /// No description provided for @backupPasswordHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Password'**
+  String get backupPasswordHint;
+
+  /// No description provided for @backupConfirmPasswordHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirm password'**
+  String get backupConfirmPasswordHint;
+
+  /// No description provided for @backupShowPassword.
+  ///
+  /// In en, this message translates to:
+  /// **'Show password'**
+  String get backupShowPassword;
+
+  /// No description provided for @backupPasswordLostWarning.
+  ///
+  /// In en, this message translates to:
+  /// **'Important: if you forget this password, the backup cannot be recovered.'**
+  String get backupPasswordLostWarning;
+
+  /// No description provided for @backupPasswordTooShort.
+  ///
+  /// In en, this message translates to:
+  /// **'Password too short (min 6)'**
+  String get backupPasswordTooShort;
+
+  /// No description provided for @backupPasswordsDoNotMatch.
+  ///
+  /// In en, this message translates to:
+  /// **'Passwords do not match'**
+  String get backupPasswordsDoNotMatch;
+
+  /// No description provided for @backupContinueAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Continue'**
+  String get backupContinueAction;
+
+  /// No description provided for @backupAuthFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Authentication failed'**
+  String get backupAuthFailed;
+
+  /// No description provided for @backupPathEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'File path is empty'**
+  String get backupPathEmpty;
+
+  /// No description provided for @backupWrongPassword.
+  ///
+  /// In en, this message translates to:
+  /// **'Wrong password or corrupted backup'**
+  String get backupWrongPassword;
+
+  /// No description provided for @backupInvalidFileFormat.
+  ///
+  /// In en, this message translates to:
+  /// **'Invalid backup file format'**
+  String get backupInvalidFileFormat;
+
+  /// No description provided for @backupRestoreFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Restore failed: corrupted file or wrong format'**
+  String get backupRestoreFailed;
+
+  /// No description provided for @backupEncryptedCreated.
+  ///
+  /// In en, this message translates to:
+  /// **'Encrypted backup created on {date}'**
+  String backupEncryptedCreated(String date);
+
+  /// No description provided for @backupFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Backup failed: {error}'**
+  String backupFailed(String error);
+
+  /// No description provided for @backupEncryptedBoxMustBeOpen.
+  ///
+  /// In en, this message translates to:
+  /// **'Encrypted Hive box \'{name}\' must already be open before backup operations.'**
+  String backupEncryptedBoxMustBeOpen(String name);
+
+  /// No description provided for @storageEncryptedBoxClosed.
+  ///
+  /// In en, this message translates to:
+  /// **'Encrypted Hive box {name} is closed and no encrypted opener was provided.'**
+  String storageEncryptedBoxClosed(String name);
+
   /// No description provided for @greetMorning.
   ///
   /// In en, this message translates to:
@@ -2085,6 +2421,18 @@ abstract class AppLocalizations {
   /// **'Patient'**
   String get pdfDefaultPatient;
 
+  /// No description provided for @pdfModeCoc.
+  ///
+  /// In en, this message translates to:
+  /// **'COC'**
+  String get pdfModeCoc;
+
+  /// No description provided for @pdfModeTtc.
+  ///
+  /// In en, this message translates to:
+  /// **'TTC'**
+  String get pdfModeTtc;
+
   /// No description provided for @pdfPeriodRange.
   ///
   /// In en, this message translates to:
@@ -2102,6 +2450,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Med'**
   String get pdfFlowMedium;
+
+  /// No description provided for @pdfLhNegativeShort.
+  ///
+  /// In en, this message translates to:
+  /// **'Neg'**
+  String get pdfLhNegativeShort;
+
+  /// No description provided for @pdfLhPositiveShort.
+  ///
+  /// In en, this message translates to:
+  /// **'Pos'**
+  String get pdfLhPositiveShort;
+
+  /// No description provided for @pdfLhPeakShort.
+  ///
+  /// In en, this message translates to:
+  /// **'Peak'**
+  String get pdfLhPeakShort;
 
   /// No description provided for @pdfSymptomSexProtected.
   ///
@@ -2876,6 +3242,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Your symptoms correlated with estimated hormone levels'**
   String get insightsHormonalRhythmBody;
+
+  /// No description provided for @insightsHormonalRhythmInspectHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Touch the chart to inspect'**
+  String get insightsHormonalRhythmInspectHint;
+
+  /// No description provided for @insightsHormonalRhythmScrubbingDay.
+  ///
+  /// In en, this message translates to:
+  /// **'Scrubbing day {day}'**
+  String insightsHormonalRhythmScrubbingDay(int day);
+
+  /// No description provided for @insightsHormonalRhythmMore.
+  ///
+  /// In en, this message translates to:
+  /// **'+{count} more'**
+  String insightsHormonalRhythmMore(int count);
 
   /// No description provided for @insightsHormonalContextTitle.
   ///
@@ -4341,6 +4725,12 @@ abstract class AppLocalizations {
   /// **'Logged'**
   String get dashboardActionLogged;
 
+  /// No description provided for @dashboardActionGenericError.
+  ///
+  /// In en, this message translates to:
+  /// **'Error. Please try again.'**
+  String get dashboardActionGenericError;
+
   /// No description provided for @dashboardPeriodEndingTitle.
   ///
   /// In en, this message translates to:
@@ -5361,6 +5751,42 @@ abstract class AppLocalizations {
   /// **'Unlink Partner'**
   String get partnerSyncUnlinkButton;
 
+  /// No description provided for @partnerSyncAnonymousAuthFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to authenticate anonymously.'**
+  String get partnerSyncAnonymousAuthFailed;
+
+  /// No description provided for @partnerSyncGenerateCodeFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to generate a unique invite code.'**
+  String get partnerSyncGenerateCodeFailed;
+
+  /// No description provided for @partnerSyncInviteNoLongerValid.
+  ///
+  /// In en, this message translates to:
+  /// **'Invite code is no longer valid.'**
+  String get partnerSyncInviteNoLongerValid;
+
+  /// No description provided for @partnerSyncOwnInviteCode.
+  ///
+  /// In en, this message translates to:
+  /// **'You cannot link to your own invite code.'**
+  String get partnerSyncOwnInviteCode;
+
+  /// No description provided for @partnerSyncInviteAlreadyUsed.
+  ///
+  /// In en, this message translates to:
+  /// **'This invite code has already been used.'**
+  String get partnerSyncInviteAlreadyUsed;
+
+  /// No description provided for @partnerSyncNotLinked.
+  ///
+  /// In en, this message translates to:
+  /// **'Not linked to any couple.'**
+  String get partnerSyncNotLinked;
+
   /// No description provided for @chatTitle.
   ///
   /// In en, this message translates to:
@@ -5402,6 +5828,162 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'I\'m having a little trouble connecting right now. Please check your internet or try again in a moment. 💜'**
   String get chatConnectionIssue;
+
+  /// No description provided for @aiSecurityTokenMissing.
+  ///
+  /// In en, this message translates to:
+  /// **'Security token is missing in cloud configuration.'**
+  String get aiSecurityTokenMissing;
+
+  /// No description provided for @aiTokenLoadFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to load secure token from cloud.'**
+  String get aiTokenLoadFailed;
+
+  /// No description provided for @aiNoSymptomsLoggedToday.
+  ///
+  /// In en, this message translates to:
+  /// **'No specific physical symptoms logged today.'**
+  String get aiNoSymptomsLoggedToday;
+
+  /// No description provided for @aiDailyAdvicePrompt.
+  ///
+  /// In en, this message translates to:
+  /// **'You are Ayla, an empathetic and highly professional Cycle Intelligence Assistant and women\'s wellness guide.\nAnalyze the user\'s current state and explain why they might be feeling this way based on their cycle.\nAlways remind the user to consult a healthcare provider for any medical concerns.\n\nContext:\n- Current cycle phase: {phase}\n- Contraceptive pill user: {isCoc}\n- Today\'s symptoms and moods: {symptoms}\n\nTask:\nProvide a short, comforting, and scientifically accurate explanation (2 to 4 sentences max) of how their current hormonal profile is likely causing these specific symptoms.\n\nCritical instruction:\nRespond in raw plain text only.\nDo not use JSON.\nDo not wrap the response in braces.\nDo not use Markdown.\nJust write the sentences directly.'**
+  String aiDailyAdvicePrompt(String phase, String isCoc, String symptoms);
+
+  /// No description provided for @aiProxyHttpError.
+  ///
+  /// In en, this message translates to:
+  /// **'Proxy HTTP error: {statusCode}'**
+  String aiProxyHttpError(int statusCode);
+
+  /// No description provided for @aiNoCandidatesReturned.
+  ///
+  /// In en, this message translates to:
+  /// **'No candidates returned.'**
+  String get aiNoCandidatesReturned;
+
+  /// No description provided for @aiNoTextPartsReturned.
+  ///
+  /// In en, this message translates to:
+  /// **'No text parts returned.'**
+  String get aiNoTextPartsReturned;
+
+  /// No description provided for @aiGeneratedTextEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'Generated text is empty.'**
+  String get aiGeneratedTextEmpty;
+
+  /// No description provided for @aiRefreshRateLimit.
+  ///
+  /// In en, this message translates to:
+  /// **'Please wait a minute before refreshing.'**
+  String get aiRefreshRateLimit;
+
+  /// No description provided for @aiDailyInsightContext.
+  ///
+  /// In en, this message translates to:
+  /// **'Ayla app user.\nRecorded cycles: {totalCycles}.\nRecorded symptom days: {totalLogs}.\nCurrent date: {date}.'**
+  String aiDailyInsightContext(int totalCycles, int totalLogs, String date);
+
+  /// No description provided for @aiDailyInsightPrompt.
+  ///
+  /// In en, this message translates to:
+  /// **'You are the women\'s health AI assistant (Cycle Intelligence Assistant) in the Ayla app.\nAnalyze the user context and provide one short insight or advice for today.\nIf there is little data available (for example, 0 cycles), greet the user and suggest starting the journal.\n\nContext: {context}\n\nReturn the answer strictly as valid JSON with three keys:\n\"{titleKey}\": A short title (up to 3 or 4 words in English, for example \"Rest & Reset\").\n\"{bodyKey}\": One or two sentences with advice or analysis (in English).\n\"{typeKey}\": One of these exact values only ({neutralType}, {positiveType}, {warningType}).'**
+  String aiDailyInsightPrompt(String context, String titleKey, String bodyKey, String typeKey, String neutralType, String positiveType, String warningType);
+
+  /// No description provided for @aiRequestTimeout.
+  ///
+  /// In en, this message translates to:
+  /// **'Request timed out.'**
+  String get aiRequestTimeout;
+
+  /// No description provided for @aiProxyInvalidJson.
+  ///
+  /// In en, this message translates to:
+  /// **'Proxy did not return valid JSON.'**
+  String get aiProxyInvalidJson;
+
+  /// No description provided for @aiGeneratedNoTextParts.
+  ///
+  /// In en, this message translates to:
+  /// **'AI generated no text parts.'**
+  String get aiGeneratedNoTextParts;
+
+  /// No description provided for @aiGeneratedTextCompletelyEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'Generated text is completely empty.'**
+  String get aiGeneratedTextCompletelyEmpty;
+
+  /// No description provided for @aiInvalidJsonObject.
+  ///
+  /// In en, this message translates to:
+  /// **'AI did not return a valid JSON object.'**
+  String get aiInvalidJsonObject;
+
+  /// No description provided for @aiJsonFormatError.
+  ///
+  /// In en, this message translates to:
+  /// **'AI JSON format error: {error}'**
+  String aiJsonFormatError(String error);
+
+  /// No description provided for @aiMoodLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Mood: {mood}'**
+  String aiMoodLabel(String mood);
+
+  /// No description provided for @aiChatContext.
+  ///
+  /// In en, this message translates to:
+  /// **'User context: Phase: {phase}, Day: {day}, COC user: {isCoc}.'**
+  String aiChatContext(String phase, int day, String isCoc);
+
+  /// No description provided for @aiChatSymptomsToday.
+  ///
+  /// In en, this message translates to:
+  /// **'Symptoms today: {symptoms}.'**
+  String aiChatSymptomsToday(String symptoms);
+
+  /// No description provided for @aiChatSystemPrompt.
+  ///
+  /// In en, this message translates to:
+  /// **'You are Ayla, an empathetic, highly professional Cycle Intelligence Assistant and women\'s wellness guide.\nYou are chatting directly with the user. Keep responses warm, concise, and scientifically accurate.\nYou are not a doctor. Do not give dangerous medical diagnoses. Always remind the user to consult a healthcare provider for any serious or concerning medical symptoms.\n{context}'**
+  String aiChatSystemPrompt(String context);
+
+  /// No description provided for @aiChatRoleUser.
+  ///
+  /// In en, this message translates to:
+  /// **'User'**
+  String get aiChatRoleUser;
+
+  /// No description provided for @aiChatRoleAyla.
+  ///
+  /// In en, this message translates to:
+  /// **'Ayla'**
+  String get aiChatRoleAyla;
+
+  /// No description provided for @aiChatHttpError.
+  ///
+  /// In en, this message translates to:
+  /// **'Chat HTTP error: {statusCode}'**
+  String aiChatHttpError(int statusCode);
+
+  /// No description provided for @aiChatNoCandidates.
+  ///
+  /// In en, this message translates to:
+  /// **'No candidates.'**
+  String get aiChatNoCandidates;
+
+  /// No description provided for @aiChatNoTextParts.
+  ///
+  /// In en, this message translates to:
+  /// **'No text parts.'**
+  String get aiChatNoTextParts;
 
   /// No description provided for @aiDailyInsightTitle.
   ///
@@ -6063,11 +6645,11 @@ abstract class AppLocalizations {
   /// **'Luteinizing Hormone (LH) surges 24-48 hours before ovulation. A positive test predicts your most fertile days before the egg is released.'**
   String get eduBodyLH;
 
-  /// No description provided for @eduTitleSex.
+  /// No description provided for @eduTiteSex.
   ///
   /// In en, this message translates to:
   /// **'Logging Intimacy'**
-  String get eduTitleSex;
+  String get eduTiteSex;
 
   /// No description provided for @eduBodySex.
   ///

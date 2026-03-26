@@ -59,7 +59,7 @@ class _DashboardInsightCardState extends State<DashboardInsightCard> {
 
     String localTitle = "";
     String localSubtitle = "";
-    String localType = "neutral";
+    InsightTone localType = InsightTone.neutral;
 
     final symptomInsight = SymptomIntelligence.getInsight(
       context,
@@ -71,43 +71,63 @@ class _DashboardInsightCardState extends State<DashboardInsightCard> {
     if (symptomInsight != null) {
       localTitle = symptomInsight.title;
       localSubtitle = symptomInsight.description;
-      localType = symptomInsight.isWarning ? "warning" : "positive";
+      localType = symptomInsight.isWarning ? InsightTone.warning : InsightTone.positive;
     } else {
       if (cycle.isTTCMode) {
         switch (widget.data.phase) {
           case CyclePhase.menstruation:
             localTitle = widget.l10n.dashboardInsightCycleResetTitle;
             localSubtitle = widget.l10n.dashboardInsightCycleResetBody;
-            localType = "neutral";
+            localType = InsightTone.neutral;
             break;
           case CyclePhase.follicular:
             localTitle = widget.l10n.dashboardInsightPreparingOvulationTitle;
             localSubtitle = widget.l10n.dashboardInsightPreparingOvulationBody;
-            localType = "positive";
+            localType = InsightTone.positive;
             break;
           case CyclePhase.ovulation:
             localTitle = widget.l10n.dashboardInsightPeakFertilityTitle;
             localSubtitle = widget.l10n.dashboardInsightPeakFertilityBody;
-            localType = "positive";
+            localType = InsightTone.positive;
             break;
           case CyclePhase.luteal:
             localTitle = widget.l10n.dashboardInsightTwwTitle;
             localSubtitle = widget.l10n.dashboardInsightTwwBody;
-            localType = "neutral";
+            localType = InsightTone.neutral;
             break;
           case CyclePhase.late:
             localTitle = widget.l10n.dashboardInsightTestDayTitle;
             localSubtitle = widget.l10n.dashboardInsightTestDayBody;
-            localType = "positive";
+            localType = InsightTone.positive;
             break;
         }
       } else {
         switch (widget.data.phase) {
-          case CyclePhase.menstruation: localTitle = widget.l10n.dashboardInsightRestResetTitle; localSubtitle = widget.l10n.dashboardInsightRestResetBody; localType = "warning"; break;
-          case CyclePhase.follicular: localTitle = widget.l10n.dashboardInsightEnergyRisingTitle; localSubtitle = widget.l10n.dashboardInsightEnergyRisingBody; localType = "positive"; break;
-          case CyclePhase.ovulation: localTitle = widget.l10n.dashboardInsightPeakVitalityTitle; localSubtitle = widget.l10n.dashboardInsightPeakVitalityBody; localType = "positive"; break;
-          case CyclePhase.luteal: localTitle = widget.l10n.dashboardInsightWindDownTitle; localSubtitle = widget.l10n.dashboardInsightWindDownBody; localType = "neutral"; break;
-          case CyclePhase.late: localTitle = widget.l10n.dashboardInsightCycleDelayedTitle; localSubtitle = widget.l10n.dashboardInsightCycleDelayedBody; localType = "warning"; break;
+          case CyclePhase.menstruation:
+            localTitle = widget.l10n.dashboardInsightRestResetTitle;
+            localSubtitle = widget.l10n.dashboardInsightRestResetBody;
+            localType = InsightTone.warning;
+            break;
+          case CyclePhase.follicular:
+            localTitle = widget.l10n.dashboardInsightEnergyRisingTitle;
+            localSubtitle = widget.l10n.dashboardInsightEnergyRisingBody;
+            localType = InsightTone.positive;
+            break;
+          case CyclePhase.ovulation:
+            localTitle = widget.l10n.dashboardInsightPeakVitalityTitle;
+            localSubtitle = widget.l10n.dashboardInsightPeakVitalityBody;
+            localType = InsightTone.positive;
+            break;
+          case CyclePhase.luteal:
+            localTitle = widget.l10n.dashboardInsightWindDownTitle;
+            localSubtitle = widget.l10n.dashboardInsightWindDownBody;
+            localType = InsightTone.neutral;
+            break;
+          case CyclePhase.late:
+            localTitle = widget.l10n.dashboardInsightCycleDelayedTitle;
+            localSubtitle = widget.l10n.dashboardInsightCycleDelayedBody;
+            localType = InsightTone.warning;
+            break;
         }
       }
     }
@@ -160,9 +180,16 @@ class _DashboardInsightCardState extends State<DashboardInsightCard> {
                     ? widget.l10n.dashboardInsightThinkingBody
                     : (useLocalFallback ? localSubtitle : box.get('current_insight_body', defaultValue: localSubtitle) as String);
 
-                final String displayType = _isRefreshing
-                    ? "neutral"
-                    : (useLocalFallback ? localType : box.get('current_insight_type', defaultValue: localType) as String);
+                final InsightTone resolvedDisplayType = _isRefreshing
+                    ? InsightTone.neutral
+                    : (useLocalFallback
+                        ? localType
+                        : InsightToneX.fromStorage(
+                            box.get(
+                              'current_insight_type',
+                              defaultValue: localType.storageValue,
+                            ) as String,
+                          ));
 
                 final Color badgeColor = _isRefreshing
                     ? AppColors.textSecondary
@@ -188,7 +215,7 @@ class _DashboardInsightCardState extends State<DashboardInsightCard> {
                       children: [
                         _EnergyOrb(
                             phase: widget.data.phase,
-                            alertType: displayType,
+                            alertType: resolvedDisplayType,
                             isTTC: cycle.isTTCMode,
                             chance: cycle.conceptionChance
                         ),
@@ -221,7 +248,9 @@ class _DashboardInsightCardState extends State<DashboardInsightCard> {
                                           border: Border.all(color: chanceColor.withValues(alpha: 0.3)),
                                         ),
                                         child: Text(
-                                          cycle.currentDPO != null ? "${cycle.currentDPO} DPO • $chanceText" : chanceText,
+                                          cycle.currentDPO != null
+                                              ? "${widget.l10n.ttcDPO(cycle.currentDPO!)} • $chanceText"
+                                              : chanceText,
                                           style: GoogleFonts.inter(fontSize: 9, fontWeight: FontWeight.bold, color: chanceColor, letterSpacing: 0.5),
                                           maxLines: 1,
                                           overflow: TextOverflow.ellipsis,
@@ -272,7 +301,7 @@ class _DashboardInsightCardState extends State<DashboardInsightCard> {
 
 class _EnergyOrb extends StatefulWidget {
   final CyclePhase phase;
-  final String alertType;
+  final InsightTone alertType;
   final bool isTTC;
   final FertilityChance chance;
 
@@ -326,9 +355,9 @@ class _EnergyOrbState extends State<_EnergyOrb> with SingleTickerProviderStateMi
         orbColors = const [Color(0xFF89F7FE), Color(0xFF66A6FF), Color(0xFF89F7FE)];
       }
     } else {
-      if (widget.alertType == 'warning') {
+      if (widget.alertType == InsightTone.warning) {
         orbColors = const [Color(0xFF8B0000), Color(0xFFE94057), Color(0xFFFF4500)];
-      } else if (widget.alertType == 'positive') {
+      } else if (widget.alertType == InsightTone.positive) {
         orbColors = const [Color(0xFF00C6FF), Color(0xFF0072FF), Color(0xFF00B4DB)];
       }
     }
@@ -355,6 +384,32 @@ class _EnergyOrbState extends State<_EnergyOrb> with SingleTickerProviderStateMi
         );
       },
     );
+  }
+}
+
+enum InsightTone { neutral, positive, warning }
+
+extension InsightToneX on InsightTone {
+  String get storageValue {
+    switch (this) {
+      case InsightTone.neutral:
+        return 'neutral';
+      case InsightTone.positive:
+        return 'positive';
+      case InsightTone.warning:
+        return 'warning';
+    }
+  }
+
+  static InsightTone fromStorage(String value) {
+    switch (value) {
+      case 'warning':
+        return InsightTone.warning;
+      case 'positive':
+        return InsightTone.positive;
+      default:
+        return InsightTone.neutral;
+    }
   }
 }
 

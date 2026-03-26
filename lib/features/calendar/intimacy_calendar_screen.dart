@@ -8,6 +8,7 @@ import 'package:intl/intl.dart';
 
 import '../../data/providers/cycle_provider.dart';
 import '../../data/providers/wellness_provider.dart';
+import '../../l10n/app_localizations.dart';
 import '../../shared/widgets/live_phase_background.dart';
 
 class IntimacyCalendarScreen extends StatefulWidget {
@@ -352,6 +353,7 @@ class _IntimacyCalendarScreenState extends State<IntimacyCalendarScreen> {
   }
 
   Widget _buildLegendCard() {
+    final l10n = AppLocalizations.of(context)!;
     return ClipRRect(
       borderRadius: BorderRadius.circular(26),
       child: BackdropFilter(
@@ -382,22 +384,22 @@ class _IntimacyCalendarScreenState extends State<IntimacyCalendarScreen> {
               _buildLegendItem(
                 icon: CupertinoIcons.heart_fill,
                 color: _sexPink,
-                label: 'Intimacy',
+                label: l10n.symIntimacy,
               ),
               _buildLegendItem(
                 icon: CupertinoIcons.lock_fill,
                 color: _protectedGreen,
-                label: 'Protected sex',
+                label: l10n.symProtectedSex,
               ),
               _buildLegendItem(
                 icon: CupertinoIcons.exclamationmark_triangle_fill,
                 color: _warningRed,
-                label: 'Unprotected sex',
+                label: l10n.symUnprotectedSex,
               ),
               _buildLegendItem(
                 icon: CupertinoIcons.circle_fill,
                 color: _plum.withValues(alpha: 0.55),
-                label: 'Today',
+                label: l10n.btnToday,
               ),
             ],
           ),

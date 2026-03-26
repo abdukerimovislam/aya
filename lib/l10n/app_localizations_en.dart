@@ -142,6 +142,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get flowHeavy => 'Heavy';
 
   @override
+  String get flowNone => 'None';
+
+  @override
   String get catPain => 'Pain';
 
   @override
@@ -212,6 +215,105 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get symptomBloating => 'Bloating';
+
+  @override
+  String get symCramps => 'Cramps';
+
+  @override
+  String get symHeadache => 'Headache';
+
+  @override
+  String get symBloating => 'Bloating';
+
+  @override
+  String get symAcne => 'Acne';
+
+  @override
+  String get symTenderBreasts => 'Tender Breasts';
+
+  @override
+  String get symBackache => 'Backache';
+
+  @override
+  String get symNausea => 'Nausea';
+
+  @override
+  String get symFatigue => 'Fatigue';
+
+  @override
+  String get symAnxious => 'Anxious';
+
+  @override
+  String get symIrritable => 'Irritable';
+
+  @override
+  String get symCryingSpells => 'Crying Spells';
+
+  @override
+  String get symBrainFog => 'Brain Fog';
+
+  @override
+  String get symHappy => 'Happy';
+
+  @override
+  String get symFocused => 'Focused';
+
+  @override
+  String get symCalm => 'Calm';
+
+  @override
+  String get symSpotting => 'Spotting';
+
+  @override
+  String get symAlcohol => 'Alcohol';
+
+  @override
+  String get symTravel => 'Travel';
+
+  @override
+  String get symHighStress => 'High Stress';
+
+  @override
+  String get symSick => 'Sick';
+
+  @override
+  String get symExercise => 'Exercise';
+
+  @override
+  String get symPoorDiet => 'Poor Diet';
+
+  @override
+  String get symDryMucus => 'Dry Mucus';
+
+  @override
+  String get symStickyMucus => 'Sticky Mucus';
+
+  @override
+  String get symCreamyMucus => 'Creamy Mucus';
+
+  @override
+  String get symEggWhiteMucus => 'Egg-white Mucus';
+
+  @override
+  String get symLhNegative => 'LH: Negative';
+
+  @override
+  String get symLhHigh => 'LH: High';
+
+  @override
+  String get symLhPeak => 'LH: Peak';
+
+  @override
+  String get symIntimacy => 'Intimacy';
+
+  @override
+  String get symHighLibido => 'High Libido';
+
+  @override
+  String get symProtectedSex => 'Protected Sex';
+
+  @override
+  String get symUnprotectedSex => 'Unprotected Sex';
 
   @override
   String get logLibido => 'Libido';
@@ -929,6 +1031,80 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get backupExportTitle => 'Export backup';
+
+  @override
+  String get backupExportBody => 'The backup file contains private health data. We will encrypt it with a password.';
+
+  @override
+  String get backupRestoreTitle => 'Restore backup';
+
+  @override
+  String get backupRestoreBody => 'This will replace your current data with the data from the backup file.';
+
+  @override
+  String get backupSetPasswordTitle => 'Set backup password';
+
+  @override
+  String get backupEnterPasswordTitle => 'Enter backup password';
+
+  @override
+  String get backupPasswordHint => 'Password';
+
+  @override
+  String get backupConfirmPasswordHint => 'Confirm password';
+
+  @override
+  String get backupShowPassword => 'Show password';
+
+  @override
+  String get backupPasswordLostWarning => 'Important: if you forget this password, the backup cannot be recovered.';
+
+  @override
+  String get backupPasswordTooShort => 'Password too short (min 6)';
+
+  @override
+  String get backupPasswordsDoNotMatch => 'Passwords do not match';
+
+  @override
+  String get backupContinueAction => 'Continue';
+
+  @override
+  String get backupAuthFailed => 'Authentication failed';
+
+  @override
+  String get backupPathEmpty => 'File path is empty';
+
+  @override
+  String get backupWrongPassword => 'Wrong password or corrupted backup';
+
+  @override
+  String get backupInvalidFileFormat => 'Invalid backup file format';
+
+  @override
+  String get backupRestoreFailed => 'Restore failed: corrupted file or wrong format';
+
+  @override
+  String backupEncryptedCreated(String date) {
+    return 'Encrypted backup created on $date';
+  }
+
+  @override
+  String backupFailed(String error) {
+    return 'Backup failed: $error';
+  }
+
+  @override
+  String backupEncryptedBoxMustBeOpen(String name) {
+    return 'Encrypted Hive box \'$name\' must already be open before backup operations.';
+  }
+
+  @override
+  String storageEncryptedBoxClosed(String name) {
+    return 'Encrypted Hive box $name is closed and no encrypted opener was provided.';
+  }
+
+  @override
   String get greetMorning => 'Good morning';
 
   @override
@@ -1031,6 +1207,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get pdfDefaultPatient => 'Patient';
 
   @override
+  String get pdfModeCoc => 'COC';
+
+  @override
+  String get pdfModeTtc => 'TTC';
+
+  @override
   String pdfPeriodRange(String start, String end) {
     return 'Period: $start - $end';
   }
@@ -1040,6 +1222,15 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get pdfFlowMedium => 'Med';
+
+  @override
+  String get pdfLhNegativeShort => 'Neg';
+
+  @override
+  String get pdfLhPositiveShort => 'Pos';
+
+  @override
+  String get pdfLhPeakShort => 'Peak';
 
   @override
   String get pdfSymptomSexProtected => 'Sex (P)';
@@ -1427,6 +1618,19 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get insightsHormonalRhythmBody => 'Your symptoms correlated with estimated hormone levels';
+
+  @override
+  String get insightsHormonalRhythmInspectHint => 'Touch the chart to inspect';
+
+  @override
+  String insightsHormonalRhythmScrubbingDay(int day) {
+    return 'Scrubbing day $day';
+  }
+
+  @override
+  String insightsHormonalRhythmMore(int count) {
+    return '+$count more';
+  }
 
   @override
   String get insightsHormonalContextTitle => 'Hormonal Context';
@@ -2193,6 +2397,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get dashboardActionLogged => 'Logged';
 
   @override
+  String get dashboardActionGenericError => 'Error. Please try again.';
+
+  @override
   String get dashboardPeriodEndingTitle => 'Ending today';
 
   @override
@@ -2707,6 +2914,24 @@ class AppLocalizationsEn extends AppLocalizations {
   String get partnerSyncUnlinkButton => 'Unlink Partner';
 
   @override
+  String get partnerSyncAnonymousAuthFailed => 'Failed to authenticate anonymously.';
+
+  @override
+  String get partnerSyncGenerateCodeFailed => 'Failed to generate a unique invite code.';
+
+  @override
+  String get partnerSyncInviteNoLongerValid => 'Invite code is no longer valid.';
+
+  @override
+  String get partnerSyncOwnInviteCode => 'You cannot link to your own invite code.';
+
+  @override
+  String get partnerSyncInviteAlreadyUsed => 'This invite code has already been used.';
+
+  @override
+  String get partnerSyncNotLinked => 'Not linked to any couple.';
+
+  @override
   String get chatTitle => 'Ayla AI';
 
   @override
@@ -2726,6 +2951,104 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get chatConnectionIssue => 'I\'m having a little trouble connecting right now. Please check your internet or try again in a moment. 💜';
+
+  @override
+  String get aiSecurityTokenMissing => 'Security token is missing in cloud configuration.';
+
+  @override
+  String get aiTokenLoadFailed => 'Failed to load secure token from cloud.';
+
+  @override
+  String get aiNoSymptomsLoggedToday => 'No specific physical symptoms logged today.';
+
+  @override
+  String aiDailyAdvicePrompt(String phase, String isCoc, String symptoms) {
+    return 'You are Ayla, an empathetic and highly professional Cycle Intelligence Assistant and women\'s wellness guide.\nAnalyze the user\'s current state and explain why they might be feeling this way based on their cycle.\nAlways remind the user to consult a healthcare provider for any medical concerns.\n\nContext:\n- Current cycle phase: $phase\n- Contraceptive pill user: $isCoc\n- Today\'s symptoms and moods: $symptoms\n\nTask:\nProvide a short, comforting, and scientifically accurate explanation (2 to 4 sentences max) of how their current hormonal profile is likely causing these specific symptoms.\n\nCritical instruction:\nRespond in raw plain text only.\nDo not use JSON.\nDo not wrap the response in braces.\nDo not use Markdown.\nJust write the sentences directly.';
+  }
+
+  @override
+  String aiProxyHttpError(int statusCode) {
+    return 'Proxy HTTP error: $statusCode';
+  }
+
+  @override
+  String get aiNoCandidatesReturned => 'No candidates returned.';
+
+  @override
+  String get aiNoTextPartsReturned => 'No text parts returned.';
+
+  @override
+  String get aiGeneratedTextEmpty => 'Generated text is empty.';
+
+  @override
+  String get aiRefreshRateLimit => 'Please wait a minute before refreshing.';
+
+  @override
+  String aiDailyInsightContext(int totalCycles, int totalLogs, String date) {
+    return 'Ayla app user.\nRecorded cycles: $totalCycles.\nRecorded symptom days: $totalLogs.\nCurrent date: $date.';
+  }
+
+  @override
+  String aiDailyInsightPrompt(String context, String titleKey, String bodyKey, String typeKey, String neutralType, String positiveType, String warningType) {
+    return 'You are the women\'s health AI assistant (Cycle Intelligence Assistant) in the Ayla app.\nAnalyze the user context and provide one short insight or advice for today.\nIf there is little data available (for example, 0 cycles), greet the user and suggest starting the journal.\n\nContext: $context\n\nReturn the answer strictly as valid JSON with three keys:\n\"$titleKey\": A short title (up to 3 or 4 words in English, for example \"Rest & Reset\").\n\"$bodyKey\": One or two sentences with advice or analysis (in English).\n\"$typeKey\": One of these exact values only ($neutralType, $positiveType, $warningType).';
+  }
+
+  @override
+  String get aiRequestTimeout => 'Request timed out.';
+
+  @override
+  String get aiProxyInvalidJson => 'Proxy did not return valid JSON.';
+
+  @override
+  String get aiGeneratedNoTextParts => 'AI generated no text parts.';
+
+  @override
+  String get aiGeneratedTextCompletelyEmpty => 'Generated text is completely empty.';
+
+  @override
+  String get aiInvalidJsonObject => 'AI did not return a valid JSON object.';
+
+  @override
+  String aiJsonFormatError(String error) {
+    return 'AI JSON format error: $error';
+  }
+
+  @override
+  String aiMoodLabel(String mood) {
+    return 'Mood: $mood';
+  }
+
+  @override
+  String aiChatContext(String phase, int day, String isCoc) {
+    return 'User context: Phase: $phase, Day: $day, COC user: $isCoc.';
+  }
+
+  @override
+  String aiChatSymptomsToday(String symptoms) {
+    return 'Symptoms today: $symptoms.';
+  }
+
+  @override
+  String aiChatSystemPrompt(String context) {
+    return 'You are Ayla, an empathetic, highly professional Cycle Intelligence Assistant and women\'s wellness guide.\nYou are chatting directly with the user. Keep responses warm, concise, and scientifically accurate.\nYou are not a doctor. Do not give dangerous medical diagnoses. Always remind the user to consult a healthcare provider for any serious or concerning medical symptoms.\n$context';
+  }
+
+  @override
+  String get aiChatRoleUser => 'User';
+
+  @override
+  String get aiChatRoleAyla => 'Ayla';
+
+  @override
+  String aiChatHttpError(int statusCode) {
+    return 'Chat HTTP error: $statusCode';
+  }
+
+  @override
+  String get aiChatNoCandidates => 'No candidates.';
+
+  @override
+  String get aiChatNoTextParts => 'No text parts.';
 
   @override
   String get aiDailyInsightTitle => 'Daily Insight';
@@ -3080,7 +3403,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get eduBodyLH => 'Luteinizing Hormone (LH) surges 24-48 hours before ovulation. A positive test predicts your most fertile days before the egg is released.';
 
   @override
-  String get eduTitleSex => 'Logging Intimacy';
+  String get eduTiteSex => 'Logging Intimacy';
 
   @override
   String get eduBodySex => 'Sperm can survive for up to 5 days inside the body. Logging helps you ensure you have timed intimacy within your fertile window for the best chance of conception.';

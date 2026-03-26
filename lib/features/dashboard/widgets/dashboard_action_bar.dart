@@ -193,14 +193,15 @@ class DashboardActionBar extends StatelessWidget {
 
     if (data.phase == CyclePhase.menstruation) {
       if (provider.isPeriodEnded) {
-        return _ActionConfig(
-          title: l10n.dashboardPeriodEndingTitle,
-          subtitle: l10n.dashboardPeriodEndingBody,
-          icon: CupertinoIcons.check_mark_circled_solid,
-          isPrimaryFilled: false,
-          isPulsing: false,
-          showTodayBadge: false,
-          onTap: () => _showActivePeriodSheet(context),
+      return _ActionConfig(
+        title: l10n.dashboardPeriodEndingTitle,
+        subtitle: l10n.dashboardPeriodEndingBody,
+        icon: CupertinoIcons.check_mark_circled_solid,
+        isPrimaryFilled: false,
+        isEnding: true,
+        isPulsing: false,
+        showTodayBadge: false,
+        onTap: () => _showActivePeriodSheet(context),
         );
       }
 
@@ -455,11 +456,14 @@ class DashboardActionBar extends StatelessWidget {
 
   void _showErrorSnackbar(
       BuildContext context, {
-        String message = 'Error. Please try again.',
+        String? message,
       }) {
     ScaffoldMessenger.of(context).clearSnackBars();
     ScaffoldMessenger.of(context).showSnackBar(
-      _buildSnackbar(message, Colors.redAccent.withValues(alpha: 0.9)),
+      _buildSnackbar(
+        message ?? l10n.dashboardActionGenericError,
+        Colors.redAccent.withValues(alpha: 0.9),
+      ),
     );
   }
 
@@ -544,11 +548,12 @@ class _CycleActionCardState extends State<_CycleActionCard>
   }
 
   bool get _isEndingState =>
-      widget.config.title.toLowerCase().contains('ending');
+      widget.config.isEnding;
 
   @override
   Widget build(BuildContext context) {
     final bool isEnding = _isEndingState;
+    final l10n = AppLocalizations.of(context)!;
 
     final Gradient backgroundGradient = isEnding
         ? const LinearGradient(
@@ -690,7 +695,7 @@ class _CycleActionCardState extends State<_CycleActionCard>
                 ),
               ),
               child: Text(
-                'TODAY',
+                l10n.btnToday.toUpperCase(),
                 style: GoogleFonts.inter(
                   fontSize: 10,
                   fontWeight: FontWeight.w800,
@@ -743,6 +748,7 @@ class _ActionConfig {
   final String subtitle;
   final IconData icon;
   final bool isPrimaryFilled;
+  final bool isEnding;
   final bool isPulsing;
   final bool showTodayBadge;
   final VoidCallback onTap;
@@ -752,6 +758,7 @@ class _ActionConfig {
     required this.subtitle,
     required this.icon,
     required this.isPrimaryFilled,
+    this.isEnding = false,
     required this.isPulsing,
     required this.showTodayBadge,
     required this.onTap,

@@ -10,6 +10,7 @@ import 'package:firebase_remote_config/firebase_remote_config.dart';
 import 'notification_service.dart';
 import '../../data/models/cycle_model.dart';
 import '../../l10n/app_localizations.dart';
+import '../utils/symptom_localization.dart';
 
 class AiOracleService {
   // 🔥 Fallback URL на случай, если Firebase недоступен (нет интернета)
@@ -17,9 +18,23 @@ class AiOracleService {
 
   static String? _inMemoryToken;
   static String? _inMemoryProxyUrl;
+  static const Set<String> _supportedLocaleCodes = {
+    'en',
+    'ru',
+    'es',
+    'de',
+    'pt',
+    'tr',
+    'pl',
+  };
 
-  static AppLocalizations get _englishL10n =>
-      lookupAppLocalizations(const Locale('en'));
+  static AppLocalizations get _l10n {
+    final rawLocale = Intl.getCurrentLocale();
+    final languageCode = rawLocale.split(RegExp(r'[_-]')).first;
+    final localeCode =
+        _supportedLocaleCodes.contains(languageCode) ? languageCode : 'en';
+    return lookupAppLocalizations(Locale(localeCode));
+  }
 
   // 🔥 Получаем динамический URL сервера из облака
   static Future<String> _getProxyUrl() async {
@@ -62,14 +77,14 @@ class AiOracleService {
       if (token.isEmpty) token = remoteConfig.getString('aya-ai-proxy');
 
       if (token.isEmpty) {
-        throw Exception("Security Token is missing in Cloud Configuration");
+        throw Exception(_l10n.aiSecurityTokenMissing);
       }
 
       _inMemoryToken = token;
       return _inMemoryToken!;
     } catch (e) {
-      if (kDebugMode) debugPrint("☁️ Ошибка связи с облаком Firebase: $e");
-      throw Exception("Failed to load secure token from cloud");
+      if (kDebugMode) debugPrint('Remote config connection error: $e');
+      throw Exception(_l10n.aiTokenLoadFailed);
     }
   }
 
@@ -95,7 +110,7 @@ class AiOracleService {
       final safeToken = await _getSecretToken();
       final apiUrl = await _getProxyUrl();
 
-      String symptomsText = "No specific physical symptoms logged today.";
+      String symptomsText = _l10n.aiNoSymptomsLoggedToday;
       if (logs.isNotEmpty && logs.first != null) {
         final log = logs.first;
         final List<String> allSymptoms = [];
@@ -108,39 +123,24 @@ class AiOracleService {
             allSymptoms.addAll((log.painSymptoms as List).map((e) => e.toString()));
           }
           if (log.mood != null && log.mood.toString().isNotEmpty) {
-            allSymptoms.add("Mood: ${log.mood}");
+            allSymptoms.add(_l10n.aiMoodLabel(log.mood.toString()));
           }
         } catch(e) {
           if (kDebugMode) debugPrint("Error parsing logs: $e");
         }
 
         if (allSymptoms.isNotEmpty) {
-          symptomsText = allSymptoms.join(", ");
+          symptomsText = localizeSymptomTokens(allSymptoms, _l10n).join(", ");
         }
       }
 
       final String phaseStr = phase.toString().split('.').last;
 
-      // 🔥 Юридически безопасный промпт
-      final prompt = '''
-      You are Ayla, an empathetic and highly professional Cycle Intelligence Assistant and women's wellness guide.
-      Analyze the user's current state and explain WHY they might be feeling this way based on their cycle.
-      Always remind the user to consult a healthcare provider for any medical concerns.
-      
-      Context:
-      - Current cycle phase: $phaseStr
-      - Contraceptive pill user: $isCoc
-      - Today's symptoms/moods: $symptomsText
-      
-      Task:
-      Provide a short, comforting, and scientifically accurate explanation (2-4 sentences max) of how their current hormonal profile is likely causing these specific symptoms. 
-      
-      CRITICAL INSTRUCTION:
-      RESPOND IN RAW PLAIN TEXT ONLY. 
-      DO NOT USE JSON. DO NOT WRAP IN BRACES {}. 
-      DO NOT USE MARKDOWN LIKE ```json OR **.
-      Just write the sentences directly.
-      ''';
+      final prompt = _l10n.aiDailyAdvicePrompt(
+        phaseStr,
+        isCoc.toString(),
+        symptomsText,
+      );
 
       final response = await http.post(
         Uri.parse(apiUrl),
@@ -152,19 +152,25 @@ class AiOracleService {
       ).timeout(const Duration(seconds: 15));
 
       if (response.statusCode != 200) {
-        throw Exception("Proxy HTTP Error: ${response.statusCode}");
+        throw Exception(_l10n.aiProxyHttpError(response.statusCode));
       }
 
       final jsonResponse = jsonDecode(response.body);
       final candidates = jsonResponse['candidates'] as List?;
-      if (candidates == null || candidates.isEmpty) throw Exception("No candidates returned");
+      if (candidates == null || candidates.isEmpty) {
+        throw Exception(_l10n.aiNoCandidatesReturned);
+      }
 
       final content = candidates.first['content'] as Map<String, dynamic>?;
       final parts = content?['parts'] as List?;
-      if (parts == null || parts.isEmpty) throw Exception("No text parts returned");
+      if (parts == null || parts.isEmpty) {
+        throw Exception(_l10n.aiNoTextPartsReturned);
+      }
 
       final String generatedText = parts.first['text'] as String? ?? "";
-      if (generatedText.trim().isEmpty) throw Exception("Generated text is empty");
+      if (generatedText.trim().isEmpty) {
+        throw Exception(_l10n.aiGeneratedTextEmpty);
+      }
 
       String cleanText = generatedText.trim();
 
@@ -196,7 +202,7 @@ class AiOracleService {
       return cleanText;
     } catch (e) {
       if (kDebugMode) debugPrint("🔥 AI Oracle Error: $e");
-      return _englishL10n.chatConnectionIssue;
+      return _l10n.chatConnectionIssue;
     }
   }
 
@@ -210,7 +216,7 @@ class AiOracleService {
         if (lastMs != null) {
           final difference = DateTime.now().difference(DateTime.fromMillisecondsSinceEpoch(lastMs));
           if (difference.inSeconds < 60) {
-            throw Exception("RateLimit: Please wait a minute before refreshing.");
+            throw Exception(_l10n.aiRefreshRateLimit);
           }
         }
       }
@@ -232,26 +238,21 @@ class AiOracleService {
       int totalCycles = cycleBox?.length ?? 0;
       int totalLogs = wellnessBox?.length ?? 0;
 
-      final String contextData = """
-      Пользователь приложения Ayla. 
-      Записано циклов: $totalCycles. 
-      Записано дней с симптомами: $totalLogs.
-      Текущая дата: $todayStr.
-      """;
+      final contextData = _l10n.aiDailyInsightContext(
+        totalCycles,
+        totalLogs,
+        todayStr,
+      );
 
-      // 🔥 Юридически безопасный промпт
-      final prompt = '''
-      Ты ИИ-ассистент по женскому здоровью (Cycle Intelligence Assistant) в приложении Ayla.
-      Проанализируй контекст пользователя и выдай один короткий инсайт или совет на сегодня. 
-      Если данных мало (например, 0 циклов), поприветствуй и посоветуй начать вести дневник.
-      
-      Контекст: $contextData
-      
-      Верни ответ СТРОГО в валидном JSON-формате с тремя ключами:
-      "title": Короткий заголовок (до 3-4 слов на английском, например "Rest & Reset").
-      "body": Одно-два предложения с советом или анализом (на английском).
-      "type": Одно из значений строго (neutral, positive, warning).
-      ''';
+      final prompt = _l10n.aiDailyInsightPrompt(
+        contextData,
+        'title',
+        'body',
+        'type',
+        'neutral',
+        'positive',
+        'warning',
+      );
 
       final response = await http.post(
         Uri.parse(apiUrl),
@@ -262,33 +263,37 @@ class AiOracleService {
         body: jsonEncode({"prompt": prompt}),
       ).timeout(
         const Duration(seconds: 15),
-        onTimeout: () => throw TimeoutException("Timeout"),
+        onTimeout: () => throw TimeoutException(_l10n.aiRequestTimeout),
       );
 
       if (response.statusCode != 200) {
-        throw Exception("Proxy HTTP Error: ${response.statusCode}");
+        throw Exception(_l10n.aiProxyHttpError(response.statusCode));
       }
 
       Map<String, dynamic> jsonResponse;
       try {
         jsonResponse = jsonDecode(response.body);
       } catch (e) {
-        throw Exception("Proxy did not return valid JSON.");
+        throw Exception(_l10n.aiProxyInvalidJson);
       }
 
       final candidates = jsonResponse['candidates'] as List?;
       if (candidates == null || candidates.isEmpty) {
-        throw Exception("No candidates returned.");
+        throw Exception(_l10n.aiNoCandidatesReturned);
       }
 
       final firstCandidate = candidates.first as Map<String, dynamic>?;
       final content = firstCandidate?['content'] as Map<String, dynamic>?;
       final parts = content?['parts'] as List?;
 
-      if (parts == null || parts.isEmpty) throw Exception("AI generated no text parts.");
+      if (parts == null || parts.isEmpty) {
+        throw Exception(_l10n.aiGeneratedNoTextParts);
+      }
 
       final String? generatedText = parts.first['text'] as String?;
-      if (generatedText == null || generatedText.trim().isEmpty) throw Exception("Generated text is completely empty.");
+      if (generatedText == null || generatedText.trim().isEmpty) {
+        throw Exception(_l10n.aiGeneratedTextCompletelyEmpty);
+      }
 
       // 🔥 ИСПРАВЛЕНИЕ: Бронебойный парсер JSON (Вытащит JSON даже если ИИ налил воды вокруг)
       String cleanJsonStr = generatedText.trim();
@@ -298,18 +303,18 @@ class AiOracleService {
       if (match != null) {
         cleanJsonStr = match.group(0)!;
       } else {
-        throw Exception("AI did not return a valid JSON object.");
+        throw Exception(_l10n.aiInvalidJsonObject);
       }
 
       Map<String, dynamic> jsonInsight;
       try {
         jsonInsight = jsonDecode(cleanJsonStr);
       } catch (e) {
-        throw Exception("AI JSON Format Error: $e");
+        throw Exception(_l10n.aiJsonFormatError(e.toString()));
       }
 
-      final title = jsonInsight['title']?.toString() ?? _englishL10n.aiDailyInsightTitle;
-      final bodyText = jsonInsight['body']?.toString() ?? _englishL10n.aiDailyInsightBody;
+      final title = jsonInsight['title']?.toString() ?? _l10n.aiDailyInsightTitle;
+      final bodyText = jsonInsight['body']?.toString() ?? _l10n.aiDailyInsightBody;
       String type = jsonInsight['type']?.toString().toLowerCase() ?? "neutral";
       if (type != 'warning' && type != 'positive') type = 'neutral';
 
@@ -339,7 +344,7 @@ class AiOracleService {
     if (now.hour >= 10 && now.hour <= 20) {
       notificationService.showLocalNotification(
         id: 999,
-        title: _englishL10n.notifAylaInsightTitle,
+        title: _l10n.notifAylaInsightTitle,
         body: title,
         payload: "/home",
       );
@@ -349,7 +354,7 @@ class AiOracleService {
 
       notificationService.scheduleNotification(
         id: 999,
-        title: _englishL10n.notifAylaInsightTitle,
+        title: _l10n.notifAylaInsightTitle,
         body: title,
         scheduledDate: scheduledTime,
         payload: "/home",
@@ -371,8 +376,11 @@ class AiOracleService {
       final safeToken = await _getSecretToken();
       final apiUrl = await _getProxyUrl();
 
-      // Формируем медицинский контекст пользователя
-      String contextStr = "User context: Phase: $currentPhase, Day: $currentDay, COC user: $isCoc. ";
+      String contextStr = _l10n.aiChatContext(
+        currentPhase,
+        currentDay,
+        isCoc.toString(),
+      );
       if (recentLogs.isNotEmpty && recentLogs.first != null) {
         final log = recentLogs.first;
         List<String> symptoms = [];
@@ -381,24 +389,22 @@ class AiOracleService {
           if (log.painSymptoms != null) symptoms.addAll((log.painSymptoms as List).map((e) => e.toString()));
         } catch (_) {}
         if (symptoms.isNotEmpty) {
-          contextStr += "Symptoms today: ${symptoms.join(', ')}.";
+          final localizedSymptoms = localizeSymptomTokens(symptoms, _l10n);
+          contextStr +=
+              ' ${_l10n.aiChatSymptomsToday(localizedSymptoms.join(', '))}';
         }
       }
 
-      // 🔥 Юридически безопасный системный промпт
-      final systemPrompt = '''
-      You are Ayla, an empathetic, highly professional Cycle Intelligence Assistant and women's wellness guide.
-      You are chatting directly with the user. Keep responses warm, concise, and scientifically accurate.
-      You are NOT a doctor. Do not give dangerous medical diagnoses. Always remind the user to consult a healthcare provider for any serious or concerning medical symptoms.
-      $contextStr
-      ''';
+      final systemPrompt = _l10n.aiChatSystemPrompt(contextStr);
+      final userRole = _l10n.aiChatRoleUser;
+      final aylaRole = _l10n.aiChatRoleAyla;
 
-      // Собираем историю диалога в текстовый вид для промпта
-      String conversationText = "$systemPrompt\n\n";
+      String conversationText = '$systemPrompt\n\n';
       for (var msg in chatHistory) {
-        conversationText += "${msg['role'] == 'user' ? 'User' : 'Ayla'}: ${msg['content']}\n";
+        final role = msg['role'] == 'user' ? userRole : aylaRole;
+        conversationText += '$role: ${msg['content']}\n';
       }
-      conversationText += "User: $userMessage\nAyla:";
+      conversationText += '$userRole: $userMessage\n$aylaRole:';
 
       final response = await http.post(
         Uri.parse(apiUrl),
@@ -410,16 +416,20 @@ class AiOracleService {
       ).timeout(const Duration(seconds: 20));
 
       if (response.statusCode != 200) {
-        throw Exception("Chat HTTP Error: ${response.statusCode}");
+        throw Exception(_l10n.aiChatHttpError(response.statusCode));
       }
 
       final jsonResponse = jsonDecode(response.body);
       final candidates = jsonResponse['candidates'] as List?;
-      if (candidates == null || candidates.isEmpty) throw Exception("No candidates");
+      if (candidates == null || candidates.isEmpty) {
+        throw Exception(_l10n.aiChatNoCandidates);
+      }
 
       final content = candidates.first['content'] as Map<String, dynamic>?;
       final parts = content?['parts'] as List?;
-      if (parts == null || parts.isEmpty) throw Exception("No text parts");
+      if (parts == null || parts.isEmpty) {
+        throw Exception(_l10n.aiChatNoTextParts);
+      }
 
       String generatedText = parts.first['text'] as String? ?? "";
 
@@ -429,7 +439,7 @@ class AiOracleService {
       return generatedText;
     } catch (e) {
       if (kDebugMode) debugPrint("🔥 AI Chat Error: $e");
-      return _englishL10n.chatConnectionIssue;
+      return _l10n.chatConnectionIssue;
     }
   }
 }

@@ -26,20 +26,16 @@ class BackupService {
     'coc_settings',
   };
 
+  static AppLocalizations get _l10n =>
+      lookupAppLocalizations(const Locale('en'));
+
   static Future<Box> _getBox(String name) async {
     if (Hive.isBoxOpen(name)) return Hive.box(name);
     if (_encryptedBoxes.contains(name)) {
-      throw StateError("Encrypted Hive box '$name' must already be open before backup operations.");
+      throw StateError(_l10n.backupEncryptedBoxMustBeOpen(name));
     }
     return Hive.openBox(name);
   }
-
-  static bool _isRu(BuildContext context) {
-    final code = Localizations.localeOf(context).languageCode.toLowerCase();
-    return code == 'ru';
-  }
-
-  static String _t(BuildContext context, String en, String ru) => _isRu(context) ? ru : en;
 
   static Future<void> _showSnack(
       BuildContext context, {
@@ -57,12 +53,10 @@ class BackupService {
 
   static Future<bool> _confirmSensitiveAction(
       BuildContext context, {
-        required String titleEn,
-        required String titleRu,
-        required String bodyEn,
-        required String bodyRu,
-        required String confirmEn,
-        required String confirmRu,
+        required AppLocalizations l10n,
+        required String title,
+        required String body,
+        required String confirm,
       }) async {
     if (!context.mounted) return false;
 
@@ -71,16 +65,16 @@ class BackupService {
       barrierDismissible: true,
       builder: (ctx) {
         return AlertDialog(
-          title: Text(_t(ctx, titleEn, titleRu)),
-          content: Text(_t(ctx, bodyEn, bodyRu)),
+          title: Text(title),
+          content: Text(body),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(ctx).pop(false),
-              child: Text(_t(ctx, 'Cancel', 'Отмена')),
+              child: Text(l10n.btnCancel),
             ),
             FilledButton(
               onPressed: () => Navigator.of(ctx).pop(true),
-              child: Text(_t(ctx, confirmEn, confirmRu)),
+              child: Text(confirm),
             ),
           ],
         );
@@ -94,9 +88,7 @@ class BackupService {
     final settings = context.read<SettingsProvider>();
     if (!settings.biometricsEnabled) return true;
 
-    final l10n = AppLocalizations.of(context);
-    final fallbackReason = _t(context, 'Scan to continue', 'Подтвердите для продолжения');
-    final reason = l10n?.authReason ?? fallbackReason;
+    final reason = AppLocalizations.of(context)?.authReason ?? _l10n.authReason;
 
     final auth = AuthService();
     final canCheck = await auth.canCheckBiometrics;
@@ -108,10 +100,9 @@ class BackupService {
   static Future<String?> _askPassword(
       BuildContext context, {
         required bool confirm,
-        required String titleEn,
-        required String titleRu,
-        required String hintEn,
-        required String hintRu,
+        required AppLocalizations l10n,
+        required String title,
+        required String hint,
       }) async {
     final controller1 = TextEditingController();
     final controller2 = TextEditingController();
@@ -129,7 +120,7 @@ class BackupService {
         return StatefulBuilder(
           builder: (ctx, setState) {
             return AlertDialog(
-              title: Text(_t(ctx, titleEn, titleRu)),
+              title: Text(title),
               content: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -137,7 +128,7 @@ class BackupService {
                     controller: controller1,
                     obscureText: obscure,
                     decoration: InputDecoration(
-                      labelText: _t(ctx, hintEn, hintRu),
+                      labelText: hint,
                       errorText: error,
                     ),
                   ),
@@ -147,7 +138,7 @@ class BackupService {
                       controller: controller2,
                       obscureText: obscure,
                       decoration: InputDecoration(
-                        labelText: _t(ctx, 'Confirm password', 'Повторите пароль'),
+                        labelText: l10n.backupConfirmPasswordHint,
                       ),
                     ),
                   ],
@@ -158,15 +149,11 @@ class BackupService {
                         value: !obscure,
                         onChanged: (v) => setState(() => obscure = !(v ?? false)),
                       ),
-                      Text(_t(ctx, 'Show password', 'Показать пароль')),
+                      Text(l10n.backupShowPassword),
                     ],
                   ),
                   Text(
-                    _t(
-                      ctx,
-                      'Important: if you forget this password, the backup cannot be recovered.',
-                      'Важно: если забудете пароль, восстановить бэкап будет невозможно.',
-                    ),
+                    l10n.backupPasswordLostWarning,
                     style: Theme.of(ctx).textTheme.bodySmall,
                   ),
                 ],
@@ -174,25 +161,25 @@ class BackupService {
               actions: [
                 TextButton(
                   onPressed: () => Navigator.of(ctx).pop(null),
-                  child: Text(_t(ctx, 'Cancel', 'Отмена')),
+                  child: Text(l10n.btnCancel),
                 ),
                 FilledButton(
                   onPressed: () async {
                     final p1 = controller1.text.trim();
                     if (p1.length < 6) {
-                      await showError(setState, _t(ctx, 'Password too short (min 6)', 'Слишком короткий пароль (мин 6)'));
+                      await showError(setState, l10n.backupPasswordTooShort);
                       return;
                     }
                     if (confirm) {
                       final p2 = controller2.text.trim();
                       if (p1 != p2) {
-                        await showError(setState, _t(ctx, 'Passwords do not match', 'Пароли не совпадают'));
+                        await showError(setState, l10n.backupPasswordsDoNotMatch);
                         return;
                       }
                     }
                     Navigator.of(ctx).pop(p1);
                   },
-                  child: Text(_t(ctx, 'Continue', 'Продолжить')),
+                  child: Text(l10n.backupContinueAction),
                 ),
               ],
             );
@@ -208,19 +195,16 @@ class BackupService {
 
   /// 📤 CREATE BACKUP
   static Future<void> createBackup(BuildContext context) async {
-    final l10n = AppLocalizations.of(context);
-    final isRu = _isRu(context);
-    final authFailedMessage = isRu ? 'Не удалось подтвердить доступ' : 'Authentication failed';
-    final backupSubject = l10n?.backupSubject ?? (isRu ? 'Бэкап EviMoon' : 'EviMoon Backup');
+    final l10n = AppLocalizations.of(context) ?? _l10n;
+    final authFailedMessage = l10n.backupAuthFailed;
+    final backupSubject = l10n.backupSubject;
 
     final confirmed = await _confirmSensitiveAction(
       context,
-      titleEn: 'Export backup',
-      titleRu: 'Экспорт бэкапа',
-      bodyEn: 'The backup file contains private health data. We will encrypt it with a password.',
-      bodyRu: 'Файл бэкапа содержит приватные данные. Мы зашифруем его паролем.',
-      confirmEn: 'Continue',
-      confirmRu: 'Продолжить',
+      l10n: l10n,
+      title: l10n.backupExportTitle,
+      body: l10n.backupExportBody,
+      confirm: l10n.backupContinueAction,
     );
     if (!confirmed) return;
     if (!context.mounted) return;
@@ -234,7 +218,11 @@ class BackupService {
     if (!context.mounted) return;
 
     final password = await _askPassword(
-      context, confirm: true, titleEn: 'Set backup password', titleRu: 'Пароль для бэкапа', hintEn: 'Password', hintRu: 'Пароль',
+      context,
+      confirm: true,
+      l10n: l10n,
+      title: l10n.backupSetPasswordTitle,
+      hint: l10n.backupPasswordHint,
     );
     if (password == null) return;
 
@@ -336,9 +324,7 @@ class BackupService {
       await Share.shareXFiles(
         [XFile(file.path)],
         subject: backupSubject,
-        text: isRu
-            ? 'Зашифрованный бэкап создан: $dateStr'
-            : 'Encrypted backup created on $dateStr',
+        text: l10n.backupEncryptedCreated(dateStr),
         sharePositionOrigin: shareOrigin,
       );
     } catch (e) {
@@ -346,7 +332,7 @@ class BackupService {
       if (!context.mounted) return;
       await _showSnack(
         context,
-        message: isRu ? 'Ошибка бэкапа: $e' : 'Backup failed: $e',
+        message: l10n.backupFailed(e.toString()),
         success: false,
       );
     }
@@ -354,30 +340,20 @@ class BackupService {
 
   /// 📥 RESTORE FROM BACKUP
   static Future<void> restoreBackup(BuildContext context) async {
-    final isRu = _isRu(context);
-    final authFailedMessage = isRu ? 'Не удалось подтвердить доступ' : 'Authentication failed';
-    final emptyPathMessage = isRu ? 'Путь к файлу пуст' : 'File path is empty';
-    final wrongPasswordMessage = isRu
-        ? 'Неверный пароль или файл бэкапа повреждён'
-        : 'Wrong password or corrupted backup';
-    final invalidBackupMessage = isRu
-        ? 'Неверный формат файла бэкапа'
-        : 'Invalid backup file format';
-    final invalidFileMessage = isRu
-        ? 'Ошибка восстановления: файл повреждён или неверный формат'
-        : 'Restore failed: corrupted file or wrong format';
-    final successMessage = isRu
-        ? 'Данные успешно восстановлены!'
-        : 'Data restored successfully!';
+    final l10n = AppLocalizations.of(context) ?? _l10n;
+    final authFailedMessage = l10n.backupAuthFailed;
+    final emptyPathMessage = l10n.backupPathEmpty;
+    final wrongPasswordMessage = l10n.backupWrongPassword;
+    final invalidBackupMessage = l10n.backupInvalidFileFormat;
+    final invalidFileMessage = l10n.backupRestoreFailed;
+    final successMessage = l10n.msgRestoreSuccess;
 
     final confirmed = await _confirmSensitiveAction(
       context,
-      titleEn: 'Restore backup',
-      titleRu: 'Восстановить бэкап',
-      bodyEn: 'This will replace your current data with the data from the backup file.',
-      bodyRu: 'Текущие данные будут заменены данными из файла бэкапа.',
-      confirmEn: 'Restore',
-      confirmRu: 'Восстановить',
+      l10n: l10n,
+      title: l10n.backupRestoreTitle,
+      body: l10n.backupRestoreBody,
+      confirm: l10n.btnRestore,
     );
     if (!confirmed) return;
     if (!context.mounted) return;
@@ -406,7 +382,11 @@ class BackupService {
       if (isEncryptedEnvelope) {
         if (!context.mounted) return;
         final password = await _askPassword(
-          context, confirm: false, titleEn: 'Enter backup password', titleRu: 'Введите пароль бэкапа', hintEn: 'Password', hintRu: 'Пароль',
+          context,
+          confirm: false,
+          l10n: l10n,
+          title: l10n.backupEnterPasswordTitle,
+          hint: l10n.backupPasswordHint,
         );
         if (password == null) return;
 

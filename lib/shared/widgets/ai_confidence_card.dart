@@ -70,7 +70,9 @@ class AIConfidenceCard extends StatelessWidget {
 
     return Semantics(
       button: onTap != null,
-      label: isCalculating ? title : '$title, $scoreInt percent confidence',
+      label: isCalculating
+          ? title
+          : '$title. ${l10n.aiDialogScore(scoreInt)}',
       child: Container(
         margin: const EdgeInsets.symmetric(horizontal: 0, vertical: 8), // Убрал горизонтальный марджин, так как родитель задает padding
         decoration: BoxDecoration(

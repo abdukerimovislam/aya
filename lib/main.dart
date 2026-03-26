@@ -321,7 +321,9 @@ class AylaApp extends StatelessWidget {
     }
 
     return MaterialApp(
-      title: 'Ayla',
+      onGenerateTitle: (context) =>
+          AppLocalizations.of(context)?.appTitle ??
+          lookupAppLocalizations(const Locale('en')).appTitle,
       debugShowCheckedModeBanner: false,
       locale: settings.locale,
       supportedLocales: const [
@@ -422,7 +424,8 @@ class _AuthGuardState extends State<AuthGuard> with WidgetsBindingObserver {
     if (!mounted) return;
 
     final settings = context.read<SettingsProvider>();
-    final unlockReason = AppLocalizations.of(context)?.authUnlockShortReason ?? "Scan to unlock Ayla";
+    final unlockReason = AppLocalizations.of(context)?.authUnlockShortReason ??
+        lookupAppLocalizations(const Locale('en')).authUnlockShortReason;
 
     if (!settings.biometricsEnabled) {
       if (mounted) {
@@ -491,7 +494,7 @@ class _AuthGuardState extends State<AuthGuard> with WidgetsBindingObserver {
             Icon(Icons.lock_outline, size: 64, color: AppColors.primary),
             const SizedBox(height: 24),
             Text(
-              l10n?.authLockedTitle ?? "Ayla Locked",
+              l10n?.authLockedTitle ?? lookupAppLocalizations(const Locale('en')).authLockedTitle,
               style: GoogleFonts.manrope(
                 fontSize: 22,
                 fontWeight: FontWeight.w800,
@@ -502,7 +505,7 @@ class _AuthGuardState extends State<AuthGuard> with WidgetsBindingObserver {
             CupertinoButton.filled(
               onPressed: _checkAuth,
               child: Text(
-                l10n?.authUnlockBtn ?? "Unlock",
+                l10n?.authUnlockBtn ?? lookupAppLocalizations(const Locale('en')).authUnlockBtn,
                 style: const TextStyle(fontWeight: FontWeight.bold),
               ),
             ),

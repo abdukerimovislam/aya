@@ -9,6 +9,7 @@ import '../../data/models/cycle_model.dart';
 import '../../data/providers/cycle_provider.dart';
 import '../../data/providers/wellness_provider.dart';
 import '../../data/providers/medication_provider.dart'; // 🔥 Импорт трекера
+import '../../core/utils/symptom_localization.dart';
 import '../../l10n/app_localizations.dart';
 
 class PdfService {
@@ -119,7 +120,7 @@ class PdfService {
             pw.SizedBox(height: 20),
 
             if (cycleProvider.isCOCEnabled || cycleProvider.isTTCMode)
-              _buildModeBadge(cycleProvider, fontBold),
+              _buildModeBadge(cycleProvider, fontBold, l10n),
 
             pw.SizedBox(height: 10),
             pw.Divider(thickness: 0.5, color: PdfColors.grey400),
@@ -221,19 +222,19 @@ class PdfService {
     );
   }
 
-  pw.Widget _buildModeBadge(CycleProvider cycle, pw.Font bold) {
+  pw.Widget _buildModeBadge(CycleProvider cycle, pw.Font bold, AppLocalizations l10n) {
     String text = "";
     PdfColor textColor = primaryColor;
     PdfColor bgColor = const PdfColor.fromInt(0xFFF0EDFF);
     PdfColor borderColor = const PdfColor.fromInt(0xFFD3C9FF);
 
     if (cycle.isCOCEnabled) {
-      text = "COC";
+      text = l10n.pdfModeCoc;
       textColor = const PdfColor.fromInt(0xFF00B4D8);
       bgColor = const PdfColor.fromInt(0xFFE5F7FA);
       borderColor = const PdfColor.fromInt(0xFFB2EBF4);
     } else if (cycle.isTTCMode) {
-      text = "TTC";
+      text = l10n.pdfModeTtc;
       textColor = accentColor;
       bgColor = const PdfColor.fromInt(0xFFFFEAF0);
       borderColor = const PdfColor.fromInt(0xFFFFB3C6);
@@ -323,7 +324,9 @@ class PdfService {
           symptoms.addAll(log.symptoms);
 
           if (log.hadSex) symptoms.add(log.protectedSex ? l10n.pdfSymptomSexProtected : l10n.pdfSymptomSexUnprotected);
-          if (log.ovulationTest != OvulationTestResult.none) symptoms.add('${l10n.lblTest}: ${_lhShort(log.ovulationTest)}');
+          if (log.ovulationTest != OvulationTestResult.none) {
+            symptoms.add('${l10n.lblTest}: ${_lhShort(log.ovulationTest, l10n)}');
+          }
 
           return pw.TableRow(
             decoration: pw.BoxDecoration(color: isEven ? PdfColors.white : PdfColors.grey100),
@@ -332,7 +335,7 @@ class PdfService {
               _td(cd, bold, align: pw.TextAlign.center, color: primaryColor),
               _td((log.temperature != null && log.temperature! > 0) ? "${log.temperature}°" : "-", regular, align: pw.TextAlign.center),
               _td(_flowShort(log.flow, l10n), bold, align: pw.TextAlign.center, color: accentColor),
-              _td(symptoms.map((s) => s[0].toUpperCase() + s.substring(1).replaceAll('_', ' ')).join(", "), regular, fontSize: 8),
+              _td(localizeSymptomTokens(symptoms, l10n).join(", "), regular, fontSize: 8),
               _td(takenMeds.join(", "), regular, fontSize: 7, color: primaryColor), // 🔥 Вывод медикаментов
             ],
           );
@@ -364,12 +367,16 @@ class PdfService {
     }
   }
 
-  String _lhShort(OvulationTestResult r) {
+  String _lhShort(OvulationTestResult r, AppLocalizations l10n) {
     switch (r) {
-      case OvulationTestResult.negative: return "Neg";
-      case OvulationTestResult.positive: return "Pos";
-      case OvulationTestResult.peak: return "Peak";
-      default: return "";
+      case OvulationTestResult.negative:
+        return l10n.pdfLhNegativeShort;
+      case OvulationTestResult.positive:
+        return l10n.pdfLhPositiveShort;
+      case OvulationTestResult.peak:
+        return l10n.pdfLhPeakShort;
+      default:
+        return "";
     }
   }
 }

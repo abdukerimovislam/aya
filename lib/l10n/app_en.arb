@@ -65,6 +65,7 @@
   "flowLight": "Light",
   "flowMedium": "Medium",
   "flowHeavy": "Heavy",
+  "flowNone": "None",
 
   "catPain": "Pain",
   "logPain": "Pain",
@@ -94,6 +95,39 @@
   "symptomAcne": "Acne",
   "symptomNausea": "Nausea",
   "symptomBloating": "Bloating",
+  "symCramps": "Cramps",
+  "symHeadache": "Headache",
+  "symBloating": "Bloating",
+  "symAcne": "Acne",
+  "symTenderBreasts": "Tender Breasts",
+  "symBackache": "Backache",
+  "symNausea": "Nausea",
+  "symFatigue": "Fatigue",
+  "symAnxious": "Anxious",
+  "symIrritable": "Irritable",
+  "symCryingSpells": "Crying Spells",
+  "symBrainFog": "Brain Fog",
+  "symHappy": "Happy",
+  "symFocused": "Focused",
+  "symCalm": "Calm",
+  "symSpotting": "Spotting",
+  "symAlcohol": "Alcohol",
+  "symTravel": "Travel",
+  "symHighStress": "High Stress",
+  "symSick": "Sick",
+  "symExercise": "Exercise",
+  "symPoorDiet": "Poor Diet",
+  "symDryMucus": "Dry Mucus",
+  "symStickyMucus": "Sticky Mucus",
+  "symCreamyMucus": "Creamy Mucus",
+  "symEggWhiteMucus": "Egg-white Mucus",
+  "symLhNegative": "LH: Negative",
+  "symLhHigh": "LH: High",
+  "symLhPeak": "LH: Peak",
+  "symIntimacy": "Intimacy",
+  "symHighLibido": "High Libido",
+  "symProtectedSex": "Protected Sex",
+  "symUnprotectedSex": "Unprotected Sex",
 
   "logLibido": "Libido",
   "lblIntimacy": "Intimacy",
@@ -419,6 +453,48 @@
       "date": { "type": "String" }
     }
   },
+  "backupExportTitle": "Export backup",
+  "backupExportBody": "The backup file contains private health data. We will encrypt it with a password.",
+  "backupRestoreTitle": "Restore backup",
+  "backupRestoreBody": "This will replace your current data with the data from the backup file.",
+  "backupSetPasswordTitle": "Set backup password",
+  "backupEnterPasswordTitle": "Enter backup password",
+  "backupPasswordHint": "Password",
+  "backupConfirmPasswordHint": "Confirm password",
+  "backupShowPassword": "Show password",
+  "backupPasswordLostWarning": "Important: if you forget this password, the backup cannot be recovered.",
+  "backupPasswordTooShort": "Password too short (min 6)",
+  "backupPasswordsDoNotMatch": "Passwords do not match",
+  "backupContinueAction": "Continue",
+  "backupAuthFailed": "Authentication failed",
+  "backupPathEmpty": "File path is empty",
+  "backupWrongPassword": "Wrong password or corrupted backup",
+  "backupInvalidFileFormat": "Invalid backup file format",
+  "backupRestoreFailed": "Restore failed: corrupted file or wrong format",
+  "backupEncryptedCreated": "Encrypted backup created on {date}",
+  "@backupEncryptedCreated": {
+    "placeholders": {
+      "date": { "type": "String" }
+    }
+  },
+  "backupFailed": "Backup failed: {error}",
+  "@backupFailed": {
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
+  "backupEncryptedBoxMustBeOpen": "Encrypted Hive box '{name}' must already be open before backup operations.",
+  "@backupEncryptedBoxMustBeOpen": {
+    "placeholders": {
+      "name": { "type": "String" }
+    }
+  },
+  "storageEncryptedBoxClosed": "Encrypted Hive box {name} is closed and no encrypted opener was provided.",
+  "@storageEncryptedBoxClosed": {
+    "placeholders": {
+      "name": { "type": "String" }
+    }
+  },
 
   "greetMorning": "Good morning",
   "greetAfternoon": "Good afternoon",
@@ -456,6 +532,8 @@
   "pdfClinicalSymptoms": "Clinical Symptoms",
   "pdfMedicationShort": "Meds",
   "pdfDefaultPatient": "Patient",
+  "pdfModeCoc": "COC",
+  "pdfModeTtc": "TTC",
   "pdfPeriodRange": "Period: {start} - {end}",
   "@pdfPeriodRange": {
     "placeholders": {
@@ -465,6 +543,9 @@
   },
   "pdfFlowShort": "Flow",
   "pdfFlowMedium": "Med",
+  "pdfLhNegativeShort": "Neg",
+  "pdfLhPositiveShort": "Pos",
+  "pdfLhPeakShort": "Peak",
   "pdfSymptomSexProtected": "Sex (P)",
   "pdfSymptomSexUnprotected": "Sex (U)",
   "unitDays": "days",
@@ -602,6 +683,19 @@
   "insightsKeySignalsSubtitle": "Key signals from your body",
   "insightsHormonalRhythmTitle": "Hormonal Rhythm",
   "insightsHormonalRhythmBody": "Your symptoms correlated with estimated hormone levels",
+  "insightsHormonalRhythmInspectHint": "Touch the chart to inspect",
+  "insightsHormonalRhythmScrubbingDay": "Scrubbing day {day}",
+  "@insightsHormonalRhythmScrubbingDay": {
+    "placeholders": {
+      "day": { "type": "int" }
+    }
+  },
+  "insightsHormonalRhythmMore": "+{count} more",
+  "@insightsHormonalRhythmMore": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
   "insightsHormonalContextTitle": "Hormonal Context",
   "insightsHormonalContextBody": "Why you might be feeling this way today",
   "insightsMedicalInsightsTitle": "Medical Insights",
@@ -922,6 +1016,7 @@
   "ttcBtnTest": "LH Test",
   "ttcBtnSex": "Intimacy",
   "dashboardActionLogged": "Logged",
+  "dashboardActionGenericError": "Error. Please try again.",
   "dashboardPeriodEndingTitle": "Ending today",
   "dashboardPeriodEndingBody": "Tap if bleeding has stopped",
   "dashboardPeriodDayTitle": "Day {day} of period",
@@ -1119,6 +1214,12 @@
   "partnerSyncUnlinkBody": "Your partner will immediately lose access to your cycle updates.",
   "partnerSyncUnlinkAction": "Unlink",
   "partnerSyncUnlinkButton": "Unlink Partner",
+  "partnerSyncAnonymousAuthFailed": "Failed to authenticate anonymously.",
+  "partnerSyncGenerateCodeFailed": "Failed to generate a unique invite code.",
+  "partnerSyncInviteNoLongerValid": "Invite code is no longer valid.",
+  "partnerSyncOwnInviteCode": "You cannot link to your own invite code.",
+  "partnerSyncInviteAlreadyUsed": "This invite code has already been used.",
+  "partnerSyncNotLinked": "Not linked to any couple.",
 
   "chatTitle": "Ayla AI",
   "chatStatusOnline": "Online • Cycle Intelligence Assistant",
@@ -1127,6 +1228,94 @@
   "chatTyping": "Ayla is typing...",
   "chatInputHint": "Ask Ayla...",
   "chatConnectionIssue": "I'm having a little trouble connecting right now. Please check your internet or try again in a moment. 💜",
+  "aiSecurityTokenMissing": "Security token is missing in cloud configuration.",
+  "aiTokenLoadFailed": "Failed to load secure token from cloud.",
+  "aiNoSymptomsLoggedToday": "No specific physical symptoms logged today.",
+  "aiDailyAdvicePrompt": "You are Ayla, an empathetic and highly professional Cycle Intelligence Assistant and women's wellness guide.\nAnalyze the user's current state and explain why they might be feeling this way based on their cycle.\nAlways remind the user to consult a healthcare provider for any medical concerns.\n\nContext:\n- Current cycle phase: {phase}\n- Contraceptive pill user: {isCoc}\n- Today's symptoms and moods: {symptoms}\n\nTask:\nProvide a short, comforting, and scientifically accurate explanation (2 to 4 sentences max) of how their current hormonal profile is likely causing these specific symptoms.\n\nCritical instruction:\nRespond in raw plain text only.\nDo not use JSON.\nDo not wrap the response in braces.\nDo not use Markdown.\nJust write the sentences directly.",
+  "@aiDailyAdvicePrompt": {
+    "placeholders": {
+      "phase": { "type": "String" },
+      "isCoc": { "type": "String" },
+      "symptoms": { "type": "String" }
+    }
+  },
+  "aiProxyHttpError": "Proxy HTTP error: {statusCode}",
+  "@aiProxyHttpError": {
+    "placeholders": {
+      "statusCode": { "type": "int" }
+    }
+  },
+  "aiNoCandidatesReturned": "No candidates returned.",
+  "aiNoTextPartsReturned": "No text parts returned.",
+  "aiGeneratedTextEmpty": "Generated text is empty.",
+  "aiRefreshRateLimit": "Please wait a minute before refreshing.",
+  "aiDailyInsightContext": "Ayla app user.\nRecorded cycles: {totalCycles}.\nRecorded symptom days: {totalLogs}.\nCurrent date: {date}.",
+  "@aiDailyInsightContext": {
+    "placeholders": {
+      "totalCycles": { "type": "int" },
+      "totalLogs": { "type": "int" },
+      "date": { "type": "String" }
+    }
+  },
+  "aiDailyInsightPrompt": "You are the women's health AI assistant (Cycle Intelligence Assistant) in the Ayla app.\nAnalyze the user context and provide one short insight or advice for today.\nIf there is little data available (for example, 0 cycles), greet the user and suggest starting the journal.\n\nContext: {context}\n\nReturn the answer strictly as valid JSON with three keys:\n\"{titleKey}\": A short title (up to 3 or 4 words in English, for example \"Rest & Reset\").\n\"{bodyKey}\": One or two sentences with advice or analysis (in English).\n\"{typeKey}\": One of these exact values only ({neutralType}, {positiveType}, {warningType}).",
+  "@aiDailyInsightPrompt": {
+    "placeholders": {
+      "context": { "type": "String" },
+      "titleKey": { "type": "String" },
+      "bodyKey": { "type": "String" },
+      "typeKey": { "type": "String" },
+      "neutralType": { "type": "String" },
+      "positiveType": { "type": "String" },
+      "warningType": { "type": "String" }
+    }
+  },
+  "aiRequestTimeout": "Request timed out.",
+  "aiProxyInvalidJson": "Proxy did not return valid JSON.",
+  "aiGeneratedNoTextParts": "AI generated no text parts.",
+  "aiGeneratedTextCompletelyEmpty": "Generated text is completely empty.",
+  "aiInvalidJsonObject": "AI did not return a valid JSON object.",
+  "aiJsonFormatError": "AI JSON format error: {error}",
+  "@aiJsonFormatError": {
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
+  "aiMoodLabel": "Mood: {mood}",
+  "@aiMoodLabel": {
+    "placeholders": {
+      "mood": { "type": "String" }
+    }
+  },
+  "aiChatContext": "User context: Phase: {phase}, Day: {day}, COC user: {isCoc}.",
+  "@aiChatContext": {
+    "placeholders": {
+      "phase": { "type": "String" },
+      "day": { "type": "int" },
+      "isCoc": { "type": "String" }
+    }
+  },
+  "aiChatSymptomsToday": "Symptoms today: {symptoms}.",
+  "@aiChatSymptomsToday": {
+    "placeholders": {
+      "symptoms": { "type": "String" }
+    }
+  },
+  "aiChatSystemPrompt": "You are Ayla, an empathetic, highly professional Cycle Intelligence Assistant and women's wellness guide.\nYou are chatting directly with the user. Keep responses warm, concise, and scientifically accurate.\nYou are not a doctor. Do not give dangerous medical diagnoses. Always remind the user to consult a healthcare provider for any serious or concerning medical symptoms.\n{context}",
+  "@aiChatSystemPrompt": {
+    "placeholders": {
+      "context": { "type": "String" }
+    }
+  },
+  "aiChatRoleUser": "User",
+  "aiChatRoleAyla": "Ayla",
+  "aiChatHttpError": "Chat HTTP error: {statusCode}",
+  "@aiChatHttpError": {
+    "placeholders": {
+      "statusCode": { "type": "int" }
+    }
+  },
+  "aiChatNoCandidates": "No candidates.",
+  "aiChatNoTextParts": "No text parts.",
   "aiDailyInsightTitle": "Daily Insight",
   "aiDailyInsightBody": "Listen to your body today.",
   "notifAylaInsightTitle": "Ayla Insight ✨",
@@ -1295,7 +1484,7 @@
   "eduBodyBBT": "Basal Body Temperature (BBT) rises slightly after ovulation due to progesterone production. Tracking it confirms that ovulation has actually occurred.",
   "eduTitleLH": "Why use Ovulation Tests?",
   "eduBodyLH": "Luteinizing Hormone (LH) surges 24-48 hours before ovulation. A positive test predicts your most fertile days before the egg is released.",
-  "eduTitleSex": "Logging Intimacy",
+  "eduTiteSex": "Logging Intimacy",
   "eduBodySex": "Sperm can survive for up to 5 days inside the body. Logging helps you ensure you have timed intimacy within your fertile window for the best chance of conception.",
   "eduTitleMucus": "Cervical Mucus",
   "eduBodyMucus": "As ovulation approaches, estrogen makes your fluid stretchy and clear (like egg whites). This creates the perfect environment for sperm to swim and survive."

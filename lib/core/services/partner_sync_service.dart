@@ -1,16 +1,21 @@
 import 'dart:math';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 
 import '../../data/models/cycle_model.dart';
 import '../../data/providers/cycle_provider.dart';
+import '../../l10n/app_localizations.dart';
 
 class PartnerSyncService {
   static final FirebaseFirestore _db = FirebaseFirestore.instance;
   static final FirebaseAuth _auth = FirebaseAuth.instance;
   static const int _maxInviteCodeAttempts = 10;
+
+  static AppLocalizations get _l10n =>
+      lookupAppLocalizations(const Locale('en'));
 
   static Future<User> _ensureAuthenticated() async {
     User? user = _auth.currentUser;
@@ -19,7 +24,7 @@ class PartnerSyncService {
       final userCredential = await _auth.signInAnonymously();
       user = userCredential.user;
     }
-    if (user == null) throw Exception("Failed to authenticate anonymously.");
+    if (user == null) throw Exception(_l10n.partnerSyncAnonymousAuthFailed);
     return user;
   }
 
@@ -51,7 +56,7 @@ class PartnerSyncService {
       }
     }
 
-    throw Exception("Failed to generate a unique invite code.");
+    throw Exception(_l10n.partnerSyncGenerateCodeFailed);
   }
 
   static Future<int?> _readTodayMoodFromLocalLog() async {
@@ -126,7 +131,7 @@ class PartnerSyncService {
           .get();
 
       if (query.docs.isEmpty) {
-        throw Exception("Invalid or expired invite code.");
+        throw Exception(_l10n.partnerLinkInvalidCode);
       }
 
       final coupleDoc = query.docs.first;
@@ -137,7 +142,7 @@ class PartnerSyncService {
         final data = freshDoc.data();
 
         if (!freshDoc.exists || data == null) {
-          throw Exception("Invite code is no longer valid.");
+          throw Exception(_l10n.partnerSyncInviteNoLongerValid);
         }
 
         final currentCode = data['invite_code'] as String?;
@@ -146,13 +151,13 @@ class PartnerSyncService {
         final expiresAt = data['code_expires_at'] as Timestamp?;
 
         if (currentCode != normalizedCode || expiresAt == null || expiresAt.toDate().isBefore(DateTime.now())) {
-          throw Exception("Invite code is no longer valid.");
+          throw Exception(_l10n.partnerSyncInviteNoLongerValid);
         }
         if (femaleUid == user.uid) {
-          throw Exception("You cannot link to your own invite code.");
+          throw Exception(_l10n.partnerSyncOwnInviteCode);
         }
         if (partnerUid != null && partnerUid != user.uid) {
-          throw Exception("This invite code has already been used.");
+          throw Exception(_l10n.partnerSyncInviteAlreadyUsed);
         }
 
         transaction.update(coupleRef, {
@@ -228,7 +233,7 @@ class PartnerSyncService {
 
   static Stream<DocumentSnapshot<Map<String, dynamic>>> partnerDataStream() {
     final coupleId = _settingsBox().get('couple_id');
-    if (coupleId == null) throw Exception("Not linked to any couple.");
+    if (coupleId == null) throw Exception(_l10n.partnerSyncNotLinked);
 
     return _db.collection('couples').doc(coupleId).snapshots();
   }

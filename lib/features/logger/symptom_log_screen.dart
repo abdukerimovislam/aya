@@ -7,6 +7,7 @@ import 'package:intl/intl.dart';
 
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/intimacy_logging.dart';
+import '../../core/utils/symptom_localization.dart';
 import '../../l10n/app_localizations.dart';
 import '../../data/models/cycle_model.dart';
 import '../../data/providers/cycle_provider.dart';
@@ -410,7 +411,7 @@ class _SymptomLogScreenState extends State<SymptomLogScreen> {
     );
   }
 
-  Widget _buildDateRoulette(bool isTTC, AppLocalizations? l10n) {
+  Widget _buildDateRoulette(bool isTTC, AppLocalizations l10n) {
     final activeColor = isTTC ? Colors.purple : AppColors.primary;
     final today = DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day);
 
@@ -476,8 +477,8 @@ class _SymptomLogScreenState extends State<SymptomLogScreen> {
                 children: [
                   Text(
                     isToday
-                        ? (l10n?.btnToday ?? 'Today').toUpperCase()
-                        : DateFormat('E', l10n?.localeName).format(date).toUpperCase(),
+                        ? l10n.btnToday.toUpperCase()
+                        : DateFormat('E', l10n.localeName).format(date).toUpperCase(),
                     style: GoogleFonts.inter(
                       fontSize: isToday ? 9 : 10.5,
                       fontWeight: FontWeight.w800,
@@ -507,61 +508,42 @@ class _SymptomLogScreenState extends State<SymptomLogScreen> {
     );
   }
 
+  // 🔥 МАППЕР: Переводит системные ключи БД в язык интерфейса
+  String _getLocalizedSymptomName(String key, AppLocalizations l10n) {
+    return localizeSymptomToken(key, l10n);
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final cycle = context.watch<CycleProvider>();
     final bool isTTC = cycle.appMode == AppMode.ttc;
-    final dateStr = DateFormat('MMMM d, yyyy').format(_selectedDate);
+    final dateStr = DateFormat('MMMM d, yyyy', l10n.localeName).format(_selectedDate);
     final bottomInset = MediaQuery.of(context).padding.bottom;
 
+    // СИСТЕМНЫЕ КЛЮЧИ (Английские, всегда сохраняются в БД такими)
     final List<String> physicalOptions = [
-      'Cramps',
-      'Headache',
-      'Bloating',
-      'Acne',
-      'Tender Breasts',
-      'Backache',
-      'Nausea',
-      'Fatigue',
+      'Cramps', 'Headache', 'Bloating', 'Acne', 'Tender Breasts', 'Backache', 'Nausea', 'Fatigue',
     ];
 
     final List<String> mentalOptions = [
-      'Anxious',
-      'Irritable',
-      'Crying Spells',
-      'Brain Fog',
-      'Happy',
-      'Focused',
-      'Calm',
+      'Anxious', 'Irritable', 'Crying Spells', 'Brain Fog', 'Happy', 'Focused', 'Calm',
     ];
 
     final List<String> otherOptions = [
-      'Spotting',
-      'Alcohol',
-      'Travel',
-      'High Stress',
-      'Sick',
-      'Exercise',
-      'Poor Diet',
+      'Spotting', 'Alcohol', 'Travel', 'High Stress', 'Sick', 'Exercise', 'Poor Diet',
     ];
 
     final List<String> mucusOptions = [
-      'Dry Mucus',
-      'Sticky Mucus',
-      'Creamy Mucus',
-      'Egg-white Mucus',
+      'Dry Mucus', 'Sticky Mucus', 'Creamy Mucus', 'Egg-white Mucus',
     ];
 
     final List<String> lhTestOptions = [
-      'LH: Negative',
-      'LH: High',
-      'LH: Peak',
+      'LH: Negative', 'LH: High', 'LH: Peak',
     ];
 
     final List<String> sexOptions = [
-      'Intimacy',
-      'High Libido',
+      'Intimacy', 'High Libido',
     ];
 
     final Color accent = isTTC ? Colors.purple : AppColors.primary;
@@ -792,7 +774,7 @@ class _SymptomLogScreenState extends State<SymptomLogScreen> {
                     subtitle: l10n.symptomLogSectionBleedingBody,
                     icon: CupertinoIcons.drop_fill,
                     accent: AppColors.menstruation,
-                    child: _buildFlowSelector(),
+                    child: _buildFlowSelector(l10n),
                   ),
                   const SizedBox(height: 18),
 
@@ -801,7 +783,7 @@ class _SymptomLogScreenState extends State<SymptomLogScreen> {
                     subtitle: l10n.symptomLogSectionBbtBody,
                     icon: CupertinoIcons.thermometer,
                     accent: Colors.redAccent,
-                    child: _buildBBTInput(),
+                    child: _buildBBTInput(l10n),
                   ),
                   const SizedBox(height: 18),
 
@@ -814,6 +796,7 @@ class _SymptomLogScreenState extends State<SymptomLogScreen> {
                       child: _buildSymptomGrid(
                         lhTestOptions,
                         false,
+                        l10n,
                         isTTC: true,
                         customColor: Colors.purple,
                       ),
@@ -828,6 +811,7 @@ class _SymptomLogScreenState extends State<SymptomLogScreen> {
                       child: _buildSymptomGrid(
                         mucusOptions,
                         false,
+                        l10n,
                         isTTC: true,
                         customColor: Colors.teal,
                       ),
@@ -835,7 +819,6 @@ class _SymptomLogScreenState extends State<SymptomLogScreen> {
                     const SizedBox(height: 18),
                   ],
 
-                  // 🔥 ИНТИМНЫЙ КАЛЕНДАРЬ ТЕПЕРЬ ДОСТУПЕН ВСЕМ (Вынесен из блока if (isTTC))
                   _buildSectionBlock(
                     title: l10n.symptomLogSectionIntimacyTitle,
                     subtitle: isTTC
@@ -846,6 +829,7 @@ class _SymptomLogScreenState extends State<SymptomLogScreen> {
                     child: _buildSymptomGrid(
                       sexOptions,
                       false,
+                      l10n,
                       isTTC: isTTC,
                       customColor: Colors.pinkAccent,
                     ),
@@ -893,6 +877,7 @@ class _SymptomLogScreenState extends State<SymptomLogScreen> {
                     child: _buildSymptomGrid(
                       physicalOptions,
                       true,
+                      l10n,
                       isTTC: false,
                     ),
                   ),
@@ -906,6 +891,7 @@ class _SymptomLogScreenState extends State<SymptomLogScreen> {
                     child: _buildSymptomGrid(
                       mentalOptions,
                       false,
+                      l10n,
                       isTTC: false,
                     ),
                   ),
@@ -919,6 +905,7 @@ class _SymptomLogScreenState extends State<SymptomLogScreen> {
                     child: _buildSymptomGrid(
                       otherOptions,
                       false,
+                      l10n,
                       isTTC: false,
                     ),
                   ),
@@ -995,12 +982,12 @@ class _SymptomLogScreenState extends State<SymptomLogScreen> {
     );
   }
 
-  Widget _buildFlowSelector() {
+  Widget _buildFlowSelector(AppLocalizations l10n) {
     final flows = [
-      {'val': FlowIntensity.none, 'icon': CupertinoIcons.drop, 'label': 'None'},
-      {'val': FlowIntensity.light, 'icon': CupertinoIcons.drop_fill, 'label': 'Light'},
-      {'val': FlowIntensity.medium, 'icon': CupertinoIcons.drop_fill, 'label': 'Medium'},
-      {'val': FlowIntensity.heavy, 'icon': CupertinoIcons.drop_fill, 'label': 'Heavy'},
+      {'val': FlowIntensity.none, 'icon': CupertinoIcons.drop, 'label': l10n.flowNone},
+      {'val': FlowIntensity.light, 'icon': CupertinoIcons.drop_fill, 'label': l10n.flowLight},
+      {'val': FlowIntensity.medium, 'icon': CupertinoIcons.drop_fill, 'label': l10n.flowMedium},
+      {'val': FlowIntensity.heavy, 'icon': CupertinoIcons.drop_fill, 'label': l10n.flowHeavy},
     ];
 
     return SingleChildScrollView(
@@ -1090,8 +1077,7 @@ class _SymptomLogScreenState extends State<SymptomLogScreen> {
     );
   }
 
-  Widget _buildBBTInput() {
-    final l10n = AppLocalizations.of(context)!;
+  Widget _buildBBTInput(AppLocalizations l10n) {
     final hasLoggedTemperature = _log.temperature != null && _log.temperature! > 0.0;
     double currentTemp = hasLoggedTemperature
         ? _log.temperature!
@@ -1139,8 +1125,8 @@ class _SymptomLogScreenState extends State<SymptomLogScreen> {
                     hasLoggedTemperature
                         ? l10n.symptomLogBbtMeasuredLabel
                         : (_suggestedTemperature != null
-                            ? l10n.symptomLogBbtSuggestedLabel
-                            : l10n.symptomLogBbtMeasuredLabel),
+                        ? l10n.symptomLogBbtSuggestedLabel
+                        : l10n.symptomLogBbtMeasuredLabel),
                     style: GoogleFonts.inter(
                       fontSize: 12.5,
                       fontWeight: FontWeight.w600,
@@ -1306,7 +1292,8 @@ class _SymptomLogScreenState extends State<SymptomLogScreen> {
 
   Widget _buildSymptomGrid(
       List<String> options,
-      bool isPain, {
+      bool isPain,
+      AppLocalizations l10n, {
         required bool isTTC,
         Color? customColor,
       }) {
@@ -1334,11 +1321,11 @@ class _SymptomLogScreenState extends State<SymptomLogScreen> {
                   list.remove(symptom);
                 }
               } else {
-                if (symptom.startsWith("LH:")) {
-                  list.removeWhere((e) => e.startsWith("LH:"));
+                if (isLhSymptom(symptom)) {
+                  list.removeWhere(isLhSymptom);
                 }
-                if (symptom.contains("Mucus")) {
-                  list.removeWhere((e) => e.contains("Mucus"));
+                if (isMucusSymptom(symptom)) {
+                  list.removeWhere(isMucusSymptom);
                 }
                 if (symptom == genericIntimacySymptom) {
                   list.removeWhere(isIntimacySymptom);
@@ -1350,14 +1337,14 @@ class _SymptomLogScreenState extends State<SymptomLogScreen> {
                 if (symptom == 'LH: Peak' && _log.flow != FlowIntensity.none) {
                   _log = _log.copyWith(flow: FlowIntensity.none);
                   _showConflictWarning(
-                    AppLocalizations.of(context)!.symptomLogBleedingRemovedOvulationConflict,
+                    l10n.symptomLogBleedingRemovedOvulationConflict,
                   );
                 }
 
                 if (symptom.contains('Mucus') && _log.flow != FlowIntensity.none) {
                   _log = _log.copyWith(flow: FlowIntensity.none);
                   _showConflictWarning(
-                    AppLocalizations.of(context)!.symptomLogBleedingRemovedMucusConflict,
+                    l10n.symptomLogBleedingRemovedMucusConflict,
                   );
                 }
               }
@@ -1395,7 +1382,7 @@ class _SymptomLogScreenState extends State<SymptomLogScreen> {
                   : [],
             ),
             child: Text(
-              symptom,
+              _getLocalizedSymptomName(symptom, l10n),
               style: GoogleFonts.inter(
                 fontSize: 14,
                 fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,

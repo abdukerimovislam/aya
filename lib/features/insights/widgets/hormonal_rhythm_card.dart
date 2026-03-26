@@ -6,6 +6,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../data/models/cycle_model.dart';
+import '../../../l10n/app_localizations.dart';
 
 class HormonalRhythmCard extends StatefulWidget {
   final CycleData data;
@@ -50,6 +51,7 @@ class _HormonalRhythmCardState extends State<HormonalRhythmCard> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Container(
       width: double.infinity,
       height: 368,
@@ -110,6 +112,7 @@ class _HormonalRhythmCardState extends State<HormonalRhythmCard> {
                     dailySymptoms: widget.dailySymptoms,
                     primaryCurve: AppColors.primary,
                     secondaryCurve: _secondaryCurve,
+                    todayLabel: l10n.btnToday.toUpperCase(),
                   ),
                 ),
               ),
@@ -121,10 +124,10 @@ class _HormonalRhythmCardState extends State<HormonalRhythmCard> {
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Expanded(child: _buildHeader()),
+                  Expanded(child: _buildHeader(l10n)),
                   if (_focusedDay != null) ...[
                     const SizedBox(width: 12),
-                    _buildTooltip(_focusedDay!),
+                    _buildTooltip(_focusedDay!, l10n),
                   ],
                 ],
               ),
@@ -133,7 +136,7 @@ class _HormonalRhythmCardState extends State<HormonalRhythmCard> {
               left: 18,
               right: 18,
               bottom: 18,
-              child: _buildBottomPanel(),
+              child: _buildBottomPanel(l10n),
             ),
           ],
         ),
@@ -141,12 +144,12 @@ class _HormonalRhythmCardState extends State<HormonalRhythmCard> {
     );
   }
 
-  Widget _buildHeader() {
+  Widget _buildHeader(AppLocalizations l10n) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Hormonal Rhythm',
+          l10n.insightsHormonalRhythmTitle,
           style: GoogleFonts.outfit(
             fontSize: 21,
             fontWeight: FontWeight.w800,
@@ -157,7 +160,7 @@ class _HormonalRhythmCardState extends State<HormonalRhythmCard> {
         ),
         const SizedBox(height: 6),
         Text(
-          'A soft view of estrogen and progesterone across your cycle.',
+          l10n.insightsHormonalRhythmBody,
           style: GoogleFonts.inter(
             fontSize: 12.5,
             fontWeight: FontWeight.w500,
@@ -171,15 +174,15 @@ class _HormonalRhythmCardState extends State<HormonalRhythmCard> {
           runSpacing: 8,
           children: [
             _buildLegendChip(
-              label: 'Estrogen',
+              label: l10n.hormoneEstrogen,
               color: AppColors.primary,
             ),
             _buildLegendChip(
-              label: 'Progesterone',
+              label: l10n.hormoneProgesterone,
               color: _secondaryCurve,
             ),
             _buildLegendChip(
-              label: 'Symptoms',
+              label: l10n.navSymptoms,
               color: Colors.white,
               isGhost: true,
             ),
@@ -241,7 +244,7 @@ class _HormonalRhythmCardState extends State<HormonalRhythmCard> {
     );
   }
 
-  Widget _buildTooltip(int day) {
+  Widget _buildTooltip(int day, AppLocalizations l10n) {
     final symptoms = widget.dailySymptoms[day] ?? [];
 
     return ClipRRect(
@@ -269,7 +272,7 @@ class _HormonalRhythmCardState extends State<HormonalRhythmCard> {
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Text(
-                'Day $day',
+                l10n.dayOfCycle(day),
                 style: GoogleFonts.outfit(
                   fontSize: 17,
                   fontWeight: FontWeight.w800,
@@ -278,7 +281,7 @@ class _HormonalRhythmCardState extends State<HormonalRhythmCard> {
               ),
               const SizedBox(height: 2),
               Text(
-                _phaseLabelForDay(day),
+                _phaseLabelForDay(day, l10n),
                 textAlign: TextAlign.right,
                 style: GoogleFonts.inter(
                   fontSize: 11,
@@ -289,7 +292,7 @@ class _HormonalRhythmCardState extends State<HormonalRhythmCard> {
               const SizedBox(height: 10),
               if (symptoms.isEmpty)
                 Text(
-                  'No symptoms logged',
+                  l10n.lblNoSymptoms,
                   textAlign: TextAlign.right,
                   style: GoogleFonts.inter(
                     fontSize: 12,
@@ -321,7 +324,7 @@ class _HormonalRhythmCardState extends State<HormonalRhythmCard> {
                       Padding(
                         padding: const EdgeInsets.only(top: 2),
                         child: Text(
-                          '+${symptoms.length - 3} more',
+                          l10n.insightsHormonalRhythmMore(symptoms.length - 3),
                           style: GoogleFonts.inter(
                             fontSize: 11,
                             fontWeight: FontWeight.w600,
@@ -338,7 +341,7 @@ class _HormonalRhythmCardState extends State<HormonalRhythmCard> {
     );
   }
 
-  Widget _buildBottomPanel() {
+  Widget _buildBottomPanel(AppLocalizations l10n) {
     return Column(
       children: [
         Container(
@@ -352,14 +355,14 @@ class _HormonalRhythmCardState extends State<HormonalRhythmCard> {
             children: [
               Expanded(
                 child: _buildPhasePill(
-                  'Menstrual',
+                  l10n.phaseMenstruation,
                   isActive: _safeCurrentDay <= 5,
                 ),
               ),
               const SizedBox(width: 8),
               Expanded(
                 child: _buildPhasePill(
-                  'Follicular',
+                  l10n.phaseFollicular,
                   isActive: _safeCurrentDay > 5 &&
                       _safeCurrentDay < _safeOvulationDay,
                 ),
@@ -367,14 +370,14 @@ class _HormonalRhythmCardState extends State<HormonalRhythmCard> {
               const SizedBox(width: 8),
               Expanded(
                 child: _buildPhasePill(
-                  'Ovulation',
+                  l10n.phaseOvulation,
                   isActive: (_safeCurrentDay - _safeOvulationDay).abs() <= 1,
                 ),
               ),
               const SizedBox(width: 8),
               Expanded(
                 child: _buildPhasePill(
-                  'Luteal',
+                  l10n.phaseLuteal,
                   isActive: _safeCurrentDay > _safeOvulationDay,
                 ),
               ),
@@ -385,7 +388,7 @@ class _HormonalRhythmCardState extends State<HormonalRhythmCard> {
         Row(
           children: [
             Text(
-              'Day $_safeCurrentDay of $_safeCycleLength',
+              l10n.homeCocDayOfTotal(_safeCurrentDay, _safeCycleLength),
               style: GoogleFonts.inter(
                 fontSize: 11.5,
                 fontWeight: FontWeight.w700,
@@ -395,8 +398,8 @@ class _HormonalRhythmCardState extends State<HormonalRhythmCard> {
             const Spacer(),
             Text(
               _focusedDay == null
-                  ? 'Touch the chart to inspect'
-                  : 'Scrubbing day ${_focusedDay!}',
+                  ? l10n.insightsHormonalRhythmInspectHint
+                  : l10n.insightsHormonalRhythmScrubbingDay(_focusedDay!),
               style: GoogleFonts.inter(
                 fontSize: 11.5,
                 fontWeight: FontWeight.w600,
@@ -438,11 +441,11 @@ class _HormonalRhythmCardState extends State<HormonalRhythmCard> {
     );
   }
 
-  String _phaseLabelForDay(int day) {
-    if (day <= 5) return 'Menstrual phase';
-    if (day < _safeOvulationDay) return 'Follicular phase';
-    if ((day - _safeOvulationDay).abs() <= 1) return 'Ovulation window';
-    return 'Luteal phase';
+  String _phaseLabelForDay(int day, AppLocalizations l10n) {
+    if (day <= 5) return l10n.phaseMenstruation;
+    if (day < _safeOvulationDay) return l10n.phaseFollicular;
+    if ((day - _safeOvulationDay).abs() <= 1) return l10n.phaseOvulation;
+    return l10n.phaseLuteal;
   }
 
   void _handlePanStart(DragStartDetails details) {
@@ -532,6 +535,7 @@ class _HormoneWavePainter extends CustomPainter {
   final Map<int, List<String>> dailySymptoms;
   final Color primaryCurve;
   final Color secondaryCurve;
+  final String todayLabel;
 
   _HormoneWavePainter({
     required this.cycleLength,
@@ -541,6 +545,7 @@ class _HormoneWavePainter extends CustomPainter {
     required this.dailySymptoms,
     required this.primaryCurve,
     required this.secondaryCurve,
+    required this.todayLabel,
   });
 
   static const Color _gridColor = Color(0xFFF0E0E7);
@@ -672,7 +677,7 @@ class _HormoneWavePainter extends CustomPainter {
 
       final todayLabel = TextPainter(
         text: TextSpan(
-          text: 'TODAY',
+          text: this.todayLabel,
           style: GoogleFonts.inter(
             fontSize: 10,
             fontWeight: FontWeight.w800,
